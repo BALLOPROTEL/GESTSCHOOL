@@ -1,0 +1,60 @@
+Partons sur une logique simple, 
+
+la gestion d'une ecole, une ecole qui part de la classe de CP1 à l'université (M2)
+l'ecole est une ecole franco-arabe, integre dans dans une mosquee (intergre la gestion de la mosquee dans le system, est à prevoir dans le futur)
+
+maintenant, il va falloir créer un system complet de gestion d'ecole franco-arabe du CP1 au M2. 
+le system dois etre scalabe, robuste, et performant, avec des db des replicats
+en te bassant sur tes expertises de plus de 40ans dans l'informique, expert dev ops, propose moi une architecutre, hyper moderne pour qu'ensemble nous pouvons construire petit à petit cette solution.
+explique moi le le fond, et la forme de la solution attendue
+les images ci-joint sont des exemple ulistrative (peut-être à quoi dois resemblé l'etrafface)
+
+*************************
+
+Partons sur une logique simple.
+
+Nous voulons concevoir un système de gestion pour une école franco-arabe basé en Cote d'ivoire à Abidjan dans la commune d'Abobo. Allant du CP1 jusqu’à l’université (niveau M2).
+L’école est intégrée à une mosquée (Mosquée Blanche); la gestion de la mosquée devra donc être prise en compte dans le système (fonctionnalité à prévoir pour une phase ultérieure).
+
+L’objectif est de créer un système complet de gestion scolaire franco-arabe couvrant l’ensemble du parcours académique, du primaire jusqu’au supérieur.
+
+Le système devra être :
+
+* scalable
+* robuste
+* performant
+* conçu avec des bases de données répliquées et une architecture fiable
+
+En te basant sur ton expertise avancée en architecture logicielle, Dev et Ops et conception de systèmes à grande échelle, propose-moi une architecture moderne, évolutive et maintenable afin que nous puissions construire progressivement cette solution.
+
+Explique clairement :
+
+* le fond : les choix techniques, l’architecture, les composants, la gestion des données, la sécurité, la scalabilité
+* la forme : l’organisation du projet, les modules fonctionnels, les interfaces, et la logique globale du système
+
+Les images jointes sont fournies uniquement comme exemples illustratifs (elles peuvent inspirer l’interface utilisateur).
+
+**************************
+
+Parfait, `http://localhost:5180/` est une bonne base.
+
+La suite logique du projet, en ordre:
+
+1. **Stabiliser Sprint 1**
+1. Ajouter un script de seed des utilisateurs (éviter insertion manuelle SQL).
+2. Ajouter `CI` pour le web-admin (`build` + `lint`) dans `.github/workflows/ci.yml`.
+3. Vérifier le flux complet login -> refresh -> logout côté UI.
+
+2. **Sprint 2: Référentiel académique + Inscriptions**
+1. Backend CRUD: `school_years`, `cycles`, `levels`, `classes`, `subjects`, `academic_periods`.
+2. Backend inscriptions: lier élève -> classe -> année scolaire.
+3. UI admin: pages Référentiel + page Inscriptions (formulaires + listes + filtres).
+
+3. **Sprint 3: Comptabilité**
+1. `fee_plans`, `invoices`, `payments`, reçus.
+2. Dashboard recouvrement.
+
+4. **Sprint 4: Notes & Bulletins**
+1. Saisie notes, calcul moyennes/rangs, génération bulletin PDF.
+
+Si tu veux, je commence **maintenant** par le Sprint 2 (backend + UI Référentiel), puis Inscriptions juste après.

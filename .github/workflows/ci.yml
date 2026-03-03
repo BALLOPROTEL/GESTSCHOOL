@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: gestschool
+          POSTGRES_PASSWORD: gestschool
+          POSTGRES_DB: gestschool_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gestschool -d gestschool_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://gestschool:gestschool@localhost:5432/gestschool_test
+      JWT_SECRET: ci-secret
+      JWT_EXPIRES_IN: 1h
+      REFRESH_TOKEN_TTL_DAYS: 30
+      DEFAULT_TENANT_ID: 00000000-0000-0000-0000-000000000001
+      NOTIFICATIONS_WORKER_ENABLED: "false"
+      NOTIFY_EMAIL_PROVIDER: MOCK
+      NOTIFY_SMS_PROVIDER: MOCK
+      NOTIFICATION_WEBHOOK_SECRET: ci-webhook-secret
+      ANALYTICS_CACHE_TTL_SECONDS: 1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.24.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @gestschool/api prisma:generate
+
+      - name: Lint API
+        run: pnpm --filter @gestschool/api lint
+
+      - name: Build API
+        run: pnpm --filter @gestschool/api build
+
+      - name: Run API e2e tests (PostgreSQL)
+        run: pnpm --filter @gestschool/api test:e2e:db
+
+      - name: Lint Web Admin
+        run: pnpm --filter @gestschool/web-admin lint
+
+      - name: Build Web Admin
+        run: pnpm --filter @gestschool/web-admin build
