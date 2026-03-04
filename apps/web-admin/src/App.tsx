@@ -1419,23 +1419,30 @@ export function App(): JSX.Element {
   const refresh = useCallback(async (): Promise<Session | null> => {
     const current = sessionRef.current;
     if (!current?.refreshToken) return null;
-    const response = await fetch(`${API}/auth/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: current.refreshToken })
-    });
-    if (!response.ok) {
+    try {
+      const response = await fetch(`${API}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken: current.refreshToken })
+      });
+      if (!response.ok) {
+        setSession(null);
+        clearData();
+        setError("Session expiree.");
+        return null;
+      }
+      const payload = (await response.json()) as Omit<Session, "tenantId"> & { user: Session["user"] };
+      const next: Session = { ...payload, tenantId: current.tenantId || payload.user.tenantId };
+      setSession(next);
+      setLastSyncAt(new Date().toISOString());
+      setNotice("Refresh OK.");
+      return next;
+    } catch {
       setSession(null);
       clearData();
-      setError("Session expirée.");
+      setError("API indisponible ou CORS refuse. Verifie CORS_ORIGINS sur Render.");
       return null;
     }
-    const payload = (await response.json()) as Omit<Session, "tenantId"> & { user: Session["user"] };
-    const next: Session = { ...payload, tenantId: current.tenantId || payload.user.tenantId };
-    setSession(next);
-    setLastSyncAt(new Date().toISOString());
-    setNotice("Refresh OK.");
-    return next;
   }, [clearData]);
 
   const api = useCallback(
@@ -2602,28 +2609,35 @@ export function App(): JSX.Element {
       return;
     }
     setLoadingAuth(true);
-    const response = await fetch(`${API}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username: loginForm.username.trim(),
-        password: loginForm.password,
-        tenantId: loginForm.tenantId.trim()
-      })
-    });
-    setLoadingAuth(false);
-    if (!response.ok) {
-      setError(await parseError(response));
-      return;
+    try {
+      const response = await fetch(`${API}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: loginForm.username.trim(),
+          password: loginForm.password,
+          tenantId: loginForm.tenantId.trim()
+        })
+      });
+      if (!response.ok) {
+        setError(await parseError(response));
+        return;
+      }
+      const payload = (await response.json()) as Omit<Session, "tenantId"> & { user: Session["user"] };
+      const nextSession = { ...payload, tenantId: loginForm.tenantId.trim() || payload.user.tenantId };
+      const role = (nextSession.user.role as Role) || "ADMIN";
+      setLoginErrors({});
+      setSession(nextSession);
+      setLastSyncAt(new Date().toISOString());
+      setNotice("Connexion reussie.");
+      setTab(ROLE_HOME_SCREEN[role] || "dashboard");
+    } catch {
+      setError(
+        "Connexion API impossible. Verifie VITE_API_BASE_URL et CORS_ORIGINS (sans slash final)."
+      );
+    } finally {
+      setLoadingAuth(false);
     }
-    const payload = (await response.json()) as Omit<Session, "tenantId"> & { user: Session["user"] };
-    const nextSession = { ...payload, tenantId: loginForm.tenantId.trim() || payload.user.tenantId };
-    const role = (nextSession.user.role as Role) || "ADMIN";
-    setLoginErrors({});
-    setSession(nextSession);
-    setLastSyncAt(new Date().toISOString());
-    setNotice("Connexion reussie.");
-    setTab(ROLE_HOME_SCREEN[role] || "dashboard");
   };
 
   const logout = async (): Promise<void> => {
@@ -7658,6 +7672,7 @@ return (
   </main>
 );
 }
+
 
 
 
