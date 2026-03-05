@@ -502,10 +502,10 @@ const SCREEN_DEFS: ScreenDef[] = [
   { id: "reports", label: "Rapports & conformite", group: "principal", roles: ["ADMIN", "SCOLARITE", "COMPTABLE"] },
   { id: "mosque", label: "Mosquee", group: "principal", roles: ["ADMIN", "SCOLARITE", "COMPTABLE"] },
   { id: "grades", label: "Notes & bulletins", group: "principal", roles: ["ADMIN", "SCOLARITE", "ENSEIGNANT"] },
-  { id: "schoolLifeOverview", label: "Vie scolaire - pilotage", group: "vie", roles: ["ADMIN", "SCOLARITE", "ENSEIGNANT"] },
-  { id: "schoolLifeAttendance", label: "Vie scolaire - absences", group: "vie", roles: ["ADMIN", "SCOLARITE", "ENSEIGNANT"] },
-  { id: "schoolLifeTimetable", label: "Vie scolaire - emploi du temps", group: "vie", roles: ["ADMIN", "SCOLARITE", "ENSEIGNANT", "PARENT"] },
-  { id: "schoolLifeNotifications", label: "Vie scolaire - notifications", group: "vie", roles: ["ADMIN", "SCOLARITE", "ENSEIGNANT", "COMPTABLE"] },
+  { id: "schoolLifeOverview", label: "Pilotage", group: "vie", roles: ["ADMIN", "SCOLARITE", "ENSEIGNANT"] },
+  { id: "schoolLifeAttendance", label: "Absences", group: "vie", roles: ["ADMIN", "SCOLARITE", "ENSEIGNANT"] },
+  { id: "schoolLifeTimetable", label: "Emploi du temps", group: "vie", roles: ["ADMIN", "SCOLARITE", "ENSEIGNANT", "PARENT"] },
+  { id: "schoolLifeNotifications", label: "Notifications", group: "vie", roles: ["ADMIN", "SCOLARITE", "ENSEIGNANT", "COMPTABLE"] },
   { id: "teacherPortal", label: "Portail enseignant", group: "portail", roles: ["ENSEIGNANT"] },
   { id: "parentPortal", label: "Portail parent", group: "portail", roles: ["PARENT"] }
 ];
@@ -1242,7 +1242,6 @@ export function App(): JSX.Element {
   const [notice, setNotice] = useState<string | null>(null);
   const [moduleQueryInput, setModuleQueryInput] = useState("");
   const [moduleQuery, setModuleQuery] = useState("");
-  const [heroIndex, setHeroIndex] = useState(0);
   const [studentWorkflowStep, setStudentWorkflowStep] = useState("entry");
   const [referenceWorkflowStep, setReferenceWorkflowStep] = useState("years");
   const [enrollmentWorkflowStep, setEnrollmentWorkflowStep] = useState("create");
@@ -1319,7 +1318,7 @@ export function App(): JSX.Element {
     });
   }, [homeTiles, moduleQuery]);
 
-  const currentSlide = HERO_SLIDES[heroIndex % HERO_SLIDES.length];
+  const currentSlide = HERO_SLIDES[2];
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -1354,16 +1353,6 @@ export function App(): JSX.Element {
     if (hasScreenAccess(currentRole, tab)) return;
     setTab(ROLE_HOME_SCREEN[currentRole] || "dashboard");
   }, [currentRole, tab]);
-
-  useEffect(() => {
-    if (!session) return;
-
-    const timer = window.setInterval(() => {
-      setHeroIndex((prev) => (prev + 1) % HERO_SLIDES.length);
-    }, 8000);
-
-    return () => window.clearInterval(timer);
-  }, [session]);
 
   const clearData = useCallback(() => {
     setStudents([]);
@@ -1946,14 +1935,6 @@ export function App(): JSX.Element {
     refresh,
     rolePermissionTarget
   ]);
-
-  const nextHeroSlide = (): void => {
-    setHeroIndex((prev) => (prev + 1) % HERO_SLIDES.length);
-  };
-
-  const prevHeroSlide = (): void => {
-    setHeroIndex((prev) => (prev - 1 + HERO_SLIDES.length) % HERO_SLIDES.length);
-  };
 
   useEffect(() => {
     if (!session || !currentRole) {
@@ -3653,71 +3634,73 @@ export function App(): JSX.Element {
         activeStepId={financeWorkflowStep}
         onStepChange={scrollToFinance}
       >
-      <section id="finance-overview" data-step-id="overview" className="panel table-panel workflow-section">
-        <div className="table-header">
-          <h2>Dashboard recouvrement</h2>
-        </div>
-        <div className="metrics-grid">
-          <article className="metric-card">
-            <span>Total du</span>
-            <strong>{formatAmount(recovery?.totals.amountDue || 0)} FCFA</strong>
-          </article>
-          <article className="metric-card">
-            <span>Montant encaisse</span>
-            <strong>{formatAmount(recovery?.totals.amountPaid || 0)} FCFA</strong>
-          </article>
-          <article className="metric-card">
-            <span>Reste a recouvrer</span>
-            <strong>{formatAmount(recovery?.totals.remainingAmount || 0)} FCFA</strong>
-          </article>
-          <article className="metric-card">
-            <span>Taux recouvrement</span>
-            <strong>{(recovery?.totals.recoveryRatePercent || 0).toFixed(2)}%</strong>
-          </article>
-        </div>
-        <div className="actions">
-          <button type="button" className="button-ghost" onClick={() => void loadFinance()}>
-            Recharger comptabilite
-          </button>
-          {receiptPdfUrl ? (
-            <button
-              type="button"
-              className="button-ghost"
-              onClick={() => window.open(receiptPdfUrl, "_blank", "noopener,noreferrer")}
-            >
-              Ouvrir dernier recu
+        <section id="finance-overview" data-step-id="overview" className="panel table-panel workflow-section module-modern">
+          <div className="table-header">
+            <h2>Dashboard recouvrement</h2>
+          </div>
+          <p className="section-lead">Suivez la sante financiere avant de passer aux operations de saisie.</p>
+          <div className="metrics-grid">
+            <article className="metric-card">
+              <span>Total du</span>
+              <strong>{formatAmount(recovery?.totals.amountDue || 0)} FCFA</strong>
+            </article>
+            <article className="metric-card">
+              <span>Montant encaisse</span>
+              <strong>{formatAmount(recovery?.totals.amountPaid || 0)} FCFA</strong>
+            </article>
+            <article className="metric-card">
+              <span>Reste a recouvrer</span>
+              <strong>{formatAmount(recovery?.totals.remainingAmount || 0)} FCFA</strong>
+            </article>
+            <article className="metric-card">
+              <span>Taux recouvrement</span>
+              <strong>{(recovery?.totals.recoveryRatePercent || 0).toFixed(2)}%</strong>
+            </article>
+          </div>
+          <div className="actions">
+            <button type="button" className="button-ghost" onClick={() => void loadFinance()}>
+              Recharger comptabilite
             </button>
-          ) : null}
-        </div>
-      </section>
+            {receiptPdfUrl ? (
+              <button
+                type="button"
+                className="button-ghost"
+                onClick={() => window.open(receiptPdfUrl, "_blank", "noopener,noreferrer")}
+              >
+                Ouvrir dernier recu
+              </button>
+            ) : null}
+          </div>
+        </section>
 
-      <section id="finance-fee-plans" data-step-id="feePlans" className="panel editor-panel workflow-section">
-        <h2>Fee plans</h2>
-        <form className="form-grid" onSubmit={(event) => void submitFeePlan(event)}>
-          <label>
-            Annee scolaire
+        <section id="finance-fee-plans" data-step-id="feePlans" className="panel editor-panel workflow-section module-modern">
+          <h2>Fee plans</h2>
+          <p className="section-lead">Definissez les frais par annee et niveau, puis reutilisez-les pour la facturation.</p>
+          <form className="form-grid module-form" onSubmit={(event) => void submitFeePlan(event)}>
+            <label>
+              Annee scolaire
               <select
                 value={feePlanForm.schoolYearId}
                 onChange={(event) => setFeePlanForm((prev) => ({ ...prev, schoolYearId: event.target.value }))}
                 required
               >
-              <option value="">Choisir...</option>
-              {schoolYears.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.code}
-                </option>
+                <option value="">Choisir...</option>
+                {schoolYears.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.code}
+                  </option>
                 ))}
               </select>
               {fieldError(feePlanErrors, "schoolYearId")}
             </label>
             <label>
               Niveau
-            <select
-              value={feePlanForm.levelId}
-              onChange={(event) => setFeePlanForm((prev) => ({ ...prev, levelId: event.target.value }))}
-              required
-            >
-              <option value="">Choisir...</option>
+              <select
+                value={feePlanForm.levelId}
+                onChange={(event) => setFeePlanForm((prev) => ({ ...prev, levelId: event.target.value }))}
+                required
+              >
+                <option value="">Choisir...</option>
                 {levels.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.code} - {item.label}
@@ -3728,7 +3711,7 @@ export function App(): JSX.Element {
             </label>
             <label>
               Libelle
-            <input
+              <input
                 value={feePlanForm.label}
                 onChange={(event) => setFeePlanForm((prev) => ({ ...prev, label: event.target.value }))}
                 required
@@ -3737,9 +3720,9 @@ export function App(): JSX.Element {
             </label>
             <label>
               Montant total
-            <input
-              type="number"
-              min={0}
+              <input
+                type="number"
+                min={0}
                 value={feePlanForm.totalAmount}
                 onChange={(event) => setFeePlanForm((prev) => ({ ...prev, totalAmount: event.target.value }))}
                 required
@@ -3748,88 +3731,89 @@ export function App(): JSX.Element {
             </label>
             <label>
               Devise
-            <input
+              <input
                 maxLength={3}
                 value={feePlanForm.currency}
                 onChange={(event) => setFeePlanForm((prev) => ({ ...prev, currency: event.target.value.toUpperCase() }))}
               />
               {fieldError(feePlanErrors, "currency")}
             </label>
-          <button type="submit">Creer fee plan</button>
-        </form>
-      </section>
+            <button type="submit">Creer fee plan</button>
+          </form>
+        </section>
 
-      <section data-step-id="feePlans" className="panel table-panel workflow-section">
-        <div className="table-header">
-          <h2>Liste fee plans</h2>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Libelle</th>
-                <th>Annee</th>
-                <th>Niveau</th>
-                <th>Total</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {feePlans.length === 0 ? (
+        <section data-step-id="feePlans" className="panel table-panel workflow-section module-modern">
+          <div className="table-header">
+            <h2>Liste fee plans</h2>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
                 <tr>
-                  <td colSpan={5} className="empty-row">
-                    Aucun fee plan.
-                  </td>
+                  <th>Libelle</th>
+                  <th>Annee</th>
+                  <th>Niveau</th>
+                  <th>Total</th>
+                  <th>Actions</th>
                 </tr>
-              ) : (
-                feePlans.map((item) => (
-                  <tr key={item.id}>
-                    <td>{item.label}</td>
-                    <td>{schoolYearById.get(item.schoolYearId)?.code || "-"}</td>
-                    <td>{levelById.get(item.levelId)?.label || "-"}</td>
-                    <td>
-                      {formatAmount(item.totalAmount)} {item.currency}
-                    </td>
-                    <td>
-                      <button type="button" className="button-danger" onClick={() => void deleteFeePlan(item.id)}>
-                        Supprimer
-                      </button>
+              </thead>
+              <tbody>
+                {feePlans.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="empty-row">
+                      Aucun fee plan.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                ) : (
+                  feePlans.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.label}</td>
+                      <td>{schoolYearById.get(item.schoolYearId)?.code || "-"}</td>
+                      <td>{levelById.get(item.levelId)?.label || "-"}</td>
+                      <td>
+                        {formatAmount(item.totalAmount)} {item.currency}
+                      </td>
+                      <td>
+                        <button type="button" className="button-danger" onClick={() => void deleteFeePlan(item.id)}>
+                          Supprimer
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-      <section id="finance-invoices" data-step-id="invoices" className="panel editor-panel workflow-section">
-        <h2>Factures</h2>
-        <form className="form-grid" onSubmit={(event) => void submitInvoice(event)}>
-          <label>
-            Eleve
+        <section id="finance-invoices" data-step-id="invoices" className="panel editor-panel workflow-section module-modern">
+          <h2>Factures</h2>
+          <p className="section-lead">Associez un eleve, une annee et un montant du pour generer une facture claire.</p>
+          <form className="form-grid module-form" onSubmit={(event) => void submitInvoice(event)}>
+            <label>
+              Eleve
               <select
                 value={invoiceForm.studentId}
                 onChange={(event) => setInvoiceForm((prev) => ({ ...prev, studentId: event.target.value }))}
                 required
               >
-              <option value="">Choisir...</option>
-              {students.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.matricule} - {item.firstName} {item.lastName}
-                </option>
+                <option value="">Choisir...</option>
+                {students.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.matricule} - {item.firstName} {item.lastName}
+                  </option>
                 ))}
               </select>
               {fieldError(invoiceErrors, "studentId")}
             </label>
             <label>
               Annee scolaire
-            <select
-              value={invoiceForm.schoolYearId}
-              onChange={(event) => setInvoiceForm((prev) => ({ ...prev, schoolYearId: event.target.value }))}
-              required
-            >
-              <option value="">Choisir...</option>
+              <select
+                value={invoiceForm.schoolYearId}
+                onChange={(event) => setInvoiceForm((prev) => ({ ...prev, schoolYearId: event.target.value }))}
+                required
+              >
+                <option value="">Choisir...</option>
                 {schoolYears.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.code}
@@ -3840,11 +3824,11 @@ export function App(): JSX.Element {
             </label>
             <label>
               Fee plan (optionnel)
-            <select
-              value={invoiceForm.feePlanId}
-              onChange={(event) => setInvoiceForm((prev) => ({ ...prev, feePlanId: event.target.value }))}
-            >
-              <option value="">Aucun (montant manuel)</option>
+              <select
+                value={invoiceForm.feePlanId}
+                onChange={(event) => setInvoiceForm((prev) => ({ ...prev, feePlanId: event.target.value }))}
+              >
+                <option value="">Aucun (montant manuel)</option>
                 {feePlans.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.label}
@@ -3855,97 +3839,98 @@ export function App(): JSX.Element {
             </label>
             <label>
               Montant du (optionnel)
-            <input
-              type="number"
-              min={0}
+              <input
+                type="number"
+                min={0}
                 value={invoiceForm.amountDue}
                 onChange={(event) => setInvoiceForm((prev) => ({ ...prev, amountDue: event.target.value }))}
                 placeholder="Requis si aucun fee plan"
               />
               {fieldError(invoiceErrors, "amountDue")}
             </label>
-          <label>
-            Date echeance
-            <input
-              type="date"
-              value={invoiceForm.dueDate}
-              onChange={(event) => setInvoiceForm((prev) => ({ ...prev, dueDate: event.target.value }))}
-            />
-          </label>
-          <button type="submit">Creer facture</button>
-        </form>
-      </section>
+            <label>
+              Date echeance
+              <input
+                type="date"
+                value={invoiceForm.dueDate}
+                onChange={(event) => setInvoiceForm((prev) => ({ ...prev, dueDate: event.target.value }))}
+              />
+            </label>
+            <button type="submit">Creer facture</button>
+          </form>
+        </section>
 
-      <section data-step-id="invoices" className="panel table-panel workflow-section">
-        <div className="table-header">
-          <h2>Liste factures</h2>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Numero</th>
-                <th>Eleve</th>
-                <th>Du</th>
-                <th>Paye</th>
-                <th>Reste</th>
-                <th>Statut</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoices.length === 0 ? (
+        <section data-step-id="invoices" className="panel table-panel workflow-section module-modern">
+          <div className="table-header">
+            <h2>Liste factures</h2>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
                 <tr>
-                  <td colSpan={7} className="empty-row">
-                    Aucune facture.
-                  </td>
+                  <th>Numero</th>
+                  <th>Eleve</th>
+                  <th>Du</th>
+                  <th>Paye</th>
+                  <th>Reste</th>
+                  <th>Statut</th>
+                  <th>Actions</th>
                 </tr>
-              ) : (
-                invoices.map((item) => (
-                  <tr key={item.id}>
-                    <td>{item.invoiceNo}</td>
-                    <td>{item.studentName || studentById.get(item.studentId)?.matricule || "-"}</td>
-                    <td>{formatAmount(item.amountDue)}</td>
-                    <td>{formatAmount(item.amountPaid)}</td>
-                    <td>{formatAmount(item.remainingAmount)}</td>
-                    <td>{item.status}</td>
-                    <td>
-                      <button type="button" className="button-danger" onClick={() => void deleteInvoice(item.id)}>
-                        Supprimer
-                      </button>
+              </thead>
+              <tbody>
+                {invoices.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="empty-row">
+                      Aucune facture.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                ) : (
+                  invoices.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.invoiceNo}</td>
+                      <td>{item.studentName || studentById.get(item.studentId)?.matricule || "-"}</td>
+                      <td>{formatAmount(item.amountDue)}</td>
+                      <td>{formatAmount(item.amountPaid)}</td>
+                      <td>{formatAmount(item.remainingAmount)}</td>
+                      <td>{item.status}</td>
+                      <td>
+                        <button type="button" className="button-danger" onClick={() => void deleteInvoice(item.id)}>
+                          Supprimer
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-      <section id="finance-payments" data-step-id="payments" className="panel editor-panel workflow-section">
-        <h2>Paiements</h2>
-        <form className="form-grid" onSubmit={(event) => void submitPayment(event)}>
-          <label>
-            Facture
+        <section id="finance-payments" data-step-id="payments" className="panel editor-panel workflow-section module-modern">
+          <h2>Paiements</h2>
+          <p className="section-lead">Enregistrez chaque encaissement et rattachez-le a la facture correspondante.</p>
+          <form className="form-grid module-form" onSubmit={(event) => void submitPayment(event)}>
+            <label>
+              Facture
               <select
                 value={paymentForm.invoiceId}
                 onChange={(event) => setPaymentForm((prev) => ({ ...prev, invoiceId: event.target.value }))}
                 required
               >
-              <option value="">Choisir...</option>
-              {invoices.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.invoiceNo} - reste {formatAmount(item.remainingAmount)}
-                </option>
+                <option value="">Choisir...</option>
+                {invoices.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.invoiceNo} - reste {formatAmount(item.remainingAmount)}
+                  </option>
                 ))}
               </select>
               {fieldError(paymentErrors, "invoiceId")}
             </label>
             <label>
               Montant verse
-            <input
-              type="number"
-              min={0}
+              <input
+                type="number"
+                min={0}
                 value={paymentForm.paidAmount}
                 onChange={(event) => setPaymentForm((prev) => ({ ...prev, paidAmount: event.target.value }))}
                 required
@@ -3954,77 +3939,77 @@ export function App(): JSX.Element {
             </label>
             <label>
               Mode paiement
-            <select
-              value={paymentForm.paymentMethod}
-              onChange={(event) =>
-                setPaymentForm((prev) => ({
-                  ...prev,
-                  paymentMethod: event.target.value as "CASH" | "MOBILE_MONEY" | "BANK"
-                }))
-              }
-            >
-              <option value="CASH">CASH</option>
-              <option value="MOBILE_MONEY">MOBILE_MONEY</option>
-              <option value="BANK">BANK</option>
-            </select>
+              <select
+                value={paymentForm.paymentMethod}
+                onChange={(event) =>
+                  setPaymentForm((prev) => ({
+                    ...prev,
+                    paymentMethod: event.target.value as "CASH" | "MOBILE_MONEY" | "BANK"
+                  }))
+                }
+              >
+                <option value="CASH">CASH</option>
+                <option value="MOBILE_MONEY">MOBILE_MONEY</option>
+                <option value="BANK">BANK</option>
+              </select>
               {fieldError(paymentErrors, "paymentMethod")}
             </label>
-          <label>
-            Reference externe
-            <input
-              value={paymentForm.referenceExternal}
-              onChange={(event) => setPaymentForm((prev) => ({ ...prev, referenceExternal: event.target.value }))}
-            />
-          </label>
-          <button type="submit">Enregistrer paiement</button>
-        </form>
-      </section>
+            <label>
+              Reference externe
+              <input
+                value={paymentForm.referenceExternal}
+                onChange={(event) => setPaymentForm((prev) => ({ ...prev, referenceExternal: event.target.value }))}
+              />
+            </label>
+            <button type="submit">Enregistrer paiement</button>
+          </form>
+        </section>
 
-      <section data-step-id="payments" className="panel table-panel workflow-section">
-        <div className="table-header">
-          <h2>Historique paiements</h2>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Recu</th>
-                <th>Facture</th>
-                <th>Eleve</th>
-                <th>Montant</th>
-                <th>Mode</th>
-                <th>Date</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payments.length === 0 ? (
+        <section data-step-id="payments" className="panel table-panel workflow-section module-modern">
+          <div className="table-header">
+            <h2>Historique paiements</h2>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
                 <tr>
-                  <td colSpan={7} className="empty-row">
-                    Aucun paiement.
-                  </td>
+                  <th>Recu</th>
+                  <th>Facture</th>
+                  <th>Eleve</th>
+                  <th>Montant</th>
+                  <th>Mode</th>
+                  <th>Date</th>
+                  <th>Actions</th>
                 </tr>
-              ) : (
-                payments.map((item) => (
-                  <tr key={item.id}>
-                    <td>{item.receiptNo}</td>
-                    <td>{item.invoiceNo || "-"}</td>
-                    <td>{item.studentName || "-"}</td>
-                    <td>{formatAmount(item.paidAmount)}</td>
-                    <td>{item.paymentMethod}</td>
-                    <td>{new Date(item.paidAt).toLocaleString("fr-FR")}</td>
-                    <td>
-                      <button type="button" className="button-ghost" onClick={() => void openReceipt(item.id)}>
-                        Recu PDF
-                      </button>
+              </thead>
+              <tbody>
+                {payments.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="empty-row">
+                      Aucun paiement.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                ) : (
+                  payments.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.receiptNo}</td>
+                      <td>{item.invoiceNo || "-"}</td>
+                      <td>{item.studentName || "-"}</td>
+                      <td>{formatAmount(item.paidAmount)}</td>
+                      <td>{item.paymentMethod}</td>
+                      <td>{new Date(item.paidAt).toLocaleString("fr-FR")}</td>
+                      <td>
+                        <button type="button" className="button-ghost" onClick={() => void openReceipt(item.id)}>
+                          Recu PDF
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </WorkflowGuide>
     );
   };
@@ -4060,495 +4045,495 @@ export function App(): JSX.Element {
         activeStepId={mosqueWorkflowStep}
         onStepChange={scrollToMosque}
       >
-      <>
-        <section id="mosque-members" data-step-id="members" className="panel table-panel workflow-section">
-          <div className="table-header">
-            <h2>Registre des membres</h2>
-            <div className="inline-actions">
-              <label>
-                Format
-                <select
-                  value={mosqueExportFormat}
-                  onChange={(event) =>
-                    setMosqueExportFormat(event.target.value as "PDF" | "EXCEL")
-                  }
+        <>
+          <section id="mosque-members" data-step-id="members" className="panel table-panel workflow-section">
+            <div className="table-header">
+              <h2>Registre des membres</h2>
+              <div className="inline-actions">
+                <label>
+                  Format
+                  <select
+                    value={mosqueExportFormat}
+                    onChange={(event) =>
+                      setMosqueExportFormat(event.target.value as "PDF" | "EXCEL")
+                    }
+                  >
+                    <option value="PDF">PDF</option>
+                    <option value="EXCEL">Excel</option>
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className="button-ghost"
+                  onClick={() => void exportMosqueData("members")}
                 >
-                  <option value="PDF">PDF</option>
-                  <option value="EXCEL">Excel</option>
+                  Exporter membres
+                </button>
+              </div>
+            </div>
+            <form data-step-id="mosque-members" className="form-grid compact-form" onSubmit={(event) => void submitMosqueMember(event)}>
+              <label>
+                Code membre
+                <input value={mosqueMemberForm.memberCode} onChange={(event) => setMosqueMemberForm((prev) => ({ ...prev, memberCode: event.target.value }))} required />
+                {fieldError(mosqueMemberErrors, "memberCode")}
+              </label>
+              <label>
+                Nom complet
+                <input value={mosqueMemberForm.fullName} onChange={(event) => setMosqueMemberForm((prev) => ({ ...prev, fullName: event.target.value }))} required />
+                {fieldError(mosqueMemberErrors, "fullName")}
+              </label>
+              <label>
+                Sexe
+                <select value={mosqueMemberForm.sex} onChange={(event) => setMosqueMemberForm((prev) => ({ ...prev, sex: event.target.value }))}>
+                  <option value="">Non precise</option>
+                  <option value="M">M</option>
+                  <option value="F">F</option>
                 </select>
               </label>
-              <button
-                type="button"
-                className="button-ghost"
-                onClick={() => void exportMosqueData("members")}
-              >
-                Exporter membres
-              </button>
-            </div>
-          </div>
-          <form data-step-id="mosque-members" className="form-grid compact-form" onSubmit={(event) => void submitMosqueMember(event)}>
-            <label>
-              Code membre
-              <input value={mosqueMemberForm.memberCode} onChange={(event) => setMosqueMemberForm((prev) => ({ ...prev, memberCode: event.target.value }))} required />
-              {fieldError(mosqueMemberErrors, "memberCode")}
-            </label>
-            <label>
-              Nom complet
-              <input value={mosqueMemberForm.fullName} onChange={(event) => setMosqueMemberForm((prev) => ({ ...prev, fullName: event.target.value }))} required />
-              {fieldError(mosqueMemberErrors, "fullName")}
-            </label>
-            <label>
-              Sexe
-              <select value={mosqueMemberForm.sex} onChange={(event) => setMosqueMemberForm((prev) => ({ ...prev, sex: event.target.value }))}>
-                <option value="">Non precise</option>
-                <option value="M">M</option>
-                <option value="F">F</option>
-              </select>
-            </label>
-            <label>
-              Statut
-              <select value={mosqueMemberForm.status} onChange={(event) => setMosqueMemberForm((prev) => ({ ...prev, status: event.target.value }))}>
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="INACTIVE">INACTIVE</option>
-              </select>
-              {fieldError(mosqueMemberErrors, "status")}
-            </label>
-            <label>
-              Telephone
-              <input value={mosqueMemberForm.phone} onChange={(event) => setMosqueMemberForm((prev) => ({ ...prev, phone: event.target.value }))} />
-            </label>
-            <label>
-              Email
-              <input type="email" value={mosqueMemberForm.email} onChange={(event) => setMosqueMemberForm((prev) => ({ ...prev, email: event.target.value }))} />
-            </label>
-            <label>
-              Date adhesion
-              <input type="date" value={mosqueMemberForm.joinedAt} onChange={(event) => setMosqueMemberForm((prev) => ({ ...prev, joinedAt: event.target.value }))} />
-            </label>
-            <label>
-              Adresse
-              <input value={mosqueMemberForm.address} onChange={(event) => setMosqueMemberForm((prev) => ({ ...prev, address: event.target.value }))} />
-            </label>
-            <button type="submit">Creer membre</button>
-          </form>
+              <label>
+                Statut
+                <select value={mosqueMemberForm.status} onChange={(event) => setMosqueMemberForm((prev) => ({ ...prev, status: event.target.value }))}>
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="INACTIVE">INACTIVE</option>
+                </select>
+                {fieldError(mosqueMemberErrors, "status")}
+              </label>
+              <label>
+                Telephone
+                <input value={mosqueMemberForm.phone} onChange={(event) => setMosqueMemberForm((prev) => ({ ...prev, phone: event.target.value }))} />
+              </label>
+              <label>
+                Email
+                <input type="email" value={mosqueMemberForm.email} onChange={(event) => setMosqueMemberForm((prev) => ({ ...prev, email: event.target.value }))} />
+              </label>
+              <label>
+                Date adhesion
+                <input type="date" value={mosqueMemberForm.joinedAt} onChange={(event) => setMosqueMemberForm((prev) => ({ ...prev, joinedAt: event.target.value }))} />
+              </label>
+              <label>
+                Adresse
+                <input value={mosqueMemberForm.address} onChange={(event) => setMosqueMemberForm((prev) => ({ ...prev, address: event.target.value }))} />
+              </label>
+              <button type="submit">Creer membre</button>
+            </form>
 
-          <form
-            className="filter-grid"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void loadMosqueWithCurrentFilters();
-            }}
-          >
-            <label>
-              Statut
-              <select value={mosqueMemberFilters.status} onChange={(event) => setMosqueMemberFilters((prev) => ({ ...prev, status: event.target.value }))}>
-                <option value="">Tous</option>
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="INACTIVE">INACTIVE</option>
-              </select>
-            </label>
-            <label>
-              Recherche
-              <input value={mosqueMemberFilters.q} onChange={(event) => setMosqueMemberFilters((prev) => ({ ...prev, q: event.target.value }))} placeholder="Nom, code ou telephone" />
-            </label>
-            <div className="actions">
-              <button type="submit">Filtrer</button>
-              <button
-                type="button"
-                className="button-ghost"
-                onClick={() => {
-                  const next = { status: "", q: "" };
-                  setMosqueMemberFilters(next);
-                  void loadMosqueData({
-                    memberFilters: next,
-                    activityFilters: mosqueActivityFilters,
-                    donationFilters: mosqueDonationFilters
-                  });
-                }}
-              >
-                Reinitialiser
-              </button>
-            </div>
-          </form>
+            <form
+              className="filter-grid"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void loadMosqueWithCurrentFilters();
+              }}
+            >
+              <label>
+                Statut
+                <select value={mosqueMemberFilters.status} onChange={(event) => setMosqueMemberFilters((prev) => ({ ...prev, status: event.target.value }))}>
+                  <option value="">Tous</option>
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="INACTIVE">INACTIVE</option>
+                </select>
+              </label>
+              <label>
+                Recherche
+                <input value={mosqueMemberFilters.q} onChange={(event) => setMosqueMemberFilters((prev) => ({ ...prev, q: event.target.value }))} placeholder="Nom, code ou telephone" />
+              </label>
+              <div className="actions">
+                <button type="submit">Filtrer</button>
+                <button
+                  type="button"
+                  className="button-ghost"
+                  onClick={() => {
+                    const next = { status: "", q: "" };
+                    setMosqueMemberFilters(next);
+                    void loadMosqueData({
+                      memberFilters: next,
+                      activityFilters: mosqueActivityFilters,
+                      donationFilters: mosqueDonationFilters
+                    });
+                  }}
+                >
+                  Reinitialiser
+                </button>
+              </div>
+            </form>
 
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Code</th>
-                  <th>Nom</th>
-                  <th>Statut</th>
-                  <th>Contact</th>
-                  <th>Adhesion</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mosqueMembers.length === 0 ? (
-                  <tr><td colSpan={6} className="empty-row">Aucun membre.</td></tr>
-                ) : (
-                  mosqueMembers.map((item) => (
-                    <tr key={item.id}>
-                      <td>{item.memberCode}</td>
-                      <td>{item.fullName}</td>
-                      <td>{item.status}</td>
-                      <td>{item.phone || item.email || "-"}</td>
-                      <td>{item.joinedAt || "-"}</td>
-                      <td>
-                        <button type="button" className="button-danger" onClick={() => void deleteMosqueMember(item.id)}>
-                          Supprimer
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section id="mosque-activities" data-step-id="activities" className="panel table-panel workflow-section">
-          <div className="table-header">
-            <h2>Activites mosquee</h2>
-            <div className="inline-actions">
-              <button
-                type="button"
-                className="button-ghost"
-                onClick={() => void exportMosqueData("activities")}
-              >
-                Exporter activites
-              </button>
-            </div>
-          </div>
-          <form data-step-id="mosque-activities" className="form-grid compact-form" onSubmit={(event) => void submitMosqueActivity(event)}>
-            <label>
-              Code
-              <input value={mosqueActivityForm.code} onChange={(event) => setMosqueActivityForm((prev) => ({ ...prev, code: event.target.value }))} required />
-              {fieldError(mosqueActivityErrors, "code")}
-            </label>
-            <label>
-              Titre
-              <input value={mosqueActivityForm.title} onChange={(event) => setMosqueActivityForm((prev) => ({ ...prev, title: event.target.value }))} required />
-              {fieldError(mosqueActivityErrors, "title")}
-            </label>
-            <label>
-              Date
-              <input type="date" value={mosqueActivityForm.activityDate} onChange={(event) => setMosqueActivityForm((prev) => ({ ...prev, activityDate: event.target.value }))} required />
-              {fieldError(mosqueActivityErrors, "activityDate")}
-            </label>
-            <label>
-              Categorie
-              <input value={mosqueActivityForm.category} onChange={(event) => setMosqueActivityForm((prev) => ({ ...prev, category: event.target.value }))} required />
-              {fieldError(mosqueActivityErrors, "category")}
-            </label>
-            <label>
-              Lieu
-              <input value={mosqueActivityForm.location} onChange={(event) => setMosqueActivityForm((prev) => ({ ...prev, location: event.target.value }))} />
-            </label>
-            <label className="check-row">
-              <input type="checkbox" checked={mosqueActivityForm.isSchoolLinked} onChange={(event) => setMosqueActivityForm((prev) => ({ ...prev, isSchoolLinked: event.target.checked }))} />
-              Liee a la vie scolaire
-            </label>
-            <label>
-              Description
-              <input value={mosqueActivityForm.description} onChange={(event) => setMosqueActivityForm((prev) => ({ ...prev, description: event.target.value }))} />
-            </label>
-            <button type="submit">Creer activite</button>
-          </form>
-
-          <form
-            className="filter-grid"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void loadMosqueWithCurrentFilters();
-            }}
-          >
-            <label>
-              Categorie
-              <input value={mosqueActivityFilters.category} onChange={(event) => setMosqueActivityFilters((prev) => ({ ...prev, category: event.target.value }))} />
-            </label>
-            <label>
-              Du
-              <input type="date" value={mosqueActivityFilters.from} onChange={(event) => setMosqueActivityFilters((prev) => ({ ...prev, from: event.target.value }))} />
-            </label>
-            <label>
-              Au
-              <input type="date" value={mosqueActivityFilters.to} onChange={(event) => setMosqueActivityFilters((prev) => ({ ...prev, to: event.target.value }))} />
-            </label>
-            <label>
-              Recherche
-              <input value={mosqueActivityFilters.q} onChange={(event) => setMosqueActivityFilters((prev) => ({ ...prev, q: event.target.value }))} />
-            </label>
-            <div className="actions">
-              <button type="submit">Filtrer</button>
-              <button
-                type="button"
-                className="button-ghost"
-                onClick={() => {
-                  const next = { category: "", from: "", to: "", q: "" };
-                  setMosqueActivityFilters(next);
-                  void loadMosqueData({
-                    memberFilters: mosqueMemberFilters,
-                    activityFilters: next,
-                    donationFilters: mosqueDonationFilters
-                  });
-                }}
-              >
-                Reinitialiser
-              </button>
-            </div>
-          </form>
-
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Code</th>
-                  <th>Titre</th>
-                  <th>Categorie</th>
-                  <th>Lieu</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mosqueActivities.length === 0 ? (
-                  <tr><td colSpan={6} className="empty-row">Aucune activite.</td></tr>
-                ) : (
-                  mosqueActivities.map((item) => (
-                    <tr key={item.id}>
-                      <td>{item.activityDate}</td>
-                      <td>{item.code}</td>
-                      <td>{item.title}</td>
-                      <td>{item.category}</td>
-                      <td>{item.location || "-"}</td>
-                      <td>
-                        <button type="button" className="button-danger" onClick={() => void deleteMosqueActivity(item.id)}>
-                          Supprimer
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section id="mosque-donations" data-step-id="donations" className="panel table-panel workflow-section">
-          <div className="table-header">
-            <h2>Dons & recettes</h2>
-            <div className="inline-actions">
-              <button
-                type="button"
-                className="button-ghost"
-                onClick={() => void exportMosqueData("donations")}
-              >
-                Exporter dons
-              </button>
-            </div>
-          </div>
-          <form data-step-id="mosque-donations" className="form-grid compact-form" onSubmit={(event) => void submitMosqueDonation(event)}>
-            <label>
-              Membre (optionnel)
-              <select value={mosqueDonationForm.memberId} onChange={(event) => setMosqueDonationForm((prev) => ({ ...prev, memberId: event.target.value }))}>
-                <option value="">Aucun</option>
-                {mosqueMembers.map((item) => (
-                  <option key={item.id} value={item.id}>{item.memberCode} - {item.fullName}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Montant
-              <input type="number" min={0} value={mosqueDonationForm.amount} onChange={(event) => setMosqueDonationForm((prev) => ({ ...prev, amount: event.target.value }))} required />
-              {fieldError(mosqueDonationErrors, "amount")}
-            </label>
-            <label>
-              Devise
-              <input value={mosqueDonationForm.currency} onChange={(event) => setMosqueDonationForm((prev) => ({ ...prev, currency: event.target.value }))} />
-              {fieldError(mosqueDonationErrors, "currency")}
-            </label>
-            <label>
-              Canal
-              <select value={mosqueDonationForm.channel} onChange={(event) => setMosqueDonationForm((prev) => ({ ...prev, channel: event.target.value }))}>
-                <option value="CASH">CASH</option>
-                <option value="MOBILE_MONEY">MOBILE_MONEY</option>
-                <option value="BANK">BANK</option>
-                <option value="TRANSFER">TRANSFER</option>
-                <option value="OTHER">OTHER</option>
-              </select>
-              {fieldError(mosqueDonationErrors, "channel")}
-            </label>
-            <label>
-              Date/heure don
-              <input type="datetime-local" value={mosqueDonationForm.donatedAt} onChange={(event) => setMosqueDonationForm((prev) => ({ ...prev, donatedAt: event.target.value }))} />
-            </label>
-            <label>
-              Reference
-              <input value={mosqueDonationForm.referenceNo} onChange={(event) => setMosqueDonationForm((prev) => ({ ...prev, referenceNo: event.target.value }))} />
-            </label>
-            <label>
-              Notes
-              <input value={mosqueDonationForm.notes} onChange={(event) => setMosqueDonationForm((prev) => ({ ...prev, notes: event.target.value }))} />
-            </label>
-            <button type="submit">Enregistrer don</button>
-          </form>
-
-          <form
-            className="filter-grid"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void loadMosqueWithCurrentFilters();
-            }}
-          >
-            <label>
-              Membre
-              <select value={mosqueDonationFilters.memberId} onChange={(event) => setMosqueDonationFilters((prev) => ({ ...prev, memberId: event.target.value }))}>
-                <option value="">Tous</option>
-                {mosqueMembers.map((item) => (
-                  <option key={item.id} value={item.id}>{item.memberCode}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Canal
-              <select value={mosqueDonationFilters.channel} onChange={(event) => setMosqueDonationFilters((prev) => ({ ...prev, channel: event.target.value }))}>
-                <option value="">Tous</option>
-                <option value="CASH">CASH</option>
-                <option value="MOBILE_MONEY">MOBILE_MONEY</option>
-                <option value="BANK">BANK</option>
-                <option value="TRANSFER">TRANSFER</option>
-                <option value="OTHER">OTHER</option>
-              </select>
-            </label>
-            <label>
-              Du
-              <input type="date" value={mosqueDonationFilters.from} onChange={(event) => setMosqueDonationFilters((prev) => ({ ...prev, from: event.target.value }))} />
-            </label>
-            <label>
-              Au
-              <input type="date" value={mosqueDonationFilters.to} onChange={(event) => setMosqueDonationFilters((prev) => ({ ...prev, to: event.target.value }))} />
-            </label>
-            <div className="actions">
-              <button type="submit">Filtrer</button>
-              <button
-                type="button"
-                className="button-ghost"
-                onClick={() => {
-                  const next = { memberId: "", channel: "", from: "", to: "" };
-                  setMosqueDonationFilters(next);
-                  void loadMosqueData({
-                    memberFilters: mosqueMemberFilters,
-                    activityFilters: mosqueActivityFilters,
-                    donationFilters: next
-                  });
-                }}
-              >
-                Reinitialiser
-              </button>
-            </div>
-          </form>
-
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Membre</th>
-                  <th>Canal</th>
-                  <th>Montant</th>
-                  <th>Reference</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mosqueDonations.length === 0 ? (
-                  <tr><td colSpan={6} className="empty-row">Aucun don.</td></tr>
-                ) : (
-                  mosqueDonations.map((item) => (
-                    <tr key={item.id}>
-                      <td>{new Date(item.donatedAt).toLocaleString("fr-FR")}</td>
-                      <td>{item.memberName || item.memberCode || "-"}</td>
-                      <td>{item.channel}</td>
-                      <td>{formatAmount(item.amount)} {item.currency}</td>
-                      <td>{item.referenceNo || "-"}</td>
-                      <td>
-                        <div className="row-actions">
-                          <button
-                            type="button"
-                            className="button-ghost"
-                            onClick={() => void openMosqueDonationReceipt(item.id)}
-                          >
-                            Recu PDF
-                          </button>
-                          <button type="button" className="button-danger" onClick={() => void deleteMosqueDonation(item.id)}>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Nom</th>
+                    <th>Statut</th>
+                    <th>Contact</th>
+                    <th>Adhesion</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mosqueMembers.length === 0 ? (
+                    <tr><td colSpan={6} className="empty-row">Aucun membre.</td></tr>
+                  ) : (
+                    mosqueMembers.map((item) => (
+                      <tr key={item.id}>
+                        <td>{item.memberCode}</td>
+                        <td>{item.fullName}</td>
+                        <td>{item.status}</td>
+                        <td>{item.phone || item.email || "-"}</td>
+                        <td>{item.joinedAt || "-"}</td>
+                        <td>
+                          <button type="button" className="button-danger" onClick={() => void deleteMosqueMember(item.id)}>
                             Supprimer
                           </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
 
-        <section id="mosque-overview" data-step-id="overview" className="panel table-panel workflow-section">
-          <div className="table-header">
-            <h2>Dashboard mosquee</h2>
-            <button type="button" className="button-ghost" onClick={() => void loadMosqueWithCurrentFilters()}>
-              Actualiser
-            </button>
-          </div>
-          <div className="metrics-grid">
-            <article className="metric-card">
-              <span>Membres</span>
-              <strong>{mosqueDashboard?.totals.members ?? 0}</strong>
-              <small className="subtle">Actifs: {mosqueDashboard?.totals.activeMembers ?? 0}</small>
-            </article>
-            <article className="metric-card">
-              <span>Activites ce mois</span>
-              <strong>{mosqueDashboard?.totals.activitiesThisMonth ?? 0}</strong>
-              <small className="subtle">Calendrier communautaire</small>
-            </article>
-            <article className="metric-card">
-              <span>Dons ce mois</span>
-              <strong>{formatAmount(mosqueDashboard?.totals.donationsThisMonth ?? 0)} XOF</strong>
-              <small className="subtle">Moyenne: {formatAmount(mosqueDashboard?.totals.averageDonation ?? 0)} XOF</small>
-            </article>
-            <article className="metric-card">
-              <span>Total dons</span>
-              <strong>{formatAmount(mosqueDashboard?.totals.donationsTotal ?? 0)} XOF</strong>
-              <small className="subtle">Cumule historique</small>
-            </article>
-          </div>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Canal</th>
-                  <th>Transactions</th>
-                  <th>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mosqueDashboard?.donationsByChannel?.length ? (
-                  mosqueDashboard.donationsByChannel.map((item) => (
-                    <tr key={item.channel}>
-                      <td>{item.channel}</td>
-                      <td>{item.count}</td>
-                      <td>{formatAmount(item.totalAmount)} XOF</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr><td colSpan={3} className="empty-row">Aucune donnee.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </>
+          <section id="mosque-activities" data-step-id="activities" className="panel table-panel workflow-section">
+            <div className="table-header">
+              <h2>Activites mosquee</h2>
+              <div className="inline-actions">
+                <button
+                  type="button"
+                  className="button-ghost"
+                  onClick={() => void exportMosqueData("activities")}
+                >
+                  Exporter activites
+                </button>
+              </div>
+            </div>
+            <form data-step-id="mosque-activities" className="form-grid compact-form" onSubmit={(event) => void submitMosqueActivity(event)}>
+              <label>
+                Code
+                <input value={mosqueActivityForm.code} onChange={(event) => setMosqueActivityForm((prev) => ({ ...prev, code: event.target.value }))} required />
+                {fieldError(mosqueActivityErrors, "code")}
+              </label>
+              <label>
+                Titre
+                <input value={mosqueActivityForm.title} onChange={(event) => setMosqueActivityForm((prev) => ({ ...prev, title: event.target.value }))} required />
+                {fieldError(mosqueActivityErrors, "title")}
+              </label>
+              <label>
+                Date
+                <input type="date" value={mosqueActivityForm.activityDate} onChange={(event) => setMosqueActivityForm((prev) => ({ ...prev, activityDate: event.target.value }))} required />
+                {fieldError(mosqueActivityErrors, "activityDate")}
+              </label>
+              <label>
+                Categorie
+                <input value={mosqueActivityForm.category} onChange={(event) => setMosqueActivityForm((prev) => ({ ...prev, category: event.target.value }))} required />
+                {fieldError(mosqueActivityErrors, "category")}
+              </label>
+              <label>
+                Lieu
+                <input value={mosqueActivityForm.location} onChange={(event) => setMosqueActivityForm((prev) => ({ ...prev, location: event.target.value }))} />
+              </label>
+              <label className="check-row">
+                <input type="checkbox" checked={mosqueActivityForm.isSchoolLinked} onChange={(event) => setMosqueActivityForm((prev) => ({ ...prev, isSchoolLinked: event.target.checked }))} />
+                Liee a la vie scolaire
+              </label>
+              <label>
+                Description
+                <input value={mosqueActivityForm.description} onChange={(event) => setMosqueActivityForm((prev) => ({ ...prev, description: event.target.value }))} />
+              </label>
+              <button type="submit">Creer activite</button>
+            </form>
+
+            <form
+              className="filter-grid"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void loadMosqueWithCurrentFilters();
+              }}
+            >
+              <label>
+                Categorie
+                <input value={mosqueActivityFilters.category} onChange={(event) => setMosqueActivityFilters((prev) => ({ ...prev, category: event.target.value }))} />
+              </label>
+              <label>
+                Du
+                <input type="date" value={mosqueActivityFilters.from} onChange={(event) => setMosqueActivityFilters((prev) => ({ ...prev, from: event.target.value }))} />
+              </label>
+              <label>
+                Au
+                <input type="date" value={mosqueActivityFilters.to} onChange={(event) => setMosqueActivityFilters((prev) => ({ ...prev, to: event.target.value }))} />
+              </label>
+              <label>
+                Recherche
+                <input value={mosqueActivityFilters.q} onChange={(event) => setMosqueActivityFilters((prev) => ({ ...prev, q: event.target.value }))} />
+              </label>
+              <div className="actions">
+                <button type="submit">Filtrer</button>
+                <button
+                  type="button"
+                  className="button-ghost"
+                  onClick={() => {
+                    const next = { category: "", from: "", to: "", q: "" };
+                    setMosqueActivityFilters(next);
+                    void loadMosqueData({
+                      memberFilters: mosqueMemberFilters,
+                      activityFilters: next,
+                      donationFilters: mosqueDonationFilters
+                    });
+                  }}
+                >
+                  Reinitialiser
+                </button>
+              </div>
+            </form>
+
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Code</th>
+                    <th>Titre</th>
+                    <th>Categorie</th>
+                    <th>Lieu</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mosqueActivities.length === 0 ? (
+                    <tr><td colSpan={6} className="empty-row">Aucune activite.</td></tr>
+                  ) : (
+                    mosqueActivities.map((item) => (
+                      <tr key={item.id}>
+                        <td>{item.activityDate}</td>
+                        <td>{item.code}</td>
+                        <td>{item.title}</td>
+                        <td>{item.category}</td>
+                        <td>{item.location || "-"}</td>
+                        <td>
+                          <button type="button" className="button-danger" onClick={() => void deleteMosqueActivity(item.id)}>
+                            Supprimer
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="mosque-donations" data-step-id="donations" className="panel table-panel workflow-section">
+            <div className="table-header">
+              <h2>Dons & recettes</h2>
+              <div className="inline-actions">
+                <button
+                  type="button"
+                  className="button-ghost"
+                  onClick={() => void exportMosqueData("donations")}
+                >
+                  Exporter dons
+                </button>
+              </div>
+            </div>
+            <form data-step-id="mosque-donations" className="form-grid compact-form" onSubmit={(event) => void submitMosqueDonation(event)}>
+              <label>
+                Membre (optionnel)
+                <select value={mosqueDonationForm.memberId} onChange={(event) => setMosqueDonationForm((prev) => ({ ...prev, memberId: event.target.value }))}>
+                  <option value="">Aucun</option>
+                  {mosqueMembers.map((item) => (
+                    <option key={item.id} value={item.id}>{item.memberCode} - {item.fullName}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Montant
+                <input type="number" min={0} value={mosqueDonationForm.amount} onChange={(event) => setMosqueDonationForm((prev) => ({ ...prev, amount: event.target.value }))} required />
+                {fieldError(mosqueDonationErrors, "amount")}
+              </label>
+              <label>
+                Devise
+                <input value={mosqueDonationForm.currency} onChange={(event) => setMosqueDonationForm((prev) => ({ ...prev, currency: event.target.value }))} />
+                {fieldError(mosqueDonationErrors, "currency")}
+              </label>
+              <label>
+                Canal
+                <select value={mosqueDonationForm.channel} onChange={(event) => setMosqueDonationForm((prev) => ({ ...prev, channel: event.target.value }))}>
+                  <option value="CASH">CASH</option>
+                  <option value="MOBILE_MONEY">MOBILE_MONEY</option>
+                  <option value="BANK">BANK</option>
+                  <option value="TRANSFER">TRANSFER</option>
+                  <option value="OTHER">OTHER</option>
+                </select>
+                {fieldError(mosqueDonationErrors, "channel")}
+              </label>
+              <label>
+                Date/heure don
+                <input type="datetime-local" value={mosqueDonationForm.donatedAt} onChange={(event) => setMosqueDonationForm((prev) => ({ ...prev, donatedAt: event.target.value }))} />
+              </label>
+              <label>
+                Reference
+                <input value={mosqueDonationForm.referenceNo} onChange={(event) => setMosqueDonationForm((prev) => ({ ...prev, referenceNo: event.target.value }))} />
+              </label>
+              <label>
+                Notes
+                <input value={mosqueDonationForm.notes} onChange={(event) => setMosqueDonationForm((prev) => ({ ...prev, notes: event.target.value }))} />
+              </label>
+              <button type="submit">Enregistrer don</button>
+            </form>
+
+            <form
+              className="filter-grid"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void loadMosqueWithCurrentFilters();
+              }}
+            >
+              <label>
+                Membre
+                <select value={mosqueDonationFilters.memberId} onChange={(event) => setMosqueDonationFilters((prev) => ({ ...prev, memberId: event.target.value }))}>
+                  <option value="">Tous</option>
+                  {mosqueMembers.map((item) => (
+                    <option key={item.id} value={item.id}>{item.memberCode}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Canal
+                <select value={mosqueDonationFilters.channel} onChange={(event) => setMosqueDonationFilters((prev) => ({ ...prev, channel: event.target.value }))}>
+                  <option value="">Tous</option>
+                  <option value="CASH">CASH</option>
+                  <option value="MOBILE_MONEY">MOBILE_MONEY</option>
+                  <option value="BANK">BANK</option>
+                  <option value="TRANSFER">TRANSFER</option>
+                  <option value="OTHER">OTHER</option>
+                </select>
+              </label>
+              <label>
+                Du
+                <input type="date" value={mosqueDonationFilters.from} onChange={(event) => setMosqueDonationFilters((prev) => ({ ...prev, from: event.target.value }))} />
+              </label>
+              <label>
+                Au
+                <input type="date" value={mosqueDonationFilters.to} onChange={(event) => setMosqueDonationFilters((prev) => ({ ...prev, to: event.target.value }))} />
+              </label>
+              <div className="actions">
+                <button type="submit">Filtrer</button>
+                <button
+                  type="button"
+                  className="button-ghost"
+                  onClick={() => {
+                    const next = { memberId: "", channel: "", from: "", to: "" };
+                    setMosqueDonationFilters(next);
+                    void loadMosqueData({
+                      memberFilters: mosqueMemberFilters,
+                      activityFilters: mosqueActivityFilters,
+                      donationFilters: next
+                    });
+                  }}
+                >
+                  Reinitialiser
+                </button>
+              </div>
+            </form>
+
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Membre</th>
+                    <th>Canal</th>
+                    <th>Montant</th>
+                    <th>Reference</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mosqueDonations.length === 0 ? (
+                    <tr><td colSpan={6} className="empty-row">Aucun don.</td></tr>
+                  ) : (
+                    mosqueDonations.map((item) => (
+                      <tr key={item.id}>
+                        <td>{new Date(item.donatedAt).toLocaleString("fr-FR")}</td>
+                        <td>{item.memberName || item.memberCode || "-"}</td>
+                        <td>{item.channel}</td>
+                        <td>{formatAmount(item.amount)} {item.currency}</td>
+                        <td>{item.referenceNo || "-"}</td>
+                        <td>
+                          <div className="row-actions">
+                            <button
+                              type="button"
+                              className="button-ghost"
+                              onClick={() => void openMosqueDonationReceipt(item.id)}
+                            >
+                              Recu PDF
+                            </button>
+                            <button type="button" className="button-danger" onClick={() => void deleteMosqueDonation(item.id)}>
+                              Supprimer
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="mosque-overview" data-step-id="overview" className="panel table-panel workflow-section">
+            <div className="table-header">
+              <h2>Dashboard mosquee</h2>
+              <button type="button" className="button-ghost" onClick={() => void loadMosqueWithCurrentFilters()}>
+                Actualiser
+              </button>
+            </div>
+            <div className="metrics-grid">
+              <article className="metric-card">
+                <span>Membres</span>
+                <strong>{mosqueDashboard?.totals.members ?? 0}</strong>
+                <small className="subtle">Actifs: {mosqueDashboard?.totals.activeMembers ?? 0}</small>
+              </article>
+              <article className="metric-card">
+                <span>Activites ce mois</span>
+                <strong>{mosqueDashboard?.totals.activitiesThisMonth ?? 0}</strong>
+                <small className="subtle">Calendrier communautaire</small>
+              </article>
+              <article className="metric-card">
+                <span>Dons ce mois</span>
+                <strong>{formatAmount(mosqueDashboard?.totals.donationsThisMonth ?? 0)} XOF</strong>
+                <small className="subtle">Moyenne: {formatAmount(mosqueDashboard?.totals.averageDonation ?? 0)} XOF</small>
+              </article>
+              <article className="metric-card">
+                <span>Total dons</span>
+                <strong>{formatAmount(mosqueDashboard?.totals.donationsTotal ?? 0)} XOF</strong>
+                <small className="subtle">Cumule historique</small>
+              </article>
+            </div>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Canal</th>
+                    <th>Transactions</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mosqueDashboard?.donationsByChannel?.length ? (
+                    mosqueDashboard.donationsByChannel.map((item) => (
+                      <tr key={item.channel}>
+                        <td>{item.channel}</td>
+                        <td>{item.count}</td>
+                        <td>{formatAmount(item.totalAmount)} XOF</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr><td colSpan={3} className="empty-row">Aucune donnee.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </>
       </WorkflowGuide>
     );
   };
@@ -4584,117 +4569,119 @@ export function App(): JSX.Element {
         activeStepId={gradesWorkflowStep}
         onStepChange={scrollToGrades}
       >
-      <section id="grades-filters" data-step-id="filters" className="panel table-panel workflow-section">
-        <div className="table-header">
-          <h2>Filtres notes</h2>
-        </div>
-        <form className="filter-grid" onSubmit={(event) => void applyGradeFilters(event)}>
-          <label>
-            Classe
-            <select
-              value={gradeFilters.classId}
-              onChange={(event) => setGradeFilters((prev) => ({ ...prev, classId: event.target.value }))}
-            >
-              <option value="">Toutes</option>
-              {classes.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.code} - {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Matiere
-            <select
-              value={gradeFilters.subjectId}
-              onChange={(event) => setGradeFilters((prev) => ({ ...prev, subjectId: event.target.value }))}
-            >
-              <option value="">Toutes</option>
-              {subjects.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.code} - {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Periode
-            <select
-              value={gradeFilters.academicPeriodId}
-              onChange={(event) =>
-                setGradeFilters((prev) => ({ ...prev, academicPeriodId: event.target.value }))
-              }
-            >
-              <option value="">Toutes</option>
-              {gradeFilterPeriods.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.code} - {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Eleve
-            <select
-              value={gradeFilters.studentId}
-              onChange={(event) => setGradeFilters((prev) => ({ ...prev, studentId: event.target.value }))}
-            >
-              <option value="">Tous</option>
-              {students.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.matricule} - {item.firstName} {item.lastName}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="actions">
-            <button type="submit">Filtrer</button>
-            <button
-              type="button"
-              className="button-ghost"
-              onClick={() => {
-                const next = { classId: "", subjectId: "", academicPeriodId: "", studentId: "" };
-                setGradeFilters(next);
-                setClassSummary(null);
-                void loadGrades(next);
-              }}
-            >
-              Reinitialiser
-            </button>
-            <button type="button" className="button-ghost" onClick={() => void computeClassSummary()}>
-              Calculer moyennes/rangs
-            </button>
+        <section id="grades-filters" data-step-id="filters" className="panel table-panel workflow-section module-modern">
+          <div className="table-header">
+            <h2>Filtres notes</h2>
           </div>
-        </form>
-      </section>
+          <p className="section-lead">Ciblez une classe, une matiere et une periode pour travailler sans surcharge.</p>
+          <form className="filter-grid module-filter" onSubmit={(event) => void applyGradeFilters(event)}>
+            <label>
+              Classe
+              <select
+                value={gradeFilters.classId}
+                onChange={(event) => setGradeFilters((prev) => ({ ...prev, classId: event.target.value }))}
+              >
+                <option value="">Toutes</option>
+                {classes.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.code} - {item.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Matiere
+              <select
+                value={gradeFilters.subjectId}
+                onChange={(event) => setGradeFilters((prev) => ({ ...prev, subjectId: event.target.value }))}
+              >
+                <option value="">Toutes</option>
+                {subjects.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.code} - {item.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Periode
+              <select
+                value={gradeFilters.academicPeriodId}
+                onChange={(event) =>
+                  setGradeFilters((prev) => ({ ...prev, academicPeriodId: event.target.value }))
+                }
+              >
+                <option value="">Toutes</option>
+                {gradeFilterPeriods.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.code} - {item.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Eleve
+              <select
+                value={gradeFilters.studentId}
+                onChange={(event) => setGradeFilters((prev) => ({ ...prev, studentId: event.target.value }))}
+              >
+                <option value="">Tous</option>
+                {students.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.matricule} - {item.firstName} {item.lastName}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="actions">
+              <button type="submit">Filtrer</button>
+              <button
+                type="button"
+                className="button-ghost"
+                onClick={() => {
+                  const next = { classId: "", subjectId: "", academicPeriodId: "", studentId: "" };
+                  setGradeFilters(next);
+                  setClassSummary(null);
+                  void loadGrades(next);
+                }}
+              >
+                Reinitialiser
+              </button>
+              <button type="button" className="button-ghost" onClick={() => void computeClassSummary()}>
+                Calculer moyennes/rangs
+              </button>
+            </div>
+          </form>
+        </section>
 
-      <section id="grades-entry" data-step-id="entry" className="panel editor-panel workflow-section">
-        <h2>Saisie note</h2>
-        <form className="form-grid" onSubmit={(event) => void submitGrade(event)}>
-          <label>
-            Eleve
+        <section id="grades-entry" data-step-id="entry" className="panel editor-panel workflow-section module-modern">
+          <h2>Saisie note</h2>
+          <p className="section-lead">Saisissez une evaluation a la fois avec validations inline.</p>
+          <form className="form-grid module-form" onSubmit={(event) => void submitGrade(event)}>
+            <label>
+              Eleve
               <select
                 value={gradeForm.studentId}
                 onChange={(event) => setGradeForm((prev) => ({ ...prev, studentId: event.target.value }))}
                 required
               >
-              <option value="">Choisir...</option>
-              {students.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.matricule} - {item.firstName} {item.lastName}
-                </option>
+                <option value="">Choisir...</option>
+                {students.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.matricule} - {item.firstName} {item.lastName}
+                  </option>
                 ))}
               </select>
               {fieldError(gradeErrors, "studentId")}
             </label>
             <label>
               Classe
-            <select
-              value={gradeForm.classId}
-              onChange={(event) => setGradeForm((prev) => ({ ...prev, classId: event.target.value }))}
-              required
-            >
-              <option value="">Choisir...</option>
+              <select
+                value={gradeForm.classId}
+                onChange={(event) => setGradeForm((prev) => ({ ...prev, classId: event.target.value }))}
+                required
+              >
+                <option value="">Choisir...</option>
                 {classes.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.code} - {item.label}
@@ -4705,12 +4692,12 @@ export function App(): JSX.Element {
             </label>
             <label>
               Matiere
-            <select
-              value={gradeForm.subjectId}
-              onChange={(event) => setGradeForm((prev) => ({ ...prev, subjectId: event.target.value }))}
-              required
-            >
-              <option value="">Choisir...</option>
+              <select
+                value={gradeForm.subjectId}
+                onChange={(event) => setGradeForm((prev) => ({ ...prev, subjectId: event.target.value }))}
+                required
+              >
+                <option value="">Choisir...</option>
                 {subjects.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.code} - {item.label}
@@ -4721,14 +4708,14 @@ export function App(): JSX.Element {
             </label>
             <label>
               Periode
-            <select
-              value={gradeForm.academicPeriodId}
-              onChange={(event) =>
-                setGradeForm((prev) => ({ ...prev, academicPeriodId: event.target.value }))
-              }
-              required
-            >
-              <option value="">Choisir...</option>
+              <select
+                value={gradeForm.academicPeriodId}
+                onChange={(event) =>
+                  setGradeForm((prev) => ({ ...prev, academicPeriodId: event.target.value }))
+                }
+                required
+              >
+                <option value="">Choisir...</option>
                 {gradeFormPeriods.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.code} - {item.label}
@@ -4739,36 +4726,36 @@ export function App(): JSX.Element {
             </label>
             <label>
               Evaluation
-            <input
+              <input
                 value={gradeForm.assessmentLabel}
                 onChange={(event) => setGradeForm((prev) => ({ ...prev, assessmentLabel: event.target.value }))}
                 required
               />
               {fieldError(gradeErrors, "assessmentLabel")}
             </label>
-          <label>
-            Type
-            <select
-              value={gradeForm.assessmentType}
-              onChange={(event) =>
-                setGradeForm((prev) => ({
-                  ...prev,
-                  assessmentType: event.target.value as "DEVOIR" | "COMPOSITION" | "ORAL" | "TP"
-                }))
-              }
-            >
-              <option value="DEVOIR">DEVOIR</option>
-              <option value="COMPOSITION">COMPOSITION</option>
-              <option value="ORAL">ORAL</option>
-              <option value="TP">TP</option>
-            </select>
-          </label>
+            <label>
+              Type
+              <select
+                value={gradeForm.assessmentType}
+                onChange={(event) =>
+                  setGradeForm((prev) => ({
+                    ...prev,
+                    assessmentType: event.target.value as "DEVOIR" | "COMPOSITION" | "ORAL" | "TP"
+                  }))
+                }
+              >
+                <option value="DEVOIR">DEVOIR</option>
+                <option value="COMPOSITION">COMPOSITION</option>
+                <option value="ORAL">ORAL</option>
+                <option value="TP">TP</option>
+              </select>
+            </label>
             <label>
               Note
-            <input
-              type="number"
-              min={0}
-              step="0.01"
+              <input
+                type="number"
+                min={0}
+                step="0.01"
                 value={gradeForm.score}
                 onChange={(event) => setGradeForm((prev) => ({ ...prev, score: event.target.value }))}
                 required
@@ -4777,130 +4764,131 @@ export function App(): JSX.Element {
             </label>
             <label>
               Bareme
-            <input
-              type="number"
-              min={1}
-              step="0.01"
+              <input
+                type="number"
+                min={1}
+                step="0.01"
                 value={gradeForm.scoreMax}
                 onChange={(event) => setGradeForm((prev) => ({ ...prev, scoreMax: event.target.value }))}
                 required
               />
               {fieldError(gradeErrors, "scoreMax")}
             </label>
-          <button type="submit">Enregistrer note</button>
-        </form>
-      </section>
+            <button type="submit">Enregistrer note</button>
+          </form>
+        </section>
 
-      <section data-step-id="entry" className="panel table-panel workflow-section">
-        <div className="table-header">
-          <h2>Notes enregistrees</h2>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Eleve</th>
-                <th>Classe</th>
-                <th>Matiere</th>
-                <th>Periode</th>
-                <th>Evaluation</th>
-                <th>Type</th>
-                <th>Note</th>
-              </tr>
-            </thead>
-            <tbody>
-              {grades.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="empty-row">
-                    Aucune note.
-                  </td>
-                </tr>
-              ) : (
-                grades.map((item) => (
-                  <tr key={item.id}>
-                    <td>{item.studentName || studentById.get(item.studentId)?.matricule || "-"}</td>
-                    <td>{classById.get(item.classId)?.label || "-"}</td>
-                    <td>{item.subjectLabel || subjects.find((subject) => subject.id === item.subjectId)?.label || "-"}</td>
-                    <td>{periods.find((period) => period.id === item.academicPeriodId)?.label || "-"}</td>
-                    <td>{item.assessmentLabel}</td>
-                    <td>{item.assessmentType}</td>
-                    <td>
-                      {item.score}/{item.scoreMax}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section id="grades-summary" data-step-id="summary" className="panel table-panel workflow-section">
-        <div className="table-header">
-          <h2>Moyennes et rangs</h2>
-        </div>
-        {classSummary && classSummary.students.length > 0 ? (
+        <section data-step-id="entry" className="panel table-panel workflow-section module-modern">
+          <div className="table-header">
+            <h2>Notes enregistrees</h2>
+          </div>
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Matricule</th>
                   <th>Eleve</th>
-                  <th>Moyenne</th>
-                  <th>Rang</th>
-                  <th>Notes</th>
-                  <th>Appreciation</th>
+                  <th>Classe</th>
+                  <th>Matiere</th>
+                  <th>Periode</th>
+                  <th>Evaluation</th>
+                  <th>Type</th>
+                  <th>Note</th>
                 </tr>
               </thead>
               <tbody>
-                {classSummary.students
-                  .slice()
-                  .sort((left, right) => left.classRank - right.classRank)
-                  .map((item) => (
-                    <tr key={item.studentId}>
-                      <td>{item.matricule}</td>
-                      <td>{item.studentName}</td>
-                      <td>{item.averageGeneral.toFixed(2)}</td>
-                      <td>{item.classRank}</td>
-                      <td>{item.noteCount}</td>
-                      <td>{item.appreciation}</td>
+                {grades.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="empty-row">
+                      Aucune note.
+                    </td>
+                  </tr>
+                ) : (
+                  grades.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.studentName || studentById.get(item.studentId)?.matricule || "-"}</td>
+                      <td>{classById.get(item.classId)?.label || "-"}</td>
+                      <td>{item.subjectLabel || subjects.find((subject) => subject.id === item.subjectId)?.label || "-"}</td>
+                      <td>{periods.find((period) => period.id === item.academicPeriodId)?.label || "-"}</td>
+                      <td>{item.assessmentLabel}</td>
+                      <td>{item.assessmentType}</td>
+                      <td>
+                        {item.score}/{item.scoreMax}
+                      </td>
                     </tr>
-                  ))}
+                  ))
+                )}
               </tbody>
             </table>
           </div>
-        ) : (
-          <p className="subtle">Aucun resume calcule pour l'instant.</p>
-        )}
-      </section>
+        </section>
 
-      <section id="grades-reports" data-step-id="reports" className="panel editor-panel workflow-section">
-        <h2>Generation bulletin PDF</h2>
-        <form className="form-grid" onSubmit={(event) => void generateReportCard(event)}>
-          <label>
-            Eleve
+        <section id="grades-summary" data-step-id="summary" className="panel table-panel workflow-section module-modern">
+          <div className="table-header">
+            <h2>Moyennes et rangs</h2>
+          </div>
+          {classSummary && classSummary.students.length > 0 ? (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Matricule</th>
+                    <th>Eleve</th>
+                    <th>Moyenne</th>
+                    <th>Rang</th>
+                    <th>Notes</th>
+                    <th>Appreciation</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {classSummary.students
+                    .slice()
+                    .sort((left, right) => left.classRank - right.classRank)
+                    .map((item) => (
+                      <tr key={item.studentId}>
+                        <td>{item.matricule}</td>
+                        <td>{item.studentName}</td>
+                        <td>{item.averageGeneral.toFixed(2)}</td>
+                        <td>{item.classRank}</td>
+                        <td>{item.noteCount}</td>
+                        <td>{item.appreciation}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="subtle">Aucun resume calcule pour l'instant.</p>
+          )}
+        </section>
+
+        <section id="grades-reports" data-step-id="reports" className="panel editor-panel workflow-section module-modern">
+          <h2>Generation bulletin PDF</h2>
+          <p className="section-lead">Generez un bulletin par eleve/periode et ouvrez le PDF en un clic.</p>
+          <form className="form-grid module-form" onSubmit={(event) => void generateReportCard(event)}>
+            <label>
+              Eleve
               <select
                 value={reportForm.studentId}
                 onChange={(event) => setReportForm((prev) => ({ ...prev, studentId: event.target.value }))}
                 required
               >
-              <option value="">Choisir...</option>
-              {students.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.matricule} - {item.firstName} {item.lastName}
-                </option>
+                <option value="">Choisir...</option>
+                {students.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.matricule} - {item.firstName} {item.lastName}
+                  </option>
                 ))}
               </select>
               {fieldError(reportErrors, "studentId")}
             </label>
             <label>
               Classe
-            <select
-              value={reportForm.classId}
-              onChange={(event) => setReportForm((prev) => ({ ...prev, classId: event.target.value }))}
-              required
-            >
-              <option value="">Choisir...</option>
+              <select
+                value={reportForm.classId}
+                onChange={(event) => setReportForm((prev) => ({ ...prev, classId: event.target.value }))}
+                required
+              >
+                <option value="">Choisir...</option>
                 {classes.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.code} - {item.label}
@@ -4911,14 +4899,14 @@ export function App(): JSX.Element {
             </label>
             <label>
               Periode
-            <select
-              value={reportForm.academicPeriodId}
-              onChange={(event) =>
-                setReportForm((prev) => ({ ...prev, academicPeriodId: event.target.value }))
-              }
-              required
-            >
-              <option value="">Choisir...</option>
+              <select
+                value={reportForm.academicPeriodId}
+                onChange={(event) =>
+                  setReportForm((prev) => ({ ...prev, academicPeriodId: event.target.value }))
+                }
+                required
+              >
+                <option value="">Choisir...</option>
                 {reportFormPeriods.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.code} - {item.label}
@@ -4927,69 +4915,69 @@ export function App(): JSX.Element {
               </select>
               {fieldError(reportErrors, "academicPeriodId")}
             </label>
-          <button type="submit">Generer bulletin</button>
-        </form>
-        <div className="actions">
-          <button type="button" className="button-ghost" onClick={() => void loadReportCards()}>
-            Recharger bulletins
-          </button>
-          {reportPdfUrl ? (
-            <button
-              type="button"
-              className="button-ghost"
-              onClick={() => window.open(reportPdfUrl, "_blank", "noopener,noreferrer")}
-            >
-              Ouvrir dernier bulletin
+            <button type="submit">Generer bulletin</button>
+          </form>
+          <div className="actions">
+            <button type="button" className="button-ghost" onClick={() => void loadReportCards()}>
+              Recharger bulletins
             </button>
-          ) : null}
-        </div>
-      </section>
+            {reportPdfUrl ? (
+              <button
+                type="button"
+                className="button-ghost"
+                onClick={() => window.open(reportPdfUrl, "_blank", "noopener,noreferrer")}
+              >
+                Ouvrir dernier bulletin
+              </button>
+            ) : null}
+          </div>
+        </section>
 
-      <section data-step-id="reports" className="panel table-panel workflow-section">
-        <div className="table-header">
-          <h2>Bulletins generes</h2>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Eleve</th>
-                <th>Classe</th>
-                <th>Periode</th>
-                <th>Moyenne</th>
-                <th>Rang</th>
-                <th>Appreciation</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {reportCards.length === 0 ? (
+        <section data-step-id="reports" className="panel table-panel workflow-section module-modern">
+          <div className="table-header">
+            <h2>Bulletins generes</h2>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
                 <tr>
-                  <td colSpan={7} className="empty-row">
-                    Aucun bulletin.
-                  </td>
+                  <th>Eleve</th>
+                  <th>Classe</th>
+                  <th>Periode</th>
+                  <th>Moyenne</th>
+                  <th>Rang</th>
+                  <th>Appreciation</th>
+                  <th>Actions</th>
                 </tr>
-              ) : (
-                reportCards.map((item) => (
-                  <tr key={item.id}>
-                    <td>{item.studentName || studentById.get(item.studentId)?.matricule || "-"}</td>
-                    <td>{item.classLabel || classById.get(item.classId)?.label || "-"}</td>
-                    <td>{item.periodLabel || periods.find((period) => period.id === item.academicPeriodId)?.label || "-"}</td>
-                    <td>{item.averageGeneral.toFixed(2)}</td>
-                    <td>{item.classRank || "-"}</td>
-                    <td>{item.appreciation || "-"}</td>
-                    <td>
-                      <button type="button" className="button-ghost" onClick={() => void openReportCardPdf(item.id)}>
-                        PDF
-                      </button>
+              </thead>
+              <tbody>
+                {reportCards.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="empty-row">
+                      Aucun bulletin.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                ) : (
+                  reportCards.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.studentName || studentById.get(item.studentId)?.matricule || "-"}</td>
+                      <td>{item.classLabel || classById.get(item.classId)?.label || "-"}</td>
+                      <td>{item.periodLabel || periods.find((period) => period.id === item.academicPeriodId)?.label || "-"}</td>
+                      <td>{item.averageGeneral.toFixed(2)}</td>
+                      <td>{item.classRank || "-"}</td>
+                      <td>{item.appreciation || "-"}</td>
+                      <td>
+                        <button type="button" className="button-ghost" onClick={() => void openReportCardPdf(item.id)}>
+                          PDF
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </WorkflowGuide>
     );
   };
@@ -5054,7 +5042,7 @@ export function App(): JSX.Element {
     return (
       <WorkflowGuide
         title="Reporting avance & conformite"
-        subtitle="Sprint 11: audit/compliance, pilotage avance et preparation demo client."
+        subtitle="Pilotage avance, conformite et export des preuves metier."
         steps={reportSteps}
         activeStepId={reportWorkflowStep}
         onStepChange={setReportWorkflowStep}
@@ -5382,8 +5370,8 @@ export function App(): JSX.Element {
 
         <section className="panel table-panel" data-step-id="export">
           <div className="table-header">
-            <h2>Livrables demo client</h2>
-            <span className="subtle">Exporter des preuves exploitables pour Mosquee Blanche.</span>
+            <h2>Livrables d'export</h2>
+            <span className="subtle">Exporter des preuves exploitables pour audit et pilotage.</span>
           </div>
           <div className="split-grid">
             <article className="panel soft-card">
@@ -5422,106 +5410,188 @@ export function App(): JSX.Element {
     );
   };
 
-const dashboardCards = [
-  { label: "Eleves", value: students.length, hint: "Population" },
-  { label: "Classes", value: classes.length, hint: "Organisation" },
-  { label: "Inscriptions", value: enrollments.length, hint: "Actives" },
-  {
-    label: "Recouvrement",
-    value: `${recovery ? recovery.totals.recoveryRatePercent.toFixed(1) : "0.0"}%`,
-    hint: "Sante financiere"
-  },
-  { label: "Notes saisies", value: grades.length, hint: "Evaluations" },
-  { label: "Bulletins", value: reportCards.length, hint: "Publies" },
-  {
-    label: "Dons mosquee",
-    value: `${(mosqueDashboard?.totals.donationsTotal ?? 0).toLocaleString("fr-FR")} XOF`,
-    hint: "Total cumule"
-  }
-];
+  const dashboardCards = [
+    { label: "Eleves", value: students.length, hint: "Population" },
+    { label: "Classes", value: classes.length, hint: "Organisation" },
+    { label: "Inscriptions", value: enrollments.length, hint: "Actives" },
+    {
+      label: "Recouvrement",
+      value: `${recovery ? recovery.totals.recoveryRatePercent.toFixed(1) : "0.0"}%`,
+      hint: "Sante financiere"
+    },
+    { label: "Notes saisies", value: grades.length, hint: "Evaluations" },
+    { label: "Bulletins", value: reportCards.length, hint: "Publies" },
+    {
+      label: "Dons mosquee",
+      value: `${(mosqueDashboard?.totals.donationsTotal ?? 0).toLocaleString("fr-FR")} XOF`,
+      hint: "Total cumule"
+    }
+  ];
 
-const renderDashboard = (): JSX.Element => (
-  <>
-    <section className="panel hero-panel">
-      <div className="hero-top-row">
-        <span className="hero-tag">{currentSlide.label}</span>
-        <div className="hero-controls" role="group" aria-label="Navigation banniere">
-          <button type="button" className="hero-nav" onClick={prevHeroSlide}>
-            &lt;
-          </button>
-          <button type="button" className="hero-nav" onClick={nextHeroSlide}>
-            &gt;
-          </button>
-        </div>
-      </div>
-      <h2 className="hero-quote">"{currentSlide.quote}"</h2>
-      <p className="hero-author">{currentSlide.author}</p>
-      <label className="hero-search" htmlFor="module-search">
-        <span>Rechercher un module</span>
-        <input
-          id="module-search"
-          value={moduleQueryInput}
-          onChange={(event) => setModuleQueryInput(event.target.value)}
-          placeholder="Ex: finance, absences, inscriptions..."
-        />
-      </label>
-    </section>
+  const renderDashboard = (): JSX.Element => {
+    const activeModules = filteredTiles.slice(0, 8);
+    const primaryModule = filteredTiles[0];
+    const openInvoices = invoices.filter((item) => item.status !== "PAID").length;
+    const pendingReports = Math.max(0, classes.length - reportCards.length);
+    const lowRecovery = (recovery?.totals.recoveryRatePercent ?? 0) < 70;
+    const dashboardNotifications = [
+      lowRecovery
+        ? {
+            id: "recovery",
+            tone: "warning",
+            title: "Recouvrement a surveiller",
+            text: `Taux actuel: ${(recovery?.totals.recoveryRatePercent ?? 0).toFixed(1)}%`
+          }
+        : null,
+      openInvoices > 0
+        ? {
+            id: "invoices",
+            tone: "info",
+            title: "Factures en attente",
+            text: `${openInvoices} facture(s) restent a suivre.`
+          }
+        : null,
+      pendingReports > 0
+        ? {
+            id: "reports",
+            tone: "info",
+            title: "Bulletins a publier",
+            text: `${pendingReports} classe(s) sans bulletin genere.`
+          }
+        : null
+    ].filter(
+      (
+        item
+      ): item is {
+        id: string;
+        tone: "warning" | "info";
+        title: string;
+        text: string;
+      } => item !== null
+    );
 
-    <section className="module-grid" aria-label="Modules applicatifs">
-      {filteredTiles.length === 0 ? (
-        <article className="panel empty-modules">
-          <h3>Aucun module trouve</h3>
-          <p className="subtle">Ajuste ta recherche ou vide le filtre pour afficher tous les modules.</p>
+    return (
+      <>
+        <section className="panel dashboard-hero">
+          <div>
+            <p className="eyebrow">Accueil simplifie</p>
+            <h2>Tableau de bord clair et actionnable</h2>
+            <p className="subtle">
+              {currentSlide.quote}
+            </p>
+          </div>
           <button
             type="button"
-            className="button-ghost"
-            onClick={() => {
-              setModuleQueryInput("");
-              setModuleQuery("");
-            }}
+            className="hero-primary-cta"
+            onClick={() => setTab(primaryModule?.screen || "students")}
           >
-            Effacer la recherche
+            {primaryModule ? `Ouvrir ${primaryModule.title}` : "Ouvrir le module principal"}
           </button>
-        </article>
-      ) : (
-        filteredTiles.map((tile) => (
-          <button
-            key={tile.screen}
-            type="button"
-            className="module-card"
-            onClick={() => setTab(tile.screen)}
-          >
-            <span className={`module-icon tone-${tile.tone}`}>
-              <ModuleIcon name={tile.icon} />
-            </span>
-            <span className="module-text">
-              <strong>{tile.title}</strong>
-              <small>{tile.subtitle}</small>
-            </span>
-          </button>
-        ))
-      )}
-    </section>
+        </section>
 
-    <section className="panel metrics-panel">
-      <div className="table-header">
-        <h2>Indicateurs rapides</h2>
-        <span className="subtle">Mise a jour en temps reel</span>
-      </div>
-      <div className="metrics-grid">
-        {dashboardCards.map((card) => (
-          <article key={card.label} className="metric-card">
-            <span>{card.label}</span>
-            <strong>{card.value}</strong>
-            <small className="subtle">{card.hint}</small>
+        <section className="dashboard-kpi-grid">
+          {dashboardCards.slice(0, 4).map((card) => (
+            <article key={card.label} className="panel metric-card kpi-card">
+              <span>{card.label}</span>
+              <strong>{card.value}</strong>
+              <small className="subtle">{card.hint}</small>
+            </article>
+          ))}
+        </section>
+
+        <section className="dashboard-main-grid">
+          <article className="panel dashboard-modules" aria-label="Modules applicatifs">
+            <div className="table-header">
+              <h2>Modules</h2>
+              {moduleQuery.trim() ? (
+                <button
+                  type="button"
+                  className="button-ghost"
+                  onClick={() => {
+                    setModuleQueryInput("");
+                    setModuleQuery("");
+                  }}
+                >
+                  Effacer filtre
+                </button>
+              ) : null}
+            </div>
+            <div className="module-grid">
+              {activeModules.length === 0 ? (
+                <article className="empty-modules">
+                  <h3>Aucun module trouve</h3>
+                  <p className="subtle">Essaie un mot-cle plus simple.</p>
+                </article>
+              ) : (
+                activeModules.map((tile) => (
+                  <button
+                    key={tile.screen}
+                    type="button"
+                    className="module-card"
+                    onClick={() => setTab(tile.screen)}
+                  >
+                    <span className={`module-icon tone-${tile.tone}`}>
+                      <ModuleIcon name={tile.icon} />
+                    </span>
+                    <span className="module-text">
+                      <strong>{tile.title}</strong>
+                      <small>{tile.subtitle}</small>
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
           </article>
-        ))}
-      </div>
-    </section>
-  </>
-);
 
-const renderTeacherPortal = (): JSX.Element => {
+          <aside className="dashboard-side">
+            <article className="panel priority-panel">
+              <div className="table-header">
+                <h3>Taches prioritaires</h3>
+              </div>
+              <div className="priority-list">
+                <button type="button" className="priority-item" onClick={() => setTab("students")}>
+                  <strong>Creer un eleve</strong>
+                  <small>Commencer un nouveau dossier eleve.</small>
+                </button>
+                <button type="button" className="priority-item" onClick={() => setTab("enrollments")}>
+                  <strong>Valider les inscriptions</strong>
+                  <small>Relier eleves, classes et annee scolaire.</small>
+                </button>
+                <button type="button" className="priority-item" onClick={() => setTab("finance")}>
+                  <strong>Suivre les paiements</strong>
+                  <small>Verifier factures ouvertes et recouvrement.</small>
+                </button>
+                <button type="button" className="priority-item" onClick={() => setTab("grades")}>
+                  <strong>Publier les bulletins</strong>
+                  <small>Generer les bulletins PDF de periode.</small>
+                </button>
+              </div>
+            </article>
+
+            <article className="panel priority-panel">
+              <div className="table-header">
+                <h3>Notifications recentes</h3>
+              </div>
+              <div className="notice-list">
+                {dashboardNotifications.length === 0 ? (
+                  <p className="subtle">Aucune alerte critique pour le moment.</p>
+                ) : (
+                  dashboardNotifications.map((item) => (
+                    <article key={item.id} className={`notice-card notice-${item.tone}`}>
+                      <strong>{item.title}</strong>
+                      <p>{item.text}</p>
+                    </article>
+                  ))
+                )}
+              </div>
+            </article>
+          </aside>
+        </section>
+      </>
+    );
+  };
+
+  const renderTeacherPortal = (): JSX.Element => {
     const teacherClass = teacherPortalFilters.classId
       ? teacherClasses.find((item) => item.classId === teacherPortalFilters.classId)
       : teacherClasses[0];
@@ -6791,439 +6861,446 @@ const renderTeacherPortal = (): JSX.Element => {
       };
 
       return (
-      <WorkflowGuide
-        title="Referentiel academique"
-        subtitle="Ordre recommande: annees, cycles/niveaux, classes/matieres, puis periodes."
-        steps={referenceSteps}
-        activeStepId={referenceWorkflowStep}
-        onStepChange={scrollToReference}
-      >
-      <section className="panel table-panel">
-        <div className="table-header">
-          <h2>Referentiel academique</h2>
-        </div>
-        <div className="reference-grid">
-          <article id="reference-years" data-step-id="years" className="panel card-panel">
-            <h3>Annees scolaires</h3>
-            <form
-              className="form-grid"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const errors: FieldErrors = {};
-                if (!syForm.code.trim()) errors.code = "Code annee requis.";
-                if (!syForm.startDate) errors.startDate = "Date de debut requise.";
-                if (!syForm.endDate) errors.endDate = "Date de fin requise.";
-                if (syForm.startDate && syForm.endDate && syForm.endDate < syForm.startDate) {
-                  errors.endDate = "La date de fin doit etre apres la date de debut.";
-                }
-                setSchoolYearErrors(errors);
-                if (hasFieldErrors(errors)) {
-                  focusFirstInlineErrorField("years");
-                  return;
-                }
-                void createRef(
-                  "/school-years",
-                  {
-                    code: syForm.code.trim(),
-                    startDate: syForm.startDate,
-                    endDate: syForm.endDate,
-                    isActive: syForm.isActive
-                  },
-                  "Annee creee."
-                ).then((ok) => {
-                  if (ok) {
-                    setSchoolYearErrors({});
-                    setSyForm({ code: "", startDate: "", endDate: "", isActive: false });
-                  }
-                });
-              }}
-            >
-              <label>
-                Code
-                <input value={syForm.code} onChange={(event) => setSyForm((prev) => ({ ...prev, code: event.target.value }))} required />
-                {fieldError(schoolYearErrors, "code")}
-              </label>
-              <label>
-                Debut
-                <input type="date" value={syForm.startDate} onChange={(event) => setSyForm((prev) => ({ ...prev, startDate: event.target.value }))} required />
-                {fieldError(schoolYearErrors, "startDate")}
-              </label>
-              <label>
-                Fin
-                <input type="date" value={syForm.endDate} onChange={(event) => setSyForm((prev) => ({ ...prev, endDate: event.target.value }))} required />
-                {fieldError(schoolYearErrors, "endDate")}
-              </label>
-              <label className="check-row">
-                <input type="checkbox" checked={syForm.isActive} onChange={(event) => setSyForm((prev) => ({ ...prev, isActive: event.target.checked }))} />
-                Annee active
-              </label>
-              <button type="submit">Creer</button>
-            </form>
-            <div className="mini-list">
-              {schoolYears.map((item) => (
-                <div key={item.id} className="mini-item">
-                  <span>{item.code} {item.isActive ? "(Active)" : ""}</span>
-                  <button type="button" className="button-ghost" onClick={() => void deleteRef(`/school-years/${item.id}`, "Annee supprimee.")}>
-                    Suppr.
-                  </button>
-                </div>
-              ))}
+        <WorkflowGuide
+          title="Referentiel academique"
+          subtitle="Ordre recommande: annees, cycles/niveaux, classes/matieres, puis periodes."
+          steps={referenceSteps}
+          activeStepId={referenceWorkflowStep}
+          onStepChange={scrollToReference}
+        >
+          <section className="panel table-panel module-modern">
+            <div className="table-header">
+              <h2>Referentiel academique</h2>
             </div>
-          </article>
+            <p className="section-lead">Unifiez les parametres metier: annee, structure pedagogique, classes et periodes.</p>
+            <div className="reference-grid">
+              <article id="reference-years" data-step-id="years" className="panel card-panel module-modern module-stack">
+                <h3>Annees scolaires</h3>
+                <p className="section-lead">Definissez la fenetre de travail de l'etablissement avant tout autre parametrage.</p>
+                <form
+                  className="form-grid module-form"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const errors: FieldErrors = {};
+                    if (!syForm.code.trim()) errors.code = "Code annee requis.";
+                    if (!syForm.startDate) errors.startDate = "Date de debut requise.";
+                    if (!syForm.endDate) errors.endDate = "Date de fin requise.";
+                    if (syForm.startDate && syForm.endDate && syForm.endDate < syForm.startDate) {
+                      errors.endDate = "La date de fin doit etre apres la date de debut.";
+                    }
+                    setSchoolYearErrors(errors);
+                    if (hasFieldErrors(errors)) {
+                      focusFirstInlineErrorField("years");
+                      return;
+                    }
+                    void createRef(
+                      "/school-years",
+                      {
+                        code: syForm.code.trim(),
+                        startDate: syForm.startDate,
+                        endDate: syForm.endDate,
+                        isActive: syForm.isActive
+                      },
+                      "Annee creee."
+                    ).then((ok) => {
+                      if (ok) {
+                        setSchoolYearErrors({});
+                        setSyForm({ code: "", startDate: "", endDate: "", isActive: false });
+                      }
+                    });
+                  }}
+                >
+                  <label>
+                    Code
+                    <input value={syForm.code} onChange={(event) => setSyForm((prev) => ({ ...prev, code: event.target.value }))} required />
+                    {fieldError(schoolYearErrors, "code")}
+                  </label>
+                  <label>
+                    Debut
+                    <input type="date" value={syForm.startDate} onChange={(event) => setSyForm((prev) => ({ ...prev, startDate: event.target.value }))} required />
+                    {fieldError(schoolYearErrors, "startDate")}
+                  </label>
+                  <label>
+                    Fin
+                    <input type="date" value={syForm.endDate} onChange={(event) => setSyForm((prev) => ({ ...prev, endDate: event.target.value }))} required />
+                    {fieldError(schoolYearErrors, "endDate")}
+                  </label>
+                  <label className="check-row">
+                    <input type="checkbox" checked={syForm.isActive} onChange={(event) => setSyForm((prev) => ({ ...prev, isActive: event.target.checked }))} />
+                    Annee active
+                  </label>
+                  <button type="submit">Creer</button>
+                </form>
+                <div className="mini-list">
+                  {schoolYears.map((item) => (
+                    <div key={item.id} className="mini-item">
+                      <span>{item.code} {item.isActive ? "(Active)" : ""}</span>
+                      <button type="button" className="button-ghost" onClick={() => void deleteRef(`/school-years/${item.id}`, "Annee supprimee.")}>
+                        Suppr.
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </article>
 
-          <article id="reference-cycles" data-step-id="cycles" className="panel card-panel">
-            <h3>Cycles / Niveaux</h3>
-            <form
-              className="form-grid"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const errors: FieldErrors = {};
-                if (!cycleForm.code.trim()) errors.code = "Code cycle requis.";
-                if (!cycleForm.label.trim()) errors.label = "Libelle cycle requis.";
-                if (!Number.isFinite(cycleForm.sortOrder) || cycleForm.sortOrder < 0) {
-                  errors.sortOrder = "Ordre invalide.";
-                }
-                setCycleErrors(errors);
-                if (hasFieldErrors(errors)) {
-                  focusFirstInlineErrorField("cycles");
-                  return;
-                }
-                void createRef("/cycles", cycleForm, "Cycle cree.").then((ok) => {
-                  if (ok) {
-                    setCycleErrors({});
-                    setCycleForm({ code: "", label: "", sortOrder: 1 });
-                  }
-                });
-              }}
-            >
-              <label>
-                Code cycle
-                <input value={cycleForm.code} onChange={(event) => setCycleForm((prev) => ({ ...prev, code: event.target.value }))} required />
-                {fieldError(cycleErrors, "code")}
-              </label>
-              <label>
-                Libelle cycle
-                <input value={cycleForm.label} onChange={(event) => setCycleForm((prev) => ({ ...prev, label: event.target.value }))} required />
-                {fieldError(cycleErrors, "label")}
-              </label>
-              <label>
-                Ordre
-                <input type="number" min={0} value={cycleForm.sortOrder} onChange={(event) => setCycleForm((prev) => ({ ...prev, sortOrder: Number(event.target.value) || 0 }))} required />
-                {fieldError(cycleErrors, "sortOrder")}
-              </label>
-              <button type="submit">Creer cycle</button>
-            </form>
-            <div className="mini-list">
-              {cycles.map((item) => (
-                <div key={item.id} className="mini-item">
-                  <span>{item.code} - {item.label}</span>
-                  <button type="button" className="button-ghost" onClick={() => void deleteRef(`/cycles/${item.id}`, "Cycle supprime.")}>
-                    Suppr.
-                  </button>
-                </div>
-              ))}
-            </div>
-            <form
-              className="form-grid"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const errors: FieldErrors = {};
-                if (!levelForm.cycleId) errors.cycleId = "Choisir un cycle.";
-                if (!levelForm.code.trim()) errors.code = "Code niveau requis.";
-                if (!levelForm.label.trim()) errors.label = "Libelle niveau requis.";
-                if (!Number.isFinite(levelForm.sortOrder) || levelForm.sortOrder < 0) {
-                  errors.sortOrder = "Ordre invalide.";
-                }
-                setLevelErrors(errors);
-                if (hasFieldErrors(errors)) {
-                  focusFirstInlineErrorField("cycles");
-                  return;
-                }
-                void createRef("/levels", levelForm, "Niveau cree.").then((ok) => {
-                  if (ok) {
-                    setLevelErrors({});
-                    setLevelForm((prev) => ({ ...prev, code: "", label: "", sortOrder: 1 }));
-                  }
-                });
-              }}
-            >
-              <label>
-                Cycle
-                <select value={levelForm.cycleId} onChange={(event) => setLevelForm((prev) => ({ ...prev, cycleId: event.target.value }))}>
+              <article id="reference-cycles" data-step-id="cycles" className="panel card-panel module-modern module-stack">
+                <h3>Cycles / Niveaux</h3>
+                <p className="section-lead">Creez d'abord les cycles, puis les niveaux associes pour structurer les parcours.</p>
+                <form
+                  className="form-grid module-form"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const errors: FieldErrors = {};
+                    if (!cycleForm.code.trim()) errors.code = "Code cycle requis.";
+                    if (!cycleForm.label.trim()) errors.label = "Libelle cycle requis.";
+                    if (!Number.isFinite(cycleForm.sortOrder) || cycleForm.sortOrder < 0) {
+                      errors.sortOrder = "Ordre invalide.";
+                    }
+                    setCycleErrors(errors);
+                    if (hasFieldErrors(errors)) {
+                      focusFirstInlineErrorField("cycles");
+                      return;
+                    }
+                    void createRef("/cycles", cycleForm, "Cycle cree.").then((ok) => {
+                      if (ok) {
+                        setCycleErrors({});
+                        setCycleForm({ code: "", label: "", sortOrder: 1 });
+                      }
+                    });
+                  }}
+                >
+                  <label>
+                    Code cycle
+                    <input value={cycleForm.code} onChange={(event) => setCycleForm((prev) => ({ ...prev, code: event.target.value }))} required />
+                    {fieldError(cycleErrors, "code")}
+                  </label>
+                  <label>
+                    Libelle cycle
+                    <input value={cycleForm.label} onChange={(event) => setCycleForm((prev) => ({ ...prev, label: event.target.value }))} required />
+                    {fieldError(cycleErrors, "label")}
+                  </label>
+                  <label>
+                    Ordre
+                    <input type="number" min={0} value={cycleForm.sortOrder} onChange={(event) => setCycleForm((prev) => ({ ...prev, sortOrder: Number(event.target.value) || 0 }))} required />
+                    {fieldError(cycleErrors, "sortOrder")}
+                  </label>
+                  <button type="submit">Creer cycle</button>
+                </form>
+                <div className="mini-list">
                   {cycles.map((item) => (
-                    <option key={item.id} value={item.id}>{item.code}</option>
+                    <div key={item.id} className="mini-item">
+                      <span>{item.code} - {item.label}</span>
+                      <button type="button" className="button-ghost" onClick={() => void deleteRef(`/cycles/${item.id}`, "Cycle supprime.")}>
+                        Suppr.
+                      </button>
+                    </div>
                   ))}
-                </select>
-                {fieldError(levelErrors, "cycleId")}
-              </label>
-              <label>
-                Code niveau
-                <input value={levelForm.code} onChange={(event) => setLevelForm((prev) => ({ ...prev, code: event.target.value }))} required />
-                {fieldError(levelErrors, "code")}
-              </label>
-              <label>
-                Libelle niveau
-                <input value={levelForm.label} onChange={(event) => setLevelForm((prev) => ({ ...prev, label: event.target.value }))} required />
-                {fieldError(levelErrors, "label")}
-              </label>
-              <button type="submit">Creer niveau</button>
-            </form>
-            <label>
-              Filtre cycle
-              <select value={levelCycleFilter} onChange={(event) => setLevelCycleFilter(event.target.value)}>
-                <option value="">Tous</option>
-                {cycles.map((item) => (
-                  <option key={item.id} value={item.id}>{item.code}</option>
-                ))}
-              </select>
-            </label>
-            <div className="mini-list">
-              {shownLevels.map((item) => (
-                <div key={item.id} className="mini-item">
-                  <span>{item.code} - {item.label}</span>
-                  <button type="button" className="button-ghost" onClick={() => void deleteRef(`/levels/${item.id}`, "Niveau supprime.")}>
-                    Suppr.
-                  </button>
                 </div>
-              ))}
-            </div>
-          </article>
+                <p className="form-block-title">Niveaux par cycle</p>
+                <form
+                  className="form-grid module-form"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const errors: FieldErrors = {};
+                    if (!levelForm.cycleId) errors.cycleId = "Choisir un cycle.";
+                    if (!levelForm.code.trim()) errors.code = "Code niveau requis.";
+                    if (!levelForm.label.trim()) errors.label = "Libelle niveau requis.";
+                    if (!Number.isFinite(levelForm.sortOrder) || levelForm.sortOrder < 0) {
+                      errors.sortOrder = "Ordre invalide.";
+                    }
+                    setLevelErrors(errors);
+                    if (hasFieldErrors(errors)) {
+                      focusFirstInlineErrorField("cycles");
+                      return;
+                    }
+                    void createRef("/levels", levelForm, "Niveau cree.").then((ok) => {
+                      if (ok) {
+                        setLevelErrors({});
+                        setLevelForm((prev) => ({ ...prev, code: "", label: "", sortOrder: 1 }));
+                      }
+                    });
+                  }}
+                >
+                  <label>
+                    Cycle
+                    <select value={levelForm.cycleId} onChange={(event) => setLevelForm((prev) => ({ ...prev, cycleId: event.target.value }))}>
+                      {cycles.map((item) => (
+                        <option key={item.id} value={item.id}>{item.code}</option>
+                      ))}
+                    </select>
+                    {fieldError(levelErrors, "cycleId")}
+                  </label>
+                  <label>
+                    Code niveau
+                    <input value={levelForm.code} onChange={(event) => setLevelForm((prev) => ({ ...prev, code: event.target.value }))} required />
+                    {fieldError(levelErrors, "code")}
+                  </label>
+                  <label>
+                    Libelle niveau
+                    <input value={levelForm.label} onChange={(event) => setLevelForm((prev) => ({ ...prev, label: event.target.value }))} required />
+                    {fieldError(levelErrors, "label")}
+                  </label>
+                  <button type="submit">Creer niveau</button>
+                </form>
+                <label>
+                  Filtre cycle
+                  <select value={levelCycleFilter} onChange={(event) => setLevelCycleFilter(event.target.value)}>
+                    <option value="">Tous</option>
+                    {cycles.map((item) => (
+                      <option key={item.id} value={item.id}>{item.code}</option>
+                    ))}
+                  </select>
+                </label>
+                <div className="mini-list">
+                  {shownLevels.map((item) => (
+                    <div key={item.id} className="mini-item">
+                      <span>{item.code} - {item.label}</span>
+                      <button type="button" className="button-ghost" onClick={() => void deleteRef(`/levels/${item.id}`, "Niveau supprime.")}>
+                        Suppr.
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </article>
 
-          <article id="reference-classes" data-step-id="classes" className="panel card-panel">
-            <h3>Classes / Matieres / Periodes</h3>
-            <form
-              className="form-grid"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const errors: FieldErrors = {};
-                if (!classForm.schoolYearId) errors.schoolYearId = "Annee requise.";
-                if (!classForm.levelId) errors.levelId = "Niveau requis.";
-                if (!classForm.code.trim()) errors.code = "Code classe requis.";
-                if (!classForm.label.trim()) errors.label = "Libelle classe requis.";
-                if (classForm.capacity.trim() && (!Number.isFinite(Number(classForm.capacity)) || Number(classForm.capacity) <= 0)) {
-                  errors.capacity = "Capacite invalide.";
-                }
-                setClassErrors(errors);
-                if (hasFieldErrors(errors)) {
-                  focusFirstInlineErrorField("classes");
-                  return;
-                }
-                void createRef(
-                  "/classes",
-                  {
-                    ...classForm,
-                    capacity: classForm.capacity.trim() ? Number(classForm.capacity) : undefined
-                  },
-                  "Classe creee."
-                ).then((ok) => {
-                  if (ok) {
-                    setClassErrors({});
-                    setClassForm((prev) => ({ ...prev, code: "", label: "", capacity: "" }));
-                  }
-                });
-              }}
-            >
-              <label>
-                Annee
-                <select value={classForm.schoolYearId} onChange={(event) => setClassForm((prev) => ({ ...prev, schoolYearId: event.target.value }))}>
-                  {schoolYears.map((item) => (
-                    <option key={item.id} value={item.id}>{item.code}</option>
-                  ))}
-                </select>
-                {fieldError(classErrors, "schoolYearId")}
-              </label>
-              <label>
-                Niveau
-                <select value={classForm.levelId} onChange={(event) => setClassForm((prev) => ({ ...prev, levelId: event.target.value }))}>
-                  {levels.map((item) => (
-                    <option key={item.id} value={item.id}>{item.code}</option>
-                  ))}
-                </select>
-                {fieldError(classErrors, "levelId")}
-              </label>
-              <label>
-                Code classe
-                <input value={classForm.code} onChange={(event) => setClassForm((prev) => ({ ...prev, code: event.target.value }))} required />
-                {fieldError(classErrors, "code")}
-              </label>
-              <label>
-                Libelle classe
-                <input value={classForm.label} onChange={(event) => setClassForm((prev) => ({ ...prev, label: event.target.value }))} required />
-                {fieldError(classErrors, "label")}
-              </label>
-              <label>
-                Capacite (optionnel)
-                <input
-                  type="number"
-                  min={1}
-                  value={classForm.capacity}
-                  onChange={(event) => setClassForm((prev) => ({ ...prev, capacity: event.target.value }))}
-                />
-                {fieldError(classErrors, "capacity")}
-              </label>
-              <button type="submit">Creer classe</button>
-            </form>
-            <div className="filter-grid">
-              <label>
-                Filtre annee
-                <select value={classYearFilter} onChange={(event) => setClassYearFilter(event.target.value)}>
-                  <option value="">Toutes</option>
-                  {schoolYears.map((item) => (
-                    <option key={item.id} value={item.id}>{item.code}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Filtre niveau
-                <select value={classLevelFilter} onChange={(event) => setClassLevelFilter(event.target.value)}>
-                  <option value="">Tous</option>
-                  {levels.map((item) => (
-                    <option key={item.id} value={item.id}>{item.code}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div className="mini-list">
-              {shownClasses.map((item) => (
-                <div key={item.id} className="mini-item">
-                  <span>{item.code} - {item.label}</span>
-                  <button type="button" className="button-ghost" onClick={() => void deleteRef(`/classes/${item.id}`, "Classe supprimee.")}>
-                    Suppr.
-                  </button>
+              <article id="reference-classes" data-step-id="classes" className="panel card-panel module-modern module-stack">
+                <h3>Classes / Matieres / Periodes</h3>
+                <p className="section-lead">Parametrez les classes et les matieres depuis un seul espace de configuration.</p>
+                <form
+                  className="form-grid module-form"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const errors: FieldErrors = {};
+                    if (!classForm.schoolYearId) errors.schoolYearId = "Annee requise.";
+                    if (!classForm.levelId) errors.levelId = "Niveau requis.";
+                    if (!classForm.code.trim()) errors.code = "Code classe requis.";
+                    if (!classForm.label.trim()) errors.label = "Libelle classe requis.";
+                    if (classForm.capacity.trim() && (!Number.isFinite(Number(classForm.capacity)) || Number(classForm.capacity) <= 0)) {
+                      errors.capacity = "Capacite invalide.";
+                    }
+                    setClassErrors(errors);
+                    if (hasFieldErrors(errors)) {
+                      focusFirstInlineErrorField("classes");
+                      return;
+                    }
+                    void createRef(
+                      "/classes",
+                      {
+                        ...classForm,
+                        capacity: classForm.capacity.trim() ? Number(classForm.capacity) : undefined
+                      },
+                      "Classe creee."
+                    ).then((ok) => {
+                      if (ok) {
+                        setClassErrors({});
+                        setClassForm((prev) => ({ ...prev, code: "", label: "", capacity: "" }));
+                      }
+                    });
+                  }}
+                >
+                  <label>
+                    Annee
+                    <select value={classForm.schoolYearId} onChange={(event) => setClassForm((prev) => ({ ...prev, schoolYearId: event.target.value }))}>
+                      {schoolYears.map((item) => (
+                        <option key={item.id} value={item.id}>{item.code}</option>
+                      ))}
+                    </select>
+                    {fieldError(classErrors, "schoolYearId")}
+                  </label>
+                  <label>
+                    Niveau
+                    <select value={classForm.levelId} onChange={(event) => setClassForm((prev) => ({ ...prev, levelId: event.target.value }))}>
+                      {levels.map((item) => (
+                        <option key={item.id} value={item.id}>{item.code}</option>
+                      ))}
+                    </select>
+                    {fieldError(classErrors, "levelId")}
+                  </label>
+                  <label>
+                    Code classe
+                    <input value={classForm.code} onChange={(event) => setClassForm((prev) => ({ ...prev, code: event.target.value }))} required />
+                    {fieldError(classErrors, "code")}
+                  </label>
+                  <label>
+                    Libelle classe
+                    <input value={classForm.label} onChange={(event) => setClassForm((prev) => ({ ...prev, label: event.target.value }))} required />
+                    {fieldError(classErrors, "label")}
+                  </label>
+                  <label>
+                    Capacite (optionnel)
+                    <input
+                      type="number"
+                      min={1}
+                      value={classForm.capacity}
+                      onChange={(event) => setClassForm((prev) => ({ ...prev, capacity: event.target.value }))}
+                    />
+                    {fieldError(classErrors, "capacity")}
+                  </label>
+                  <button type="submit">Creer classe</button>
+                </form>
+                <div className="filter-grid module-filter">
+                  <label>
+                    Filtre annee
+                    <select value={classYearFilter} onChange={(event) => setClassYearFilter(event.target.value)}>
+                      <option value="">Toutes</option>
+                      {schoolYears.map((item) => (
+                        <option key={item.id} value={item.id}>{item.code}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Filtre niveau
+                    <select value={classLevelFilter} onChange={(event) => setClassLevelFilter(event.target.value)}>
+                      <option value="">Tous</option>
+                      {levels.map((item) => (
+                        <option key={item.id} value={item.id}>{item.code}</option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
-              ))}
-            </div>
-            <form
-              className="form-grid"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const errors: FieldErrors = {};
-                if (!subjectForm.code.trim()) errors.code = "Code matiere requis.";
-                if (!subjectForm.label.trim()) errors.label = "Libelle matiere requis.";
-                setSubjectErrors(errors);
-                if (hasFieldErrors(errors)) {
-                  focusFirstInlineErrorField("classes");
-                  return;
-                }
-                void createRef("/subjects", subjectForm, "Matiere creee.").then((ok) => {
-                  if (ok) {
-                    setSubjectErrors({});
-                    setSubjectForm({ code: "", label: "", isArabic: false });
-                  }
-                });
-              }}
-            >
-              <label>
-                Code matiere
-                <input value={subjectForm.code} onChange={(event) => setSubjectForm((prev) => ({ ...prev, code: event.target.value }))} required />
-                {fieldError(subjectErrors, "code")}
-              </label>
-              <label>
-                Libelle matiere
-                <input value={subjectForm.label} onChange={(event) => setSubjectForm((prev) => ({ ...prev, label: event.target.value }))} required />
-                {fieldError(subjectErrors, "label")}
-              </label>
-              <label className="check-row">
-                <input type="checkbox" checked={subjectForm.isArabic} onChange={(event) => setSubjectForm((prev) => ({ ...prev, isArabic: event.target.checked }))} />
-                Matiere arabe
-              </label>
-              <button type="submit">Creer matiere</button>
-            </form>
-            <div className="mini-list">
-              {subjects.map((item) => (
-                <div key={item.id} className="mini-item">
-                  <span>{item.code} - {item.label} {item.isArabic ? "(AR)" : ""}</span>
-                  <button type="button" className="button-ghost" onClick={() => void deleteRef(`/subjects/${item.id}`, "Matiere supprimee.")}>
-                    Suppr.
-                  </button>
+                <div className="mini-list">
+                  {shownClasses.map((item) => (
+                    <div key={item.id} className="mini-item">
+                      <span>{item.code} - {item.label}</span>
+                      <button type="button" className="button-ghost" onClick={() => void deleteRef(`/classes/${item.id}`, "Classe supprimee.")}>
+                        Suppr.
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </article>
+                <p className="form-block-title">Matieres enseignees</p>
+                <form
+                  className="form-grid module-form"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const errors: FieldErrors = {};
+                    if (!subjectForm.code.trim()) errors.code = "Code matiere requis.";
+                    if (!subjectForm.label.trim()) errors.label = "Libelle matiere requis.";
+                    setSubjectErrors(errors);
+                    if (hasFieldErrors(errors)) {
+                      focusFirstInlineErrorField("classes");
+                      return;
+                    }
+                    void createRef("/subjects", subjectForm, "Matiere creee.").then((ok) => {
+                      if (ok) {
+                        setSubjectErrors({});
+                        setSubjectForm({ code: "", label: "", isArabic: false });
+                      }
+                    });
+                  }}
+                >
+                  <label>
+                    Code matiere
+                    <input value={subjectForm.code} onChange={(event) => setSubjectForm((prev) => ({ ...prev, code: event.target.value }))} required />
+                    {fieldError(subjectErrors, "code")}
+                  </label>
+                  <label>
+                    Libelle matiere
+                    <input value={subjectForm.label} onChange={(event) => setSubjectForm((prev) => ({ ...prev, label: event.target.value }))} required />
+                    {fieldError(subjectErrors, "label")}
+                  </label>
+                  <label className="check-row">
+                    <input type="checkbox" checked={subjectForm.isArabic} onChange={(event) => setSubjectForm((prev) => ({ ...prev, isArabic: event.target.checked }))} />
+                    Matiere arabe
+                  </label>
+                  <button type="submit">Creer matiere</button>
+                </form>
+                <div className="mini-list">
+                  {subjects.map((item) => (
+                    <div key={item.id} className="mini-item">
+                      <span>{item.code} - {item.label} {item.isArabic ? "(AR)" : ""}</span>
+                      <button type="button" className="button-ghost" onClick={() => void deleteRef(`/subjects/${item.id}`, "Matiere supprimee.")}>
+                        Suppr.
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </article>
 
-          <article id="reference-periods" data-step-id="periods" className="panel card-panel">
-            <h3>Periodes academiques</h3>
-            <form
-              className="form-grid"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const errors: FieldErrors = {};
-                if (!periodForm.schoolYearId) errors.schoolYearId = "Annee requise.";
-                if (!periodForm.code.trim()) errors.code = "Code periode requis.";
-                if (!periodForm.label.trim()) errors.label = "Libelle periode requis.";
-                if (!periodForm.startDate) errors.startDate = "Date debut requise.";
-                if (!periodForm.endDate) errors.endDate = "Date fin requise.";
-                if (periodForm.startDate && periodForm.endDate && periodForm.endDate < periodForm.startDate) {
-                  errors.endDate = "La date de fin doit etre apres la date de debut.";
-                }
-                setPeriodErrors(errors);
-                if (hasFieldErrors(errors)) {
-                  focusFirstInlineErrorField("periods");
-                  return;
-                }
-                void createRef("/academic-periods", periodForm, "Periode creee.").then((ok) => {
-                  if (ok) {
-                    setPeriodErrors({});
-                    setPeriodForm((prev) => ({ ...prev, code: "", label: "", startDate: "", endDate: "", periodType: "TRIMESTER" }));
-                  }
-                });
-              }}
-            >
-              <label>
-                Annee
-                <select value={periodForm.schoolYearId} onChange={(event) => setPeriodForm((prev) => ({ ...prev, schoolYearId: event.target.value }))}>
-                  {schoolYears.map((item) => (
-                    <option key={item.id} value={item.id}>{item.code}</option>
+              <article id="reference-periods" data-step-id="periods" className="panel card-panel module-modern module-stack">
+                <h3>Periodes academiques</h3>
+                <p className="section-lead">Ajoutez les periodes (trimestres/semestres) en cohérence avec l'annee active.</p>
+                <form
+                  className="form-grid module-form"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const errors: FieldErrors = {};
+                    if (!periodForm.schoolYearId) errors.schoolYearId = "Annee requise.";
+                    if (!periodForm.code.trim()) errors.code = "Code periode requis.";
+                    if (!periodForm.label.trim()) errors.label = "Libelle periode requis.";
+                    if (!periodForm.startDate) errors.startDate = "Date debut requise.";
+                    if (!periodForm.endDate) errors.endDate = "Date fin requise.";
+                    if (periodForm.startDate && periodForm.endDate && periodForm.endDate < periodForm.startDate) {
+                      errors.endDate = "La date de fin doit etre apres la date de debut.";
+                    }
+                    setPeriodErrors(errors);
+                    if (hasFieldErrors(errors)) {
+                      focusFirstInlineErrorField("periods");
+                      return;
+                    }
+                    void createRef("/academic-periods", periodForm, "Periode creee.").then((ok) => {
+                      if (ok) {
+                        setPeriodErrors({});
+                        setPeriodForm((prev) => ({ ...prev, code: "", label: "", startDate: "", endDate: "", periodType: "TRIMESTER" }));
+                      }
+                    });
+                  }}
+                >
+                  <label>
+                    Annee
+                    <select value={periodForm.schoolYearId} onChange={(event) => setPeriodForm((prev) => ({ ...prev, schoolYearId: event.target.value }))}>
+                      {schoolYears.map((item) => (
+                        <option key={item.id} value={item.id}>{item.code}</option>
+                      ))}
+                    </select>
+                    {fieldError(periodErrors, "schoolYearId")}
+                  </label>
+                  <label>
+                    Code
+                    <input value={periodForm.code} onChange={(event) => setPeriodForm((prev) => ({ ...prev, code: event.target.value }))} required />
+                    {fieldError(periodErrors, "code")}
+                  </label>
+                  <label>
+                    Libelle
+                    <input value={periodForm.label} onChange={(event) => setPeriodForm((prev) => ({ ...prev, label: event.target.value }))} required />
+                    {fieldError(periodErrors, "label")}
+                  </label>
+                  <label>
+                    Debut
+                    <input type="date" value={periodForm.startDate} onChange={(event) => setPeriodForm((prev) => ({ ...prev, startDate: event.target.value }))} required />
+                    {fieldError(periodErrors, "startDate")}
+                  </label>
+                  <label>
+                    Fin
+                    <input type="date" value={periodForm.endDate} onChange={(event) => setPeriodForm((prev) => ({ ...prev, endDate: event.target.value }))} required />
+                    {fieldError(periodErrors, "endDate")}
+                  </label>
+                  <button type="submit">Creer periode</button>
+                </form>
+                <label>
+                  Filtre annee
+                  <select value={periodYearFilter} onChange={(event) => setPeriodYearFilter(event.target.value)}>
+                    <option value="">Toutes</option>
+                    {schoolYears.map((item) => (
+                      <option key={item.id} value={item.id}>{item.code}</option>
+                    ))}
+                  </select>
+                </label>
+                <div className="mini-list">
+                  {shownPeriods.map((item) => (
+                    <div key={item.id} className="mini-item">
+                      <span>{item.code} - {item.label} ({item.periodType})</span>
+                      <button type="button" className="button-ghost" onClick={() => void deleteRef(`/academic-periods/${item.id}`, "Periode supprimee.")}>
+                        Suppr.
+                      </button>
+                    </div>
                   ))}
-                </select>
-                {fieldError(periodErrors, "schoolYearId")}
-              </label>
-              <label>
-                Code
-                <input value={periodForm.code} onChange={(event) => setPeriodForm((prev) => ({ ...prev, code: event.target.value }))} required />
-                {fieldError(periodErrors, "code")}
-              </label>
-              <label>
-                Libelle
-                <input value={periodForm.label} onChange={(event) => setPeriodForm((prev) => ({ ...prev, label: event.target.value }))} required />
-                {fieldError(periodErrors, "label")}
-              </label>
-              <label>
-                Debut
-                <input type="date" value={periodForm.startDate} onChange={(event) => setPeriodForm((prev) => ({ ...prev, startDate: event.target.value }))} required />
-                {fieldError(periodErrors, "startDate")}
-              </label>
-              <label>
-                Fin
-                <input type="date" value={periodForm.endDate} onChange={(event) => setPeriodForm((prev) => ({ ...prev, endDate: event.target.value }))} required />
-                {fieldError(periodErrors, "endDate")}
-              </label>
-              <button type="submit">Creer periode</button>
-            </form>
-            <label>
-              Filtre annee
-              <select value={periodYearFilter} onChange={(event) => setPeriodYearFilter(event.target.value)}>
-                <option value="">Toutes</option>
-                {schoolYears.map((item) => (
-                  <option key={item.id} value={item.id}>{item.code}</option>
-                ))}
-              </select>
-            </label>
-            <div className="mini-list">
-              {shownPeriods.map((item) => (
-                <div key={item.id} className="mini-item">
-                  <span>{item.code} - {item.label} ({item.periodType})</span>
-                  <button type="button" className="button-ghost" onClick={() => void deleteRef(`/academic-periods/${item.id}`, "Periode supprimee.")}>
-                    Suppr.
-                  </button>
                 </div>
-              ))}
+              </article>
             </div>
-          </article>
-        </div>
-      </section>
-      </WorkflowGuide>
-    );
+          </section>
+        </WorkflowGuide>
+      );
     }
     if (tab === "enrollments") {
       const enrollmentSteps: WorkflowStepDef[] = [
@@ -7245,203 +7322,205 @@ const renderTeacherPortal = (): JSX.Element => {
       };
 
       return (
-      <WorkflowGuide
-        title="Inscriptions"
-        subtitle="Workflow guide: creer l'inscription puis verifier via la liste filtree."
-        steps={enrollmentSteps}
-        activeStepId={enrollmentWorkflowStep}
-        onStepChange={scrollToEnrollments}
-      >
-      <>
-        <section id="enrollments-create" data-step-id="create" className="panel editor-panel workflow-section">
-          <h2>Nouvelle inscription</h2>
-          <form className="form-grid" onSubmit={(event) => void submitEnrollment(event)}>
-            <label>
-              Annee scolaire
-              <select
-                value={enrollmentForm.schoolYearId}
-                onChange={(event) => setEnrollmentForm((prev) => ({ ...prev, schoolYearId: event.target.value }))}
-                required
-              >
-                {schoolYears.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.code}
-                  </option>
-                ))}
-              </select>
-              {fieldError(enrollmentErrors, "schoolYearId")}
-            </label>
-            <label>
-              Classe
-              <select
-                value={enrollmentForm.classId}
-                onChange={(event) => setEnrollmentForm((prev) => ({ ...prev, classId: event.target.value }))}
-                required
-              >
-                {classes.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.code} - {item.label}
-                  </option>
-                ))}
-              </select>
-              {fieldError(enrollmentErrors, "classId")}
-            </label>
-            <label>
-              Eleve
-              <select
-                value={enrollmentForm.studentId}
-                onChange={(event) => setEnrollmentForm((prev) => ({ ...prev, studentId: event.target.value }))}
-                required
-              >
-                {students.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.matricule} - {item.firstName} {item.lastName}
-                  </option>
-                ))}
-              </select>
-              {fieldError(enrollmentErrors, "studentId")}
-            </label>
-            <label>
-              Date d'inscription
-              <input
-                type="date"
-                value={enrollmentForm.enrollmentDate}
-                onChange={(event) => setEnrollmentForm((prev) => ({ ...prev, enrollmentDate: event.target.value }))}
-                required
-              />
-              {fieldError(enrollmentErrors, "enrollmentDate")}
-            </label>
-            <label>
-              Statut
-              <input
-                value={enrollmentForm.enrollmentStatus}
-                onChange={(event) => setEnrollmentForm((prev) => ({ ...prev, enrollmentStatus: event.target.value }))}
-              />
-              {fieldError(enrollmentErrors, "enrollmentStatus")}
-            </label>
-            <button type="submit">Creer inscription</button>
-          </form>
-        </section>
+        <WorkflowGuide
+          title="Inscriptions"
+          subtitle="Workflow guide: creer l'inscription puis verifier via la liste filtree."
+          steps={enrollmentSteps}
+          activeStepId={enrollmentWorkflowStep}
+          onStepChange={scrollToEnrollments}
+        >
+          <>
+            <section id="enrollments-create" data-step-id="create" className="panel editor-panel workflow-section module-modern">
+              <h2>Nouvelle inscription</h2>
+              <p className="section-lead">Liez l'eleve a sa classe et son annee scolaire en une seule operation.</p>
+              <form className="form-grid module-form" onSubmit={(event) => void submitEnrollment(event)}>
+                <label>
+                  Annee scolaire
+                  <select
+                    value={enrollmentForm.schoolYearId}
+                    onChange={(event) => setEnrollmentForm((prev) => ({ ...prev, schoolYearId: event.target.value }))}
+                    required
+                  >
+                    {schoolYears.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.code}
+                      </option>
+                    ))}
+                  </select>
+                  {fieldError(enrollmentErrors, "schoolYearId")}
+                </label>
+                <label>
+                  Classe
+                  <select
+                    value={enrollmentForm.classId}
+                    onChange={(event) => setEnrollmentForm((prev) => ({ ...prev, classId: event.target.value }))}
+                    required
+                  >
+                    {classes.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.code} - {item.label}
+                      </option>
+                    ))}
+                  </select>
+                  {fieldError(enrollmentErrors, "classId")}
+                </label>
+                <label>
+                  Eleve
+                  <select
+                    value={enrollmentForm.studentId}
+                    onChange={(event) => setEnrollmentForm((prev) => ({ ...prev, studentId: event.target.value }))}
+                    required
+                  >
+                    {students.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.matricule} - {item.firstName} {item.lastName}
+                      </option>
+                    ))}
+                  </select>
+                  {fieldError(enrollmentErrors, "studentId")}
+                </label>
+                <label>
+                  Date d'inscription
+                  <input
+                    type="date"
+                    value={enrollmentForm.enrollmentDate}
+                    onChange={(event) => setEnrollmentForm((prev) => ({ ...prev, enrollmentDate: event.target.value }))}
+                    required
+                  />
+                  {fieldError(enrollmentErrors, "enrollmentDate")}
+                </label>
+                <label>
+                  Statut
+                  <input
+                    value={enrollmentForm.enrollmentStatus}
+                    onChange={(event) => setEnrollmentForm((prev) => ({ ...prev, enrollmentStatus: event.target.value }))}
+                  />
+                  {fieldError(enrollmentErrors, "enrollmentStatus")}
+                </label>
+                <button type="submit">Creer inscription</button>
+              </form>
+            </section>
 
-        <section id="enrollments-list" data-step-id="list" className="panel table-panel workflow-section">
-          <div className="table-header">
-            <h2>Liste des inscriptions</h2>
-          </div>
-          <form
-            className="filter-grid"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void loadEnrollments(enrollmentFilters);
-            }}
-          >
-            <label>
-              Filtre annee
-              <select
-                value={enrollmentFilters.schoolYearId}
-                onChange={(event) =>
-                  setEnrollmentFilters((prev) => ({ ...prev, schoolYearId: event.target.value }))
-                }
+            <section id="enrollments-list" data-step-id="list" className="panel table-panel workflow-section module-modern">
+              <div className="table-header">
+                <h2>Liste des inscriptions</h2>
+              </div>
+              <p className="section-lead">Filtrez rapidement pour trouver la bonne inscription et agir sans bruit.</p>
+              <form
+                className="filter-grid module-filter"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void loadEnrollments(enrollmentFilters);
+                }}
               >
-                <option value="">Toutes</option>
-                {schoolYears.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.code}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Filtre classe
-              <select
-                value={enrollmentFilters.classId}
-                onChange={(event) =>
-                  setEnrollmentFilters((prev) => ({ ...prev, classId: event.target.value }))
-                }
-              >
-                <option value="">Toutes</option>
-                {classes.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.code}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Filtre eleve
-              <select
-                value={enrollmentFilters.studentId}
-                onChange={(event) =>
-                  setEnrollmentFilters((prev) => ({ ...prev, studentId: event.target.value }))
-                }
-              >
-                <option value="">Tous</option>
-                {students.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.matricule}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="actions">
-              <button type="submit">Filtrer</button>
-              <button type="button" className="button-ghost" onClick={() => void resetEnrollmentFilters()}>
-                Reinitialiser
-              </button>
-            </div>
-          </form>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Annee</th>
-                  <th>Classe</th>
-                  <th>Eleve</th>
-                  <th>Date</th>
-                  <th>Statut</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {enrollments.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="empty-row">
-                      Aucune inscription.
-                    </td>
-                  </tr>
-                ) : (
-                  enrollments.map((item) => {
-                    const localClass = classById.get(item.classId);
-                    const localStudent = studentById.get(item.studentId);
-                    const fallbackStudent = localStudent
-                      ? `${localStudent.firstName} ${localStudent.lastName}`.trim()
-                      : "-";
-                    return (
-                      <tr key={item.id}>
-                        <td>{item.schoolYearCode || schoolYearById.get(item.schoolYearId)?.code || "-"}</td>
-                        <td>{item.classLabel || localClass?.label || "-"}</td>
-                        <td>{item.studentName || fallbackStudent}</td>
-                        <td>{item.enrollmentDate}</td>
-                        <td>{item.enrollmentStatus}</td>
-                        <td>
-                          <button
-                            type="button"
-                            className="button-danger"
-                            onClick={() => void deleteEnrollment(item.id)}
-                          >
-                            Supprimer
-                          </button>
+                <label>
+                  Filtre annee
+                  <select
+                    value={enrollmentFilters.schoolYearId}
+                    onChange={(event) =>
+                      setEnrollmentFilters((prev) => ({ ...prev, schoolYearId: event.target.value }))
+                    }
+                  >
+                    <option value="">Toutes</option>
+                    {schoolYears.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.code}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Filtre classe
+                  <select
+                    value={enrollmentFilters.classId}
+                    onChange={(event) =>
+                      setEnrollmentFilters((prev) => ({ ...prev, classId: event.target.value }))
+                    }
+                  >
+                    <option value="">Toutes</option>
+                    {classes.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.code}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Filtre eleve
+                  <select
+                    value={enrollmentFilters.studentId}
+                    onChange={(event) =>
+                      setEnrollmentFilters((prev) => ({ ...prev, studentId: event.target.value }))
+                    }
+                  >
+                    <option value="">Tous</option>
+                    {students.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.matricule}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="actions">
+                  <button type="submit">Filtrer</button>
+                  <button type="button" className="button-ghost" onClick={() => void resetEnrollmentFilters()}>
+                    Reinitialiser
+                  </button>
+                </div>
+              </form>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Annee</th>
+                      <th>Classe</th>
+                      <th>Eleve</th>
+                      <th>Date</th>
+                      <th>Statut</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {enrollments.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="empty-row">
+                          Aucune inscription.
                         </td>
                       </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </>
-      </WorkflowGuide>
-    );
+                    ) : (
+                      enrollments.map((item) => {
+                        const localClass = classById.get(item.classId);
+                        const localStudent = studentById.get(item.studentId);
+                        const fallbackStudent = localStudent
+                          ? `${localStudent.firstName} ${localStudent.lastName}`.trim()
+                          : "-";
+                        return (
+                          <tr key={item.id}>
+                            <td>{item.schoolYearCode || schoolYearById.get(item.schoolYearId)?.code || "-"}</td>
+                            <td>{item.classLabel || localClass?.label || "-"}</td>
+                            <td>{item.studentName || fallbackStudent}</td>
+                            <td>{item.enrollmentDate}</td>
+                            <td>{item.enrollmentStatus}</td>
+                            <td>
+                              <button
+                                type="button"
+                                className="button-danger"
+                                onClick={() => void deleteEnrollment(item.id)}
+                              >
+                                Supprimer
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </>
+        </WorkflowGuide>
+      );
     }
     if (tab === "finance") return renderFinance();
     if (tab === "reports") return renderReports();
@@ -7511,170 +7590,259 @@ const renderTeacherPortal = (): JSX.Element => {
   const activeScreen = SCREEN_DEFS.find((entry) => entry.id === tab) ?? SCREEN_DEFS[0];
   const profileInitial = session?.user.username?.charAt(0)?.toUpperCase() || "U";
   const quickLinks = homeTiles.filter((tile) => tile.screen !== tab).slice(0, 4);
+  const visibleScreens = currentRole
+    ? SCREEN_DEFS.filter((entry) => entry.roles.includes(currentRole))
+    : [];
+  const navPrincipal = visibleScreens.filter((entry) => entry.group === "principal");
+  const navVieScolaire = visibleScreens.filter((entry) => entry.group === "vie");
+  const navPortail = visibleScreens.filter((entry) => entry.group === "portail");
   const lastSyncLabel = lastSyncAt
     ? new Date(lastSyncAt).toLocaleString("fr-FR")
     : "Non synchronise";
 
-return (
-  <main className="page">
-    <div className="aurora aurora-left" />
-    <div className="aurora aurora-right" />
+  return (
+    <main className={`page ${!session ? "page-auth" : ""}`.trim()}>
+      <div className="aurora aurora-left" />
+      <div className="aurora aurora-right" />
 
-    {!session ? (
-      <>
-        <header className="panel app-header public-header">
-          <div className="brand-block">
-            <span className="brand-logo">GS</span>
-            <div>
-              <p className="brand-name">GESTSCHOOL</p>
-              <h1>Gestion scolaire franco-arabe</h1>
+      {!session ? (
+        <section className="auth-layout fade-up">
+          <article className="panel auth-visual">
+            <div className="auth-visual-surface">
+              <span className="auth-float auth-float-1">IDEE</span>
+              <span className="auth-float auth-float-2">ECRIT</span>
+              <span className="auth-float auth-float-3">LIVRE</span>
+              <span className="auth-float auth-float-4">SCI</span>
+              <h2>Bienvenue sur GestSchool</h2>
+              <svg className="auth-illustration-svg" viewBox="0 0 600 430" aria-hidden="true">
+                <defs>
+                  <linearGradient id="gsAuthSky" x1="0" x2="1" y1="0" y2="1">
+                    <stop offset="0%" stopColor="#effbf9" />
+                    <stop offset="100%" stopColor="#dff4f0" />
+                  </linearGradient>
+                </defs>
+                <rect x="10" y="12" width="580" height="408" rx="52" fill="url(#gsAuthSky)" />
+                <ellipse cx="300" cy="390" rx="210" ry="26" fill="#d6ece7" />
+                <rect x="235" y="165" width="130" height="140" rx="10" fill="#f9d9a6" stroke="#6daea3" strokeWidth="4" />
+                <polygon points="224,170 300,118 376,170" fill="#5fb8ae" />
+                <rect x="285" y="228" width="30" height="77" rx="5" fill="#72bcb0" />
+                <rect x="252" y="188" width="22" height="22" rx="3" fill="#e9fffb" />
+                <rect x="285" y="188" width="22" height="22" rx="3" fill="#e9fffb" />
+                <rect x="318" y="188" width="22" height="22" rx="3" fill="#e9fffb" />
+                <circle cx="128" cy="338" r="38" fill="#ffd9a8" />
+                <rect x="105" y="352" width="46" height="52" rx="17" fill="#2f7f8f" />
+                <circle cx="192" cy="324" r="34" fill="#ffd5a5" />
+                <rect x="171" y="338" width="42" height="60" rx="16" fill="#1d6f7e" />
+                <circle cx="418" cy="326" r="34" fill="#ffd5a5" />
+                <rect x="397" y="340" width="42" height="58" rx="16" fill="#ee8f77" />
+                <circle cx="472" cy="345" r="30" fill="#ffc995" />
+                <rect x="453" y="358" width="38" height="45" rx="14" fill="#2b7d8f" />
+              </svg>
             </div>
-          </div>
-          <span className="api-chip">API: {API}</span>
-        </header>
+          </article>
 
-        <section className="panel auth-panel fade-up">
-          <h2>Connexion</h2>
-          <p className="subtle">
-            Test: <code>admin@gestschool.local</code> / <code>admin12345</code>
-          </p>
-          <form className="form-grid" onSubmit={(event) => void login(event)}>
-            <label>
-              Nom utilisateur
-              <input
-                value={loginForm.username}
-                onChange={(event) => setLoginForm((prev) => ({ ...prev, username: event.target.value }))}
-                required
-              />
-              {fieldError(loginErrors, "username")}
-            </label>
-            <label>
-              Mot de passe
-              <input
-                type="password"
-                value={loginForm.password}
-                onChange={(event) => setLoginForm((prev) => ({ ...prev, password: event.target.value }))}
-                required
-                minLength={8}
-              />
-              {fieldError(loginErrors, "password")}
-            </label>
-            <label>
-              Tenant ID
-              <input
-                value={loginForm.tenantId}
-                onChange={(event) => setLoginForm((prev) => ({ ...prev, tenantId: event.target.value }))}
-                required
-              />
-              {fieldError(loginErrors, "tenantId")}
-            </label>
-            <button type="submit" disabled={loadingAuth}>
-              {loadingAuth ? "Connexion..." : "Se connecter"}
-            </button>
-          </form>
-        </section>
-      </>
-    ) : (
-      <section className="workspace fade-up">
-        <header className="panel app-header app-header-v2">
-          <div className="brand-block">
-            <span className="brand-logo">GS</span>
-            <div>
-              <p className="brand-name">Ecole Franco-Arabe</p>
-              <h1>Dashboard SaaS</h1>
-              <p className="header-tagline">
-                Version demo client Mosquee Blanche • Sprint 11 en validation
-              </p>
-            </div>
-          </div>
+          <section className="panel auth-panel auth-card">
+            <h2>Connexion</h2>
+            <form className="form-grid auth-form-grid" onSubmit={(event) => void login(event)}>
+              <label className="auth-field">
+                <span className="visually-hidden">Email ou identifiant</span>
+                <input
+                  value={loginForm.username}
+                  onChange={(event) => setLoginForm((prev) => ({ ...prev, username: event.target.value }))}
+                  placeholder="Email ou Identifiant"
+                  required
+                />
+                {fieldError(loginErrors, "username")}
+              </label>
+              <label className="auth-field">
+                <span className="visually-hidden">Mot de passe</span>
+                <input
+                  type="password"
+                  value={loginForm.password}
+                  onChange={(event) => setLoginForm((prev) => ({ ...prev, password: event.target.value }))}
+                  placeholder="Mot de Passe"
+                  required
+                  minLength={8}
+                />
+                {fieldError(loginErrors, "password")}
+              </label>
 
-          <div className="header-right">
-            <div className="header-shortcuts">
-              <button type="button" className="header-shortcut" onClick={() => void refresh()}>
-                Refresh
-              </button>
-              <button type="button" className="header-shortcut" onClick={() => void syncHeaderData()}>
-                Sync data
-              </button>
-              <span className="sync-pill">Sync: {lastSyncLabel}</span>
-            </div>
-            <div className="profile-pill">
-              <span className="avatar-badge">{profileInitial}</span>
-              <div className="profile-meta">
-                <strong>{session.user.username}</strong>
-                <small>
-                  Role: {session.user.role} • Annee: {schoolYearLabel}
-                </small>
+              <div className="auth-inline-row">
+                <label className="auth-check">
+                  <input type="checkbox" />
+                  <span>Se souvenir de moi</span>
+                </label>
+                <button type="button" className="auth-link-button">
+                  Mot de passe oublie?
+                </button>
               </div>
-              <button type="button" className="button-danger" onClick={() => void logout()}>
-                Logout
-              </button>
-            </div>
-          </div>
-        </header>
 
-        {tab !== "dashboard" ? (
-          <section className="panel context-bar">
-            <div>
-              <p className="eyebrow">Module actif</p>
-              <h2>{activeScreen.label}</h2>
-            </div>
-            <div className="context-actions">
-              <button type="button" className="button-ghost" onClick={() => setTab("dashboard")}>
-                Accueil modules
+              <details className="auth-tech">
+                <summary>Parametres techniques</summary>
+                <label className="auth-field auth-tenant-field">
+                  <span>Tenant ID</span>
+                  <input
+                    value={loginForm.tenantId}
+                    onChange={(event) => setLoginForm((prev) => ({ ...prev, tenantId: event.target.value }))}
+                    required
+                  />
+                  {fieldError(loginErrors, "tenantId")}
+                </label>
+              </details>
+
+              <button type="submit" className="auth-submit" disabled={loadingAuth}>
+                {loadingAuth ? "Connexion..." : "Se Connecter"}
               </button>
-              {quickLinks.map((tile) => (
-                <button
-                  key={`shortcut-${tile.screen}`}
-                  type="button"
-                  className="mini-link"
-                  onClick={() => setTab(tile.screen)}
-                >
-                  {tile.title}
-                </button>
-              ))}
-            </div>
+              <button type="button" className="auth-bottom-link">
+                Premiere connexion ?
+              </button>
+            </form>
           </section>
-        ) : null}
-
-        <section className="screen-host">{renderActiveScreen()}</section>
-
-        <footer className="panel app-footer">
-          <div className="footer-head">
-            <div>
-              <strong>Demonstration client - Mosquee Blanche</strong>
-              <p className="subtle">
-                Perimetre: scolaire, mosquee, comptabilite, conformite, notifications.
-              </p>
+        </section>
+      ) : (
+        <section className="workspace fade-up">
+          <header className="panel app-header app-header-v2 app-shell-header">
+            <div className="brand-block">
+              <span className="brand-logo">GS</span>
+              <div>
+                <p className="brand-name">Ecole franco-arabe</p>
+                <h1>Tableau de bord</h1>
+                <p className="header-tagline">Vue simplifiee, orientee actions metier.</p>
+              </div>
             </div>
-            <div className="footer-actions">
-              {currentRole && hasScreenAccess(currentRole, "reports") ? (
-                <button type="button" className="button-ghost" onClick={() => setTab("reports")}>
-                  Ouvrir rapports
+
+            <label className="top-search" htmlFor="module-search">
+              <span>Rechercher un module</span>
+              <input
+                id="module-search"
+                value={moduleQueryInput}
+                onChange={(event) => setModuleQueryInput(event.target.value)}
+                placeholder="ex: absences, inscriptions, finance..."
+              />
+            </label>
+
+            <div className="header-right">
+              <div className="header-shortcuts">
+                <button type="button" className="header-shortcut" onClick={() => void refresh()}>
+                  Actualiser
                 </button>
+                <button type="button" className="header-shortcut" onClick={() => void syncHeaderData()}>
+                  Synchroniser
+                </button>
+                <span className="sync-pill">Maj: {lastSyncLabel}</span>
+              </div>
+              <div className="profile-pill">
+                <span className="avatar-badge">{profileInitial}</span>
+                <div className="profile-meta">
+                  <strong>{session.user.username}</strong>
+                  <small>
+                    Role: {session.user.role} | Annee: {schoolYearLabel}
+                  </small>
+                </div>
+                <button type="button" className="button-danger" onClick={() => void logout()}>
+                  Se deconnecter
+                </button>
+              </div>
+            </div>
+          </header>
+
+          <div className="app-shell">
+            <aside className="panel app-sidebar">
+              <div className="sidebar-head">
+                <p className="eyebrow">Navigation</p>
+                <strong>Modules</strong>
+              </div>
+
+              <div className="sidebar-group">
+                <p className="sidebar-title">Principal</p>
+                {navPrincipal.map((screen) => (
+                  <button
+                    key={screen.id}
+                    type="button"
+                    className={`sidebar-link ${tab === screen.id ? "is-active" : ""}`}
+                    onClick={() => setTab(screen.id)}
+                  >
+                    {screen.label}
+                  </button>
+                ))}
+              </div>
+
+              {navVieScolaire.length > 0 ? (
+                <div className="sidebar-group">
+                  <p className="sidebar-title">Vie scolaire</p>
+                  {navVieScolaire.map((screen) => (
+                    <button
+                      key={screen.id}
+                      type="button"
+                      className={`sidebar-link ${tab === screen.id ? "is-active" : ""}`}
+                      onClick={() => setTab(screen.id)}
+                    >
+                      {screen.label}
+                    </button>
+                  ))}
+                </div>
               ) : null}
-              <a className="mini-link" href="mailto:contact@mosquee-blanche.local">
-                Envoyer feedback
-              </a>
+
+              {navPortail.length > 0 ? (
+                <div className="sidebar-group">
+                  <p className="sidebar-title">Portails</p>
+                  {navPortail.map((screen) => (
+                    <button
+                      key={screen.id}
+                      type="button"
+                      className={`sidebar-link ${tab === screen.id ? "is-active" : ""}`}
+                      onClick={() => setTab(screen.id)}
+                    >
+                      {screen.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </aside>
+
+            <div className="app-shell-main">
+              {tab !== "dashboard" ? (
+                <section className="panel context-bar">
+                  <div>
+                    <p className="eyebrow">Module actif</p>
+                    <h2>{activeScreen.label}</h2>
+                  </div>
+                  <div className="context-actions">
+                    <button type="button" className="button-ghost" onClick={() => setTab("dashboard")}>
+                      Retour accueil
+                    </button>
+                    {quickLinks.slice(0, 2).map((tile) => (
+                      <button
+                        key={`shortcut-${tile.screen}`}
+                        type="button"
+                        className="mini-link"
+                        onClick={() => setTab(tile.screen)}
+                      >
+                        {tile.title}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              <section className="screen-host">{renderActiveScreen()}</section>
+
+              <footer className="panel app-footer app-footer-minimal">
+                <div className="footer-head">
+                  <strong>Gest-School</strong>
+                  <div className="footer-meta">
+                    <span>Annee: {schoolYearLabel}</span>
+                    <span>Derniere sync: {lastSyncLabel}</span>
+                  </div>
+                </div>
+              </footer>
             </div>
           </div>
-          <div className="footer-meta">
-            <span>API: {API}</span>
-            <span>Tenant: {session.tenantId}</span>
-            <span>Derniere sync: {lastSyncLabel}</span>
-          </div>
-        </footer>
-      </section>
-    )}
+        </section>
+      )}
 
-    {error ? <p className="feedback error">{error}</p> : null}
-    {notice ? <p className="feedback ok">{notice}</p> : null}
-  </main>
-);
+      {error ? <p className="feedback error">{error}</p> : null}
+      {notice ? <p className="feedback ok">{notice}</p> : null}
+    </main>
+  );
 }
-
-
-
-
-
-
