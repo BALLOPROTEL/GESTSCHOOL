@@ -145,12 +145,28 @@ type WorkflowStepDef = {
 };
 
 type FieldErrors = Record<string, string>;
+type ThemeMode = "light" | "dark";
+type RememberedLogin = {
+  username: string;
+  tenantId: string;
+  remember: boolean;
+};
+type ForgotPasswordResponse = {
+  message: string;
+  resetToken?: string;
+  expiresAt?: string;
+};
+type AuthMessageResponse = {
+  message: string;
+};
 
 const hasFieldErrors = (errors: FieldErrors): boolean => Object.keys(errors).length > 0;
 
 const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
 const DEFAULT_TENANT = "00000000-0000-0000-0000-000000000001";
 const STORAGE_KEY = "gestschool.web-admin.session";
+const THEME_STORAGE_KEY = "gestschool.web-admin.theme";
+const LOGIN_HINT_STORAGE_KEY = "gestschool.web-admin.login-hint";
 
 const today = (): string => new Date().toISOString().slice(0, 10);
 
@@ -182,6 +198,30 @@ const readSession = (): Session | null => {
   } catch {
     return null;
   }
+};
+
+const readRememberedLogin = (): RememberedLogin | null => {
+  const raw = localStorage.getItem(LOGIN_HINT_STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<RememberedLogin>;
+    if (!parsed.remember) return null;
+    if (typeof parsed.username !== "string" || typeof parsed.tenantId !== "string") return null;
+    return {
+      username: parsed.username,
+      tenantId: parsed.tenantId,
+      remember: true
+    };
+  } catch {
+    return null;
+  }
+};
+
+const readThemePreference = (): ThemeMode => {
+  const saved = localStorage.getItem(THEME_STORAGE_KEY);
+  if (saved === "light" || saved === "dark") return saved;
+  if (window.matchMedia?.("(prefers-color-scheme: dark)").matches) return "dark";
+  return "light";
 };
 
 type Role = "ADMIN" | "SCOLARITE" | "ENSEIGNANT" | "COMPTABLE" | "PARENT";
@@ -832,22 +872,13 @@ function ModuleIcon(props: { name: ModuleIconName }): JSX.Element {
 
 function WorkflowGuide(props: {
   title: string;
-  subtitle: string;
   steps: WorkflowStepDef[];
   activeStepId: string;
   onStepChange: (stepId: string) => void;
   children: ReactNode;
 }): JSX.Element {
-  const { title, subtitle, steps, activeStepId, onStepChange, children } = props;
+  const { title, steps, activeStepId, onStepChange, children } = props;
   const activeStep = steps.find((step) => step.id === activeStepId) || steps[0];
-  const activeStepIndex = Math.max(
-    0,
-    steps.findIndex((step) => step.id === activeStep.id)
-  );
-  const completedSteps = steps.filter((step) => step.done).length;
-  const progressionRatio =
-    steps.length > 0 ? Math.max((activeStepIndex + 1) / steps.length, completedSteps / steps.length) : 0;
-  const progressionPercent = Math.max(0, Math.min(100, Math.round(progressionRatio * 100)));
 
   const walk = (currentNode: ReactNode): ReactNode =>
     Children.map(currentNode, (node) => {
@@ -886,50 +917,23 @@ function WorkflowGuide(props: {
   const managedChildren = walk(children);
 
   return (
-    <section className="panel workflow-shell">
-      <header className="workflow-head">
-        <p className="eyebrow">Workflow guide</p>
-        <h2>{title}</h2>
-        <p className="subtle">{subtitle}</p>
-      </header>
-
-      <div className="workflow-progress" aria-label={`Progression ${progressionPercent}%`}>
-        <div className="workflow-progress-meta">
-          <strong>Progression module</strong>
-          <span>{progressionPercent}%</span>
-        </div>
-        <div className="workflow-progress-track">
-          <span style={{ width: `${progressionPercent}%` }} />
-        </div>
-      </div>
-
-      <div className="workflow-steps" role="tablist" aria-label={title}>
-        {steps.map((step, index) => {
-          const stateClass = step.id === activeStep.id ? "is-active" : step.done ? "is-done" : "";
-          return (
+    <section className="workflow-shell workflow-shell-compact">
+      {steps.length > 1 ? (
+        <div className="workflow-tabs" role="tablist" aria-label={title}>
+          {steps.map((step) => (
             <button
               key={step.id}
               type="button"
               role="tab"
               aria-selected={step.id === activeStep.id}
-              className={`workflow-step ${stateClass}`.trim()}
+              className={`workflow-tab ${step.id === activeStep.id ? "is-active" : ""}`.trim()}
               onClick={() => onStepChange(step.id)}
             >
-              <span className="workflow-step-index">{index + 1}</span>
-              <span className="workflow-step-copy">
-                <strong>{step.title}</strong>
-                <small>{step.hint}</small>
-              </span>
+              {step.title}
             </button>
-          );
-        })}
-      </div>
-
-      <div className="workflow-context">
-        <strong>Etape active: {activeStep.title}</strong>
-        <span>{activeStep.hint}</span>
-      </div>
-
+          ))}
+        </div>
+      ) : null}
       <div className="workflow-body">{managedChildren}</div>
     </section>
   );
@@ -939,13 +943,35 @@ export function App(): JSX.Element {
   const [tab, setTab] = useState<ScreenId>("dashboard");
   const [session, setSession] = useState<Session | null>(() => readSession());
   const sessionRef = useRef<Session | null>(session);
+  const rememberedLogin = useMemo(() => readRememberedLogin(), []);
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => readThemePreference());
 
   const [loginForm, setLoginForm] = useState({
-    username: "admin@gestschool.local",
+    username: rememberedLogin?.username || "admin@gestschool.local",
     password: "admin12345",
-    tenantId: DEFAULT_TENANT
+    tenantId: rememberedLogin?.tenantId || DEFAULT_TENANT
   });
   const [loadingAuth, setLoadingAuth] = useState(false);
+  const [rememberMe, setRememberMe] = useState(Boolean(rememberedLogin?.remember));
+  const [authAssistMode, setAuthAssistMode] = useState<"none" | "forgot" | "first">("none");
+  const [authAssistLoading, setAuthAssistLoading] = useState(false);
+  const [forgotPasswordForm, setForgotPasswordForm] = useState({
+    username: rememberedLogin?.username || "admin@gestschool.local",
+    tenantId: rememberedLogin?.tenantId || DEFAULT_TENANT
+  });
+  const [resetPasswordForm, setResetPasswordForm] = useState({
+    token: "",
+    newPassword: "",
+    confirmPassword: ""
+  });
+  const [firstConnectionForm, setFirstConnectionForm] = useState({
+    username: rememberedLogin?.username || "admin@gestschool.local",
+    tenantId: rememberedLogin?.tenantId || DEFAULT_TENANT,
+    temporaryPassword: "",
+    newPassword: "",
+    confirmPassword: ""
+  });
+  const [generatedResetToken, setGeneratedResetToken] = useState("");
 
   const [students, setStudents] = useState<Student[]>([]);
   const [studentsLoading, setStudentsLoading] = useState(false);
@@ -1005,7 +1031,7 @@ export function App(): JSX.Element {
     levelId: "",
     label: "",
     totalAmount: "",
-    currency: "XOF"
+    currency: "CFA"
   });
   const [invoiceForm, setInvoiceForm] = useState({
     studentId: "",
@@ -1333,6 +1359,11 @@ export function App(): JSX.Element {
     if (session) localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
     else localStorage.removeItem(STORAGE_KEY);
   }, [session]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", themeMode);
+    localStorage.setItem(THEME_STORAGE_KEY, themeMode);
+  }, [themeMode]);
 
   useEffect(() => {
     analyticsFiltersRef.current = analyticsFilters;
@@ -2576,6 +2607,183 @@ export function App(): JSX.Element {
     await loadTeacherPortalData(teacherPortalFilters);
   };
 
+  const toggleThemeMode = (): void => {
+    setThemeMode((prev) => (prev === "light" ? "dark" : "light"));
+  };
+
+  const toggleForgotPasswordPanel = (): void => {
+    setAuthAssistMode((prev) => (prev === "forgot" ? "none" : "forgot"));
+    setError(null);
+    setNotice(null);
+  };
+
+  const toggleFirstConnectionPanel = (): void => {
+    setAuthAssistMode((prev) => (prev === "first" ? "none" : "first"));
+    setError(null);
+    setNotice(null);
+  };
+
+  const requestForgotPasswordToken = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+    setError(null);
+    setNotice(null);
+
+    if (!forgotPasswordForm.username.trim()) {
+      setError("Renseigner votre identifiant pour demander un token de reinitialisation.");
+      return;
+    }
+    if (!forgotPasswordForm.tenantId.trim()) {
+      setError("Tenant ID requis pour la demande de reinitialisation.");
+      return;
+    }
+
+    setAuthAssistLoading(true);
+    try {
+      const response = await fetch(`${API}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: forgotPasswordForm.username.trim(),
+          tenantId: forgotPasswordForm.tenantId.trim()
+        })
+      });
+      if (!response.ok) {
+        setError(await parseError(response));
+        return;
+      }
+
+      const payload = (await response.json()) as ForgotPasswordResponse;
+      if (payload.resetToken) {
+        setGeneratedResetToken(payload.resetToken);
+        setResetPasswordForm((prev) => ({ ...prev, token: payload.resetToken || prev.token }));
+      } else {
+        setGeneratedResetToken("");
+      }
+
+      setNotice(payload.message || "Demande de reinitialisation enregistree.");
+    } catch {
+      setError("Connexion API impossible pendant la demande de reinitialisation.");
+    } finally {
+      setAuthAssistLoading(false);
+    }
+  };
+
+  const submitResetPassword = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+    setError(null);
+    setNotice(null);
+
+    if (!resetPasswordForm.token.trim()) {
+      setError("Token de reinitialisation requis.");
+      return;
+    }
+    if (!resetPasswordForm.newPassword || resetPasswordForm.newPassword.length < 8) {
+      setError("Le nouveau mot de passe doit contenir au moins 8 caracteres.");
+      return;
+    }
+    if (resetPasswordForm.newPassword !== resetPasswordForm.confirmPassword) {
+      setError("La confirmation du mot de passe ne correspond pas.");
+      return;
+    }
+
+    setAuthAssistLoading(true);
+    try {
+      const response = await fetch(`${API}/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: resetPasswordForm.token.trim(),
+          newPassword: resetPasswordForm.newPassword
+        })
+      });
+      if (!response.ok) {
+        setError(await parseError(response));
+        return;
+      }
+
+      const payload = (await response.json()) as AuthMessageResponse;
+      setNotice(payload.message || "Mot de passe reinitialise.");
+      setLoginForm((prev) => ({
+        ...prev,
+        username: forgotPasswordForm.username.trim() || prev.username,
+        tenantId: forgotPasswordForm.tenantId.trim() || prev.tenantId,
+        password: ""
+      }));
+      setResetPasswordForm({ token: "", newPassword: "", confirmPassword: "" });
+      setGeneratedResetToken("");
+      setAuthAssistMode("none");
+    } catch {
+      setError("Connexion API impossible pendant la reinitialisation du mot de passe.");
+    } finally {
+      setAuthAssistLoading(false);
+    }
+  };
+
+  const submitFirstConnection = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+    setError(null);
+    setNotice(null);
+
+    if (!firstConnectionForm.username.trim()) {
+      setError("Identifiant requis.");
+      return;
+    }
+    if (!firstConnectionForm.tenantId.trim()) {
+      setError("Tenant ID requis.");
+      return;
+    }
+    if (!firstConnectionForm.temporaryPassword || firstConnectionForm.temporaryPassword.length < 8) {
+      setError("Mot de passe temporaire invalide.");
+      return;
+    }
+    if (!firstConnectionForm.newPassword || firstConnectionForm.newPassword.length < 8) {
+      setError("Le nouveau mot de passe doit contenir au moins 8 caracteres.");
+      return;
+    }
+    if (firstConnectionForm.newPassword !== firstConnectionForm.confirmPassword) {
+      setError("La confirmation du mot de passe ne correspond pas.");
+      return;
+    }
+
+    setAuthAssistLoading(true);
+    try {
+      const response = await fetch(`${API}/auth/first-connection`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: firstConnectionForm.username.trim(),
+          tenantId: firstConnectionForm.tenantId.trim(),
+          temporaryPassword: firstConnectionForm.temporaryPassword,
+          newPassword: firstConnectionForm.newPassword
+        })
+      });
+      if (!response.ok) {
+        setError(await parseError(response));
+        return;
+      }
+
+      const payload = (await response.json()) as AuthMessageResponse;
+      setNotice(payload.message || "Premiere connexion finalisee.");
+      setLoginForm((prev) => ({
+        ...prev,
+        username: firstConnectionForm.username.trim(),
+        tenantId: firstConnectionForm.tenantId.trim(),
+        password: firstConnectionForm.newPassword
+      }));
+      setFirstConnectionForm((prev) => ({
+        ...prev,
+        temporaryPassword: "",
+        newPassword: "",
+        confirmPassword: ""
+      }));
+      setAuthAssistMode("none");
+    } catch {
+      setError("Connexion API impossible pendant l'activation du compte.");
+    } finally {
+      setAuthAssistLoading(false);
+    }
+  };
+
   const login = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     setError(null);
@@ -2607,9 +2815,24 @@ export function App(): JSX.Element {
       const payload = (await response.json()) as Omit<Session, "tenantId"> & { user: Session["user"] };
       const nextSession = { ...payload, tenantId: loginForm.tenantId.trim() || payload.user.tenantId };
       const role = (nextSession.user.role as Role) || "ADMIN";
+      const cleanUsername = loginForm.username.trim();
+      const cleanTenant = loginForm.tenantId.trim() || payload.user.tenantId;
       setLoginErrors({});
       setSession(nextSession);
       setLastSyncAt(new Date().toISOString());
+      setAuthAssistMode("none");
+      if (rememberMe) {
+        localStorage.setItem(
+          LOGIN_HINT_STORAGE_KEY,
+          JSON.stringify({
+            username: cleanUsername,
+            tenantId: cleanTenant,
+            remember: true
+          } as RememberedLogin)
+        );
+      } else {
+        localStorage.removeItem(LOGIN_HINT_STORAGE_KEY);
+      }
       setNotice("Connexion reussie.");
       setTab(ROLE_HOME_SCREEN[role] || "dashboard");
     } catch {
@@ -2631,6 +2854,9 @@ export function App(): JSX.Element {
       }).catch(() => undefined);
     }
     setSession(null);
+    setAuthAssistMode("none");
+    setGeneratedResetToken("");
+    setResetPasswordForm({ token: "", newPassword: "", confirmPassword: "" });
     clearData();
     resetStudentForm();
     resetUserForm();
@@ -3089,7 +3315,7 @@ export function App(): JSX.Element {
     if (!feePlanForm.label.trim()) errors.label = "Libelle requis.";
     if (!feePlanForm.currency.trim()) errors.currency = "Devise requise.";
     if (feePlanForm.currency.trim() && feePlanForm.currency.trim().length !== 3) {
-      errors.currency = "Code devise sur 3 lettres (ex: XOF).";
+      errors.currency = "Code devise sur 3 lettres (ex: CFA).";
     }
 
     const totalAmount = Number(feePlanForm.totalAmount);
@@ -3452,7 +3678,6 @@ export function App(): JSX.Element {
     return (
       <WorkflowGuide
         title="Eleves"
-        subtitle="Parcours guide: creation du dossier puis verification dans la base."
         steps={studentSteps}
         activeStepId={studentWorkflowStep}
         onStepChange={setStudentWorkflowStep}
@@ -3629,7 +3854,6 @@ export function App(): JSX.Element {
     return (
       <WorkflowGuide
         title="Comptabilite"
-        subtitle="Workflow metier: pilotage, parametrage frais, facturation, puis encaissements."
         steps={financeSteps}
         activeStepId={financeWorkflowStep}
         onStepChange={scrollToFinance}
@@ -4040,7 +4264,6 @@ export function App(): JSX.Element {
     return (
       <WorkflowGuide
         title="Module mosquee"
-        subtitle="Workflow: membres, activites, dons, puis pilotage global."
         steps={mosqueSteps}
         activeStepId={mosqueWorkflowStep}
         onStepChange={scrollToMosque}
@@ -4564,7 +4787,6 @@ export function App(): JSX.Element {
     return (
       <WorkflowGuide
         title="Notes & bulletins"
-        subtitle="Workflow guide: filtrer, saisir, calculer les moyennes puis generer les bulletins."
         steps={gradeSteps}
         activeStepId={gradesWorkflowStep}
         onStepChange={scrollToGrades}
@@ -5042,7 +5264,6 @@ export function App(): JSX.Element {
     return (
       <WorkflowGuide
         title="Reporting avance & conformite"
-        subtitle="Pilotage avance, conformite et export des preuves metier."
         steps={reportSteps}
         activeStepId={reportWorkflowStep}
         onStepChange={setReportWorkflowStep}
@@ -5139,7 +5360,7 @@ export function App(): JSX.Element {
                 {(analyticsOverview?.finance.recoveryRatePercent ?? 0).toFixed(1)}%
               </strong>
               <small className="subtle">
-                Reste {(analyticsOverview?.finance.remainingAmount ?? 0).toLocaleString("fr-FR")} XOF
+                Reste {(analyticsOverview?.finance.remainingAmount ?? 0).toLocaleString("fr-FR")} CFA
               </small>
             </article>
             <article className="metric-card">
@@ -6094,7 +6315,6 @@ export function App(): JSX.Element {
     return (
       <WorkflowGuide
         title="Utilisateurs & droits"
-        subtitle="Sprint 7.2: IAM + affectations metier pour portail enseignant/parent."
         steps={iamSteps}
         activeStepId={iamWorkflowStep}
         onStepChange={goToStep}
@@ -6863,7 +7083,6 @@ export function App(): JSX.Element {
       return (
         <WorkflowGuide
           title="Referentiel academique"
-          subtitle="Ordre recommande: annees, cycles/niveaux, classes/matieres, puis periodes."
           steps={referenceSteps}
           activeStepId={referenceWorkflowStep}
           onStepChange={scrollToReference}
@@ -7324,7 +7543,6 @@ export function App(): JSX.Element {
       return (
         <WorkflowGuide
           title="Inscriptions"
-          subtitle="Workflow guide: creer l'inscription puis verifier via la liste filtree."
           steps={enrollmentSteps}
           activeStepId={enrollmentWorkflowStep}
           onStepChange={scrollToEnrollments}
@@ -7601,7 +7819,7 @@ export function App(): JSX.Element {
     : "Non synchronise";
 
   return (
-    <main className={`page ${!session ? "page-auth" : ""}`.trim()}>
+    <main className={`page ${!session ? "page-auth" : ""}`.trim()} data-theme={themeMode}>
       <div className="aurora aurora-left" />
       <div className="aurora aurora-right" />
 
@@ -7609,40 +7827,27 @@ export function App(): JSX.Element {
         <section className="auth-layout fade-up">
           <article className="panel auth-visual">
             <div className="auth-visual-surface">
-              <span className="auth-float auth-float-1">IDEE</span>
-              <span className="auth-float auth-float-2">ECRIT</span>
-              <span className="auth-float auth-float-3">LIVRE</span>
-              <span className="auth-float auth-float-4">SCI</span>
+              <span className="auth-float auth-float-1">{"\u{1F393}"}</span>
+              <span className="auth-float auth-float-2">{"\u{1F4DA}"}</span>
+              <span className="auth-float auth-float-3">{"\u{1F9E0}"}</span>
+              <span className="auth-float auth-float-4">{"\u{1F4DD}"}</span>
               <h2>Bienvenue sur GestSchool</h2>
-              <svg className="auth-illustration-svg" viewBox="0 0 600 430" aria-hidden="true">
-                <defs>
-                  <linearGradient id="gsAuthSky" x1="0" x2="1" y1="0" y2="1">
-                    <stop offset="0%" stopColor="#effbf9" />
-                    <stop offset="100%" stopColor="#dff4f0" />
-                  </linearGradient>
-                </defs>
-                <rect x="10" y="12" width="580" height="408" rx="52" fill="url(#gsAuthSky)" />
-                <ellipse cx="300" cy="390" rx="210" ry="26" fill="#d6ece7" />
-                <rect x="235" y="165" width="130" height="140" rx="10" fill="#f9d9a6" stroke="#6daea3" strokeWidth="4" />
-                <polygon points="224,170 300,118 376,170" fill="#5fb8ae" />
-                <rect x="285" y="228" width="30" height="77" rx="5" fill="#72bcb0" />
-                <rect x="252" y="188" width="22" height="22" rx="3" fill="#e9fffb" />
-                <rect x="285" y="188" width="22" height="22" rx="3" fill="#e9fffb" />
-                <rect x="318" y="188" width="22" height="22" rx="3" fill="#e9fffb" />
-                <circle cx="128" cy="338" r="38" fill="#ffd9a8" />
-                <rect x="105" y="352" width="46" height="52" rx="17" fill="#2f7f8f" />
-                <circle cx="192" cy="324" r="34" fill="#ffd5a5" />
-                <rect x="171" y="338" width="42" height="60" rx="16" fill="#1d6f7e" />
-                <circle cx="418" cy="326" r="34" fill="#ffd5a5" />
-                <rect x="397" y="340" width="42" height="58" rx="16" fill="#ee8f77" />
-                <circle cx="472" cy="345" r="30" fill="#ffc995" />
-                <rect x="453" y="358" width="38" height="45" rx="14" fill="#2b7d8f" />
-              </svg>
+              <img
+                className="auth-illustration-photo"
+                src="/ImageLogin.png"
+                alt="Apercu reel de l'interface Gest-School"
+                loading="lazy"
+              />
             </div>
           </article>
 
           <section className="panel auth-panel auth-card">
-            <h2>Connexion</h2>
+            <div className="auth-card-head">
+              <h2>Connexion</h2>
+              <button type="button" className="auth-theme-toggle" onClick={toggleThemeMode}>
+                {themeMode === "light" ? "Mode sombre" : "Mode clair"}
+              </button>
+            </div>
             <form className="form-grid auth-form-grid" onSubmit={(event) => void login(event)}>
               <label className="auth-field">
                 <span className="visually-hidden">Email ou identifiant</span>
@@ -7669,10 +7874,18 @@ export function App(): JSX.Element {
 
               <div className="auth-inline-row">
                 <label className="auth-check">
-                  <input type="checkbox" />
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(event) => {
+                      const next = event.target.checked;
+                      setRememberMe(next);
+                      if (!next) localStorage.removeItem(LOGIN_HINT_STORAGE_KEY);
+                    }}
+                  />
                   <span>Se souvenir de moi</span>
                 </label>
-                <button type="button" className="auth-link-button">
+                <button type="button" className="auth-link-button" onClick={toggleForgotPasswordPanel}>
                   Mot de passe oublie?
                 </button>
               </div>
@@ -7693,10 +7906,161 @@ export function App(): JSX.Element {
               <button type="submit" className="auth-submit" disabled={loadingAuth}>
                 {loadingAuth ? "Connexion..." : "Se Connecter"}
               </button>
-              <button type="button" className="auth-bottom-link">
-                Premiere connexion ?
+              <button
+                type="button"
+                className="auth-bottom-link"
+                aria-expanded={authAssistMode === "first"}
+                onClick={toggleFirstConnectionPanel}
+              >
+                Premiere connexion ? {authAssistMode === "first" ? "Masquer" : "Activer"}
               </button>
             </form>
+            {authAssistMode === "forgot" ? (
+              <article className="auth-assist-panel">
+                <h3>Reinitialisation du mot de passe</h3>
+                <form className="auth-assist-grid" onSubmit={(event) => void requestForgotPasswordToken(event)}>
+                  <label>
+                    Identifiant
+                    <input
+                      value={forgotPasswordForm.username}
+                      onChange={(event) =>
+                        setForgotPasswordForm((prev) => ({ ...prev, username: event.target.value }))
+                      }
+                      required
+                    />
+                  </label>
+                  <label>
+                    Tenant ID
+                    <input
+                      value={forgotPasswordForm.tenantId}
+                      onChange={(event) =>
+                        setForgotPasswordForm((prev) => ({ ...prev, tenantId: event.target.value }))
+                      }
+                      required
+                    />
+                  </label>
+                  <button type="submit" disabled={authAssistLoading}>
+                    {authAssistLoading ? "Generation..." : "Generer un token"}
+                  </button>
+                </form>
+                <form className="auth-assist-grid" onSubmit={(event) => void submitResetPassword(event)}>
+                  <label>
+                    Token de reset
+                    <input
+                      value={resetPasswordForm.token}
+                      onChange={(event) =>
+                        setResetPasswordForm((prev) => ({ ...prev, token: event.target.value }))
+                      }
+                      required
+                    />
+                  </label>
+                  <label>
+                    Nouveau mot de passe
+                    <input
+                      type="password"
+                      value={resetPasswordForm.newPassword}
+                      onChange={(event) =>
+                        setResetPasswordForm((prev) => ({ ...prev, newPassword: event.target.value }))
+                      }
+                      minLength={8}
+                      required
+                    />
+                  </label>
+                  <label>
+                    Confirmation
+                    <input
+                      type="password"
+                      value={resetPasswordForm.confirmPassword}
+                      onChange={(event) =>
+                        setResetPasswordForm((prev) => ({ ...prev, confirmPassword: event.target.value }))
+                      }
+                      minLength={8}
+                      required
+                    />
+                  </label>
+                  <button type="submit" disabled={authAssistLoading}>
+                    {authAssistLoading ? "Validation..." : "Valider la reinitialisation"}
+                  </button>
+                </form>
+                {generatedResetToken ? (
+                  <p className="auth-assist-note">
+                    Token genere (env. securise): <code>{generatedResetToken}</code>
+                  </p>
+                ) : null}
+              </article>
+            ) : null}
+            {authAssistMode === "first" ? (
+              <article className="auth-first-steps">
+                <h3>Activation premiere connexion</h3>
+                <form className="auth-assist-grid" onSubmit={(event) => void submitFirstConnection(event)}>
+                  <label>
+                    Identifiant
+                    <input
+                      value={firstConnectionForm.username}
+                      onChange={(event) =>
+                        setFirstConnectionForm((prev) => ({ ...prev, username: event.target.value }))
+                      }
+                      required
+                    />
+                  </label>
+                  <label>
+                    Tenant ID
+                    <input
+                      value={firstConnectionForm.tenantId}
+                      onChange={(event) =>
+                        setFirstConnectionForm((prev) => ({ ...prev, tenantId: event.target.value }))
+                      }
+                      required
+                    />
+                  </label>
+                  <label>
+                    Mot de passe temporaire
+                    <input
+                      type="password"
+                      value={firstConnectionForm.temporaryPassword}
+                      onChange={(event) =>
+                        setFirstConnectionForm((prev) => ({
+                          ...prev,
+                          temporaryPassword: event.target.value
+                        }))
+                      }
+                      minLength={8}
+                      required
+                    />
+                  </label>
+                  <label>
+                    Nouveau mot de passe
+                    <input
+                      type="password"
+                      value={firstConnectionForm.newPassword}
+                      onChange={(event) =>
+                        setFirstConnectionForm((prev) => ({ ...prev, newPassword: event.target.value }))
+                      }
+                      minLength={8}
+                      required
+                    />
+                  </label>
+                  <label>
+                    Confirmation
+                    <input
+                      type="password"
+                      value={firstConnectionForm.confirmPassword}
+                      onChange={(event) =>
+                        setFirstConnectionForm((prev) => ({
+                          ...prev,
+                          confirmPassword: event.target.value
+                        }))
+                      }
+                      minLength={8}
+                      required
+                    />
+                  </label>
+                  <button type="submit" disabled={authAssistLoading}>
+                    {authAssistLoading ? "Activation..." : "Activer le compte"}
+                  </button>
+                </form>
+              </article>
+            ) : null}
           </section>
         </section>
       ) : (
@@ -7723,13 +8087,19 @@ export function App(): JSX.Element {
 
             <div className="header-right">
               <div className="header-shortcuts">
+                <button type="button" className="header-shortcut theme-toggle" onClick={toggleThemeMode}>
+                  {themeMode === "light" ? "Mode sombre" : "Mode clair"}
+                </button>
                 <button type="button" className="header-shortcut" onClick={() => void refresh()}>
                   Actualiser
                 </button>
                 <button type="button" className="header-shortcut" onClick={() => void syncHeaderData()}>
                   Synchroniser
                 </button>
-                <span className="sync-pill">Maj: {lastSyncLabel}</span>
+                <span className="sync-pill">
+                  <span className="sync-dot" />
+                  Maj: {lastSyncLabel}
+                </span>
               </div>
               <div className="profile-pill">
                 <span className="avatar-badge">{profileInitial}</span>

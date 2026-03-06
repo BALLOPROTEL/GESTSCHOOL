@@ -802,7 +802,6 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
       <section className="panel table-panel">
         <div className="headline-row">
           <h2>Pilotage vie scolaire</h2>
-          <span className="subtle">Sprint 5-6.1</span>
         </div>
         <div className="metrics-grid">
           <div className="metric-card"><span>Total pointages</span><strong>{attendanceMetrics.total}</strong></div>
@@ -913,7 +912,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>Date</th><th>Eleve</th><th>Classe</th><th>Statut</th><th>Workflow</th><th>Validation</th><th>Pieces</th><th>Motif</th><th>Action</th></tr>
+              <tr><th>Date</th><th>Eleve</th><th>Classe</th><th>Statut</th><th>Justif.</th><th>Validation</th><th>Pieces</th><th>Motif</th><th>Action</th></tr>
             </thead>
             <tbody>
               {attendanceRecords.length === 0 ? (
@@ -944,8 +943,8 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
 
       <section className="panel editor-panel">
         <h2>Justificatifs & validation</h2>
-        <p className="subtle">Selectionne une absence, valide le workflow puis rattache les pieces justificatives.</p>
-        <h3>Workflow de validation</h3>
+        <p className="subtle">Selectionne une absence, valide le statut puis rattache les pieces justificatives.</p>
+        <h3>Validation</h3>
         <form className="form-grid" onSubmit={(event) => void submitAttendanceValidation(event)}>
           <div className="split-grid">
             <label>
@@ -960,7 +959,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
               </select>
             </label>
             <label>
-              Statut workflow
+              Statut justification
               <select
                 value={validationForm.status}
                 onChange={(event) =>

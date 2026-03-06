@@ -1,14 +1,17 @@
 import { createHash, randomBytes } from "node:crypto";
 
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { Prisma, type User } from "@prisma/client";
-import { compare } from "bcryptjs";
+import { compare, hash } from "bcryptjs";
 
 import { PrismaService } from "../database/prisma.service";
 import { UserRole } from "../security/roles.enum";
+import { FirstConnectionDto } from "./dto/first-connection.dto";
+import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { LoginDto } from "./dto/login.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
 
 export type AuthTokensResponse = {
   accessToken: string;
@@ -23,6 +26,16 @@ export type AuthTokensResponse = {
   };
 };
 
+export type ForgotPasswordResponse = {
+  message: string;
+  resetToken?: string;
+  expiresAt?: string;
+};
+
+export type MessageResponse = {
+  message: string;
+};
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -32,11 +45,7 @@ export class AuthService {
   ) {}
 
   async login(payload: LoginDto): Promise<AuthTokensResponse> {
-    const defaultTenantId = this.configService.get<string>(
-      "DEFAULT_TENANT_ID",
-      "00000000-0000-0000-0000-000000000001"
-    );
-    const tenantId = payload.tenantId || defaultTenantId;
+    const tenantId = payload.tenantId || this.getDefaultTenantId();
 
     const user = await this.prisma.user.findFirst({
       where: {
@@ -125,6 +134,130 @@ export class AuthService {
     }
   }
 
+  async forgotPassword(payload: ForgotPasswordDto): Promise<ForgotPasswordResponse> {
+    const tenantId = payload.tenantId || this.getDefaultTenantId();
+    const user = await this.prisma.user.findFirst({
+      where: {
+        tenantId,
+        username: payload.username,
+        isActive: true,
+        deletedAt: null
+      }
+    });
+
+    const genericMessage =
+      "Si le compte existe, un token de reinitialisation a ete genere et doit etre transmis de facon securisee.";
+    if (!user) {
+      return { message: genericMessage };
+    }
+
+    const expiresIn = this.configService.get<string>("PASSWORD_RESET_EXPIRES_IN", "20m");
+    const expiresInSeconds = this.resolveExpirationSeconds(expiresIn);
+    const resetToken = await this.jwtService.signAsync(
+      {
+        sub: user.id,
+        tenantId: user.tenantId,
+        username: user.username,
+        purpose: "PASSWORD_RESET"
+      },
+      {
+        secret: this.getPasswordResetSecret(),
+        expiresIn: expiresInSeconds
+      }
+    );
+
+    const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
+    await this.logAuthAudit(user.tenantId, user.id, "AUTH_FORGOT_PASSWORD_REQUESTED", {
+      username: user.username
+    });
+
+    return {
+      message: genericMessage,
+      resetToken,
+      expiresAt: expiresAt.toISOString()
+    };
+  }
+
+  async resetPassword(payload: ResetPasswordDto): Promise<MessageResponse> {
+    type ResetTokenPayload = {
+      sub: string;
+      tenantId: string;
+      username: string;
+      purpose: string;
+    };
+
+    let tokenPayload: ResetTokenPayload;
+    try {
+      tokenPayload = await this.jwtService.verifyAsync<ResetTokenPayload>(payload.token, {
+        secret: this.getPasswordResetSecret()
+      });
+    } catch {
+      throw new UnauthorizedException("Token de reinitialisation invalide ou expire.");
+    }
+
+    if (tokenPayload.purpose !== "PASSWORD_RESET") {
+      throw new UnauthorizedException("Token de reinitialisation invalide.");
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: tokenPayload.sub,
+        tenantId: tokenPayload.tenantId,
+        username: tokenPayload.username,
+        isActive: true,
+        deletedAt: null
+      }
+    });
+
+    if (!user) {
+      throw new UnauthorizedException("Compte introuvable pour ce token de reinitialisation.");
+    }
+
+    const samePassword = await compare(payload.newPassword, user.passwordHash);
+    if (samePassword) {
+      throw new BadRequestException("Le nouveau mot de passe doit etre different de l'ancien.");
+    }
+
+    await this.replaceUserPassword(user, payload.newPassword);
+    await this.logAuthAudit(user.tenantId, user.id, "AUTH_PASSWORD_RESET_SUCCESS", {
+      username: user.username
+    });
+    return { message: "Mot de passe reinitialise avec succes." };
+  }
+
+  async completeFirstConnection(payload: FirstConnectionDto): Promise<MessageResponse> {
+    const tenantId = payload.tenantId || this.getDefaultTenantId();
+    const user = await this.prisma.user.findFirst({
+      where: {
+        tenantId,
+        username: payload.username,
+        isActive: true,
+        deletedAt: null
+      }
+    });
+
+    if (!user) {
+      throw new UnauthorizedException("Compte introuvable.");
+    }
+
+    const hasTemporaryPassword = await compare(payload.temporaryPassword, user.passwordHash);
+    if (!hasTemporaryPassword) {
+      throw new UnauthorizedException("Mot de passe temporaire invalide.");
+    }
+
+    if (payload.newPassword === payload.temporaryPassword) {
+      throw new BadRequestException(
+        "Le nouveau mot de passe doit etre different du mot de passe temporaire."
+      );
+    }
+
+    await this.replaceUserPassword(user, payload.newPassword);
+    await this.logAuthAudit(user.tenantId, user.id, "AUTH_FIRST_CONNECTION_COMPLETED", {
+      username: user.username
+    });
+    return { message: "Premiere connexion finalisee. Vous pouvez maintenant vous connecter." };
+  }
+
   private async issueTokens(user: User): Promise<AuthTokensResponse> {
     const expiresIn = this.configService.get<string>("JWT_EXPIRES_IN", "1h");
     const expiresInSeconds = this.resolveExpirationSeconds(expiresIn);
@@ -173,6 +306,47 @@ export class AuthService {
         tenantId: user.tenantId
       }
     };
+  }
+
+  private getDefaultTenantId(): string {
+    return this.configService.get<string>(
+      "DEFAULT_TENANT_ID",
+      "00000000-0000-0000-0000-000000000001"
+    );
+  }
+
+  private getPasswordResetSecret(): string {
+    return this.configService.get<string>(
+      "PASSWORD_RESET_SECRET",
+      this.configService.get<string>("JWT_SECRET", "dev-only-secret-change-me")
+    );
+  }
+
+  private async replaceUserPassword(
+    user: Pick<User, "id" | "tenantId">,
+    nextPassword: string
+  ): Promise<void> {
+    const now = new Date();
+    const passwordHash = await hash(nextPassword, 10);
+    await this.prisma.$transaction(async (transaction) => {
+      await transaction.user.update({
+        where: { id: user.id },
+        data: {
+          passwordHash,
+          updatedAt: now
+        }
+      });
+
+      await transaction.refreshToken.updateMany({
+        where: {
+          userId: user.id,
+          revokedAt: null
+        },
+        data: {
+          revokedAt: now
+        }
+      });
+    });
   }
 
   private hashToken(token: string): string {

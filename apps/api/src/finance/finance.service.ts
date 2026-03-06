@@ -119,7 +119,7 @@ export class FinanceService {
           levelId: payload.levelId,
           label: payload.label.trim(),
           totalAmount: payload.totalAmount,
-          currency: (payload.currency || "XOF").trim().toUpperCase(),
+          currency: (payload.currency || "CFA").trim().toUpperCase(),
           updatedAt: new Date()
         }
       });

@@ -4,7 +4,15 @@ import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Public } from "../security/public.decorator";
 import { LoginDto } from "./dto/login.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
-import { AuthService, type AuthTokensResponse } from "./auth.service";
+import { ForgotPasswordDto } from "./dto/forgot-password.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
+import { FirstConnectionDto } from "./dto/first-connection.dto";
+import {
+  AuthService,
+  type AuthTokensResponse,
+  type ForgotPasswordResponse,
+  type MessageResponse
+} from "./auth.service";
 
 @ApiTags("auth")
 @Controller("auth")
@@ -31,5 +39,26 @@ export class AuthController {
   @ApiOperation({ summary: "Revoke refresh token (logout)" })
   async logout(@Body() body: RefreshTokenDto): Promise<void> {
     await this.authService.logout(body.refreshToken);
+  }
+
+  @Public()
+  @Post("forgot-password")
+  @ApiOperation({ summary: "Generate a password reset token" })
+  async forgotPassword(@Body() body: ForgotPasswordDto): Promise<ForgotPasswordResponse> {
+    return this.authService.forgotPassword(body);
+  }
+
+  @Public()
+  @Post("reset-password")
+  @ApiOperation({ summary: "Reset user password with reset token" })
+  async resetPassword(@Body() body: ResetPasswordDto): Promise<MessageResponse> {
+    return this.authService.resetPassword(body);
+  }
+
+  @Public()
+  @Post("first-connection")
+  @ApiOperation({ summary: "Complete first connection with temporary password" })
+  async completeFirstConnection(@Body() body: FirstConnectionDto): Promise<MessageResponse> {
+    return this.authService.completeFirstConnection(body);
   }
 }
