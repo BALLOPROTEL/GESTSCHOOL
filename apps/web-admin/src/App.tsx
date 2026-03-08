@@ -1143,6 +1143,10 @@ export function App(): JSX.Element {
   const rememberedLogin = useMemo(() => readRememberedLogin(), []);
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => readThemePreference());
   const [mobileHeaderOpen, setMobileHeaderOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [mobilePrincipalOpen, setMobilePrincipalOpen] = useState(true);
+  const [mobileVieOpen, setMobileVieOpen] = useState(false);
+  const [mobileTasksOpen, setMobileTasksOpen] = useState(false);
 
   const [loginForm, setLoginForm] = useState({
     username: rememberedLogin?.username || "",
@@ -1610,6 +1614,8 @@ export function App(): JSX.Element {
 
   useEffect(() => {
     setMobileHeaderOpen(false);
+    setMobileSidebarOpen(false);
+    setMobileTasksOpen(false);
   }, [session?.user.username, tab]);
 
   const clearData = useCallback(() => {
@@ -5870,6 +5876,7 @@ export function App(): JSX.Element {
     let primaryActionLabel = primaryModule
       ? `Ouvrir ${primaryModule.title}`
       : "Ouvrir l'espace principal";
+    const priorityTitle = currentRole === "PARENT" ? "Actions utiles" : "Taches prioritaires";
 
     let dashboardCards: Array<{ label: string; value: string | number; hint: string }> = [];
     let dashboardTasks: Array<{ id: string; title: string; text: string; screen: ScreenId }> = [];
@@ -6243,10 +6250,21 @@ export function App(): JSX.Element {
 
             <aside className="dashboard-side">
               <article className="panel priority-panel">
-                <div className="table-header">
-                  <h3>{currentRole === "PARENT" ? "Actions utiles" : "Taches prioritaires"}</h3>
+                <div className="priority-panel-head">
+                  <div className="table-header">
+                    <h3>{priorityTitle}</h3>
+                  </div>
+                  <button
+                    type="button"
+                    className="mobile-section-toggle"
+                    aria-expanded={mobileTasksOpen}
+                    onClick={() => setMobileTasksOpen((prev) => !prev)}
+                  >
+                    {mobileTasksOpen ? "Masquer" : "Afficher"}
+                  </button>
                 </div>
-                <div className="priority-list">
+                <div className={`priority-collapsible ${mobileTasksOpen ? "is-open" : ""}`.trim()}>
+                  <div className="priority-list">
                   {dashboardTasks.length === 0 ? (
                     <p className="subtle">Aucune action prioritaire pour ce profil.</p>
                   ) : (
@@ -6262,6 +6280,7 @@ export function App(): JSX.Element {
                       </button>
                     ))
                   )}
+                  </div>
                 </div>
               </article>
 
@@ -8296,6 +8315,13 @@ export function App(): JSX.Element {
   const navPrincipal = visibleScreens.filter((entry) => entry.group === "principal");
   const navVieScolaire = visibleScreens.filter((entry) => entry.group === "vie");
   const navPortail = visibleScreens.filter((entry) => entry.group === "portail");
+  const mobilePrimaryScreens = useMemo(
+    () =>
+      [...navPrincipal, ...navPortail].filter(
+        (entry, index, array) => array.findIndex((candidate) => candidate.id === entry.id) === index
+      ),
+    [navPortail, navPrincipal]
+  );
   const lastSyncLabel = lastSyncAt
     ? new Date(lastSyncAt).toLocaleString("fr-FR")
     : "Non synchronise";
@@ -8539,7 +8565,10 @@ export function App(): JSX.Element {
               className="mobile-header-toggle"
               aria-expanded={mobileHeaderOpen}
               aria-controls="mobile-header-panel"
-              onClick={() => setMobileHeaderOpen((prev) => !prev)}
+              onClick={() => {
+                setMobileSidebarOpen(false);
+                setMobileHeaderOpen((prev) => !prev);
+              }}
             >
               {mobileHeaderOpen ? "Fermer le menu" : "Menu rapide"}
             </button>
@@ -8588,6 +8617,89 @@ export function App(): JSX.Element {
               </div>
             </div>
           </header>
+
+          <div className="mobile-sidebar-entry">
+            <button
+              type="button"
+              className={`mobile-nav-toggle ${mobileSidebarOpen ? "is-open" : ""}`.trim()}
+              aria-expanded={mobileSidebarOpen}
+              aria-controls="mobile-sidebar-panel"
+              onClick={() => {
+                setMobileHeaderOpen(false);
+                setMobileSidebarOpen((prev) => !prev);
+              }}
+            >
+              <span className="mobile-nav-icon" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </span>
+              <span className="mobile-nav-label">MENU</span>
+            </button>
+
+            <div
+              id="mobile-sidebar-panel"
+              className={`panel mobile-sidebar-panel ${mobileSidebarOpen ? "is-open" : ""}`.trim()}
+            >
+              <div className="mobile-sidebar-group">
+                <button
+                  type="button"
+                  className="mobile-sidebar-group-toggle"
+                  aria-expanded={mobilePrincipalOpen}
+                  onClick={() => setMobilePrincipalOpen((prev) => !prev)}
+                >
+                  <span>Principal</span>
+                  <span className={`mobile-sidebar-chevron ${mobilePrincipalOpen ? "is-open" : ""}`.trim()}>v</span>
+                </button>
+                <div
+                  className={`mobile-sidebar-links ${mobilePrincipalOpen ? "is-open" : ""}`.trim()}
+                >
+                  {mobilePrimaryScreens.map((screen) => (
+                    <button
+                      key={screen.id}
+                      type="button"
+                      className={`mobile-sidebar-link ${tab === screen.id ? "is-active" : ""}`.trim()}
+                      onClick={() => {
+                        setTab(screen.id);
+                        setMobileSidebarOpen(false);
+                      }}
+                    >
+                      {screen.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {navVieScolaire.length > 0 ? (
+                <div className="mobile-sidebar-group">
+                  <button
+                    type="button"
+                    className="mobile-sidebar-group-toggle"
+                    aria-expanded={mobileVieOpen}
+                    onClick={() => setMobileVieOpen((prev) => !prev)}
+                  >
+                    <span>Vie scolaire</span>
+                    <span className={`mobile-sidebar-chevron ${mobileVieOpen ? "is-open" : ""}`.trim()}>v</span>
+                  </button>
+                  <div className={`mobile-sidebar-links ${mobileVieOpen ? "is-open" : ""}`.trim()}>
+                    {navVieScolaire.map((screen) => (
+                      <button
+                        key={screen.id}
+                        type="button"
+                        className={`mobile-sidebar-link ${tab === screen.id ? "is-active" : ""}`.trim()}
+                        onClick={() => {
+                          setTab(screen.id);
+                          setMobileSidebarOpen(false);
+                        }}
+                      >
+                        {screen.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
 
           <div className="app-shell">
             <aside className="panel app-sidebar">
