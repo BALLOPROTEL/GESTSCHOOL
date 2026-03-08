@@ -93,34 +93,18 @@ export const ROLE_PERMISSION_MATRIX: RolePermissionMatrix = {
     attendanceAttachment: clone(CRUD),
     attendanceValidation: ["read", "validate"],
     timetable: clone(CRUD),
-    notifications: clone(FULL_NOTIFICATIONS),
-    mosque: ["read", "create", "update"],
-    analytics: clone(READ_ONLY)
+    notifications: clone(FULL_NOTIFICATIONS)
   },
   [UserRole.ENSEIGNANT]: {
-    teacherPortal: ["read", "create", "update"],
-    students: clone(READ_ONLY),
-    enrollments: clone(READ_ONLY),
-    reference: clone(READ_ONLY),
-    grades: ["read", "create", "update"],
-    reportCards: ["read", "create"],
-    attendance: ["read", "create", "update"],
-    attendanceAttachment: ["read", "create"],
-    attendanceValidation: clone(READ_ONLY),
-    timetable: clone(READ_ONLY),
-    notifications: clone(READ_ONLY)
+    teacherPortal: ["read", "create", "update"]
   },
   [UserRole.COMPTABLE]: {
-    parentPortal: clone(READ_ONLY),
     finance: clone(CRUD),
     payments: clone(CRUD),
-    notifications: clone(FULL_NOTIFICATIONS),
-    mosque: clone(CRUD),
-    analytics: clone(READ_ONLY)
+    mosque: clone(CRUD)
   },
   [UserRole.PARENT]: {
-    parentPortal: clone(READ_ONLY),
-    timetable: clone(READ_ONLY)
+    parentPortal: clone(READ_ONLY)
   }
 };
 

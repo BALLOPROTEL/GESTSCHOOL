@@ -36,7 +36,7 @@ export class EnrollmentsController {
   ) {}
 
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("enrollments", "read")
   @ApiOperation({ summary: "List enrollments" })
   async list(
@@ -83,3 +83,4 @@ export class EnrollmentsController {
     return resolveTenantContext(this.configService, user, tenantHeader);
   }
 }
+

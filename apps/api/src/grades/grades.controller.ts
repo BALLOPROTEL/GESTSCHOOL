@@ -39,7 +39,7 @@ export class GradesController {
   ) {}
 
   @Get("grades")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("grades", "read")
   @ApiOperation({ summary: "List grades" })
   async listGrades(
@@ -60,7 +60,7 @@ export class GradesController {
   }
 
   @Post("grades")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("grades", "create")
   @ApiOperation({ summary: "Create or update one grade" })
   async upsertGrade(
@@ -73,7 +73,7 @@ export class GradesController {
   }
 
   @Post("grades/bulk")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("grades", "create")
   @ApiOperation({ summary: "Bulk create or update grades for one assessment" })
   async bulkUpsertGrades(
@@ -86,7 +86,7 @@ export class GradesController {
   }
 
   @Get("grades/class-summary")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("grades", "read")
   @ApiOperation({ summary: "Compute class averages and ranks for one period" })
   async classSummary(
@@ -100,7 +100,7 @@ export class GradesController {
   }
 
   @Get("report-cards")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("reportCards", "read")
   @ApiOperation({ summary: "List generated report cards" })
   async listReportCards(
@@ -119,7 +119,7 @@ export class GradesController {
   }
 
   @Post("report-cards/generate")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("reportCards", "create")
   @ApiOperation({ summary: "Generate one report card PDF" })
   async generateReportCard(
@@ -132,7 +132,7 @@ export class GradesController {
   }
 
   @Get("report-cards/:id/pdf")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("reportCards", "read")
   @ApiOperation({ summary: "Get generated report card PDF data URL" })
   async getReportCardPdf(
@@ -151,3 +151,4 @@ export class GradesController {
     return resolveTenantContext(this.configService, user, tenantHeader);
   }
 }
+

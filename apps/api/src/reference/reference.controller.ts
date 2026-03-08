@@ -50,7 +50,7 @@ export class ReferenceController {
   ) {}
 
   @Get("school-years")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("reference", "read")
   @ApiOperation({ summary: "List school years" })
   async listSchoolYears(
@@ -102,7 +102,7 @@ export class ReferenceController {
   }
 
   @Get("cycles")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("reference", "read")
   @ApiOperation({ summary: "List cycles" })
   async listCycles(
@@ -154,7 +154,7 @@ export class ReferenceController {
   }
 
   @Get("levels")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("reference", "read")
   @ApiOperation({ summary: "List levels" })
   async listLevels(
@@ -207,7 +207,7 @@ export class ReferenceController {
   }
 
   @Get("classes")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("reference", "read")
   @ApiOperation({ summary: "List classes" })
   async listClasses(
@@ -261,7 +261,7 @@ export class ReferenceController {
   }
 
   @Get("subjects")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("reference", "read")
   @ApiOperation({ summary: "List subjects" })
   async listSubjects(
@@ -313,7 +313,7 @@ export class ReferenceController {
   }
 
   @Get("academic-periods")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("reference", "read")
   @ApiOperation({ summary: "List academic periods" })
   async listAcademicPeriods(
@@ -372,3 +372,4 @@ export class ReferenceController {
     return resolveTenantContext(this.configService, user, tenantHeader);
   }
 }
+

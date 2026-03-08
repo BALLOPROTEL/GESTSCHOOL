@@ -184,6 +184,28 @@ const STRONG_PASSWORD_HINT =
 
 const today = (): string => new Date().toISOString().slice(0, 10);
 const isStrongPassword = (value: string): boolean => STRONG_PASSWORD_REGEX.test(value);
+const formatLookupLabel = (map: Record<string, string>, value?: string): string => {
+  const normalized = (value || "").trim().toUpperCase();
+  return map[normalized] || value || "-";
+};
+const formatRoleLabel = (value?: string): string => formatLookupLabel(ROLE_LABELS, value);
+const formatInvoiceStatusLabel = (value?: string): string => formatLookupLabel(INVOICE_STATUS_LABELS, value);
+const formatAttendanceStatusLabel = (value?: string): string =>
+  formatLookupLabel(ATTENDANCE_STATUS_LABELS, value);
+const formatValidationStatusLabel = (value?: string): string =>
+  formatLookupLabel(VALIDATION_STATUS_LABELS, value);
+const formatPortalNotificationStatusLabel = (value?: string): string =>
+  formatLookupLabel(PORTAL_NOTIFICATION_STATUS_LABELS, value);
+const formatAudienceRoleLabel = (value?: string): string =>
+  formatLookupLabel(AUDIENCE_ROLE_LABELS, value);
+const formatMemberStatusLabel = (value?: string): string => formatLookupLabel(MEMBER_STATUS_LABELS, value);
+const formatEnrollmentStatusLabel = (value?: string): string =>
+  formatLookupLabel(ENROLLMENT_STATUS_LABELS, value);
+const formatWeekdayLabel = (day?: number): string => WEEKDAY_LABELS[day || 0] || String(day || "-");
+const formatPermissionActionLabel = (value: PermissionAction): string =>
+  PERMISSION_ACTION_LABELS[value] || value;
+const formatPermissionResourceLabel = (value: PermissionResource): string =>
+  PERMISSION_RESOURCE_LABELS[value] || value;
 
 const parseError = async (response: Response): Promise<string> => {
   try {
@@ -541,19 +563,19 @@ type ScreenDef = {
 };
 
 const SCREEN_DEFS: ScreenDef[] = [
-  { id: "dashboard", label: "Tableau de bord", group: "principal", roles: ["ADMIN", "SCOLARITE", "ENSEIGNANT", "COMPTABLE", "PARENT"] },
+  { id: "dashboard", label: "Tableau de bord", group: "principal", roles: ["ADMIN", "SCOLARITE", "COMPTABLE"] },
   { id: "iam", label: "Utilisateurs & droits", group: "principal", roles: ["ADMIN"] },
-  { id: "students", label: "Eleves", group: "principal", roles: ["ADMIN", "SCOLARITE", "ENSEIGNANT"] },
+  { id: "students", label: "Eleves", group: "principal", roles: ["ADMIN", "SCOLARITE"] },
   { id: "reference", label: "Referentiel", group: "principal", roles: ["ADMIN", "SCOLARITE"] },
-  { id: "enrollments", label: "Inscriptions", group: "principal", roles: ["ADMIN", "SCOLARITE", "ENSEIGNANT"] },
+  { id: "enrollments", label: "Inscriptions", group: "principal", roles: ["ADMIN", "SCOLARITE"] },
   { id: "finance", label: "Comptabilite", group: "principal", roles: ["ADMIN", "SCOLARITE", "COMPTABLE"] },
-  { id: "reports", label: "Rapports & conformite", group: "principal", roles: ["ADMIN", "SCOLARITE", "COMPTABLE"] },
-  { id: "mosque", label: "Mosquee", group: "principal", roles: ["ADMIN", "SCOLARITE", "COMPTABLE"] },
-  { id: "grades", label: "Notes & bulletins", group: "principal", roles: ["ADMIN", "SCOLARITE", "ENSEIGNANT"] },
-  { id: "schoolLifeOverview", label: "Pilotage", group: "vie", roles: ["ADMIN", "SCOLARITE", "ENSEIGNANT"] },
-  { id: "schoolLifeAttendance", label: "Absences", group: "vie", roles: ["ADMIN", "SCOLARITE", "ENSEIGNANT"] },
-  { id: "schoolLifeTimetable", label: "Emploi du temps", group: "vie", roles: ["ADMIN", "SCOLARITE", "ENSEIGNANT", "PARENT"] },
-  { id: "schoolLifeNotifications", label: "Notifications", group: "vie", roles: ["ADMIN", "SCOLARITE", "ENSEIGNANT", "COMPTABLE"] },
+  { id: "reports", label: "Rapports & conformite", group: "principal", roles: ["ADMIN"] },
+  { id: "mosque", label: "Mosquee", group: "principal", roles: ["ADMIN", "COMPTABLE"] },
+  { id: "grades", label: "Notes & bulletins", group: "principal", roles: ["ADMIN", "SCOLARITE"] },
+  { id: "schoolLifeOverview", label: "Pilotage", group: "vie", roles: ["ADMIN", "SCOLARITE"] },
+  { id: "schoolLifeAttendance", label: "Absences", group: "vie", roles: ["ADMIN", "SCOLARITE"] },
+  { id: "schoolLifeTimetable", label: "Emploi du temps", group: "vie", roles: ["ADMIN", "SCOLARITE"] },
+  { id: "schoolLifeNotifications", label: "Notifications", group: "vie", roles: ["ADMIN", "SCOLARITE"] },
   { id: "teacherPortal", label: "Portail enseignant", group: "portail", roles: ["ENSEIGNANT"] },
   { id: "parentPortal", label: "Portail parent", group: "portail", roles: ["PARENT"] }
 ];
@@ -564,6 +586,113 @@ const ROLE_HOME_SCREEN: Record<Role, ScreenId> = {
   ENSEIGNANT: "teacherPortal",
   COMPTABLE: "finance",
   PARENT: "parentPortal"
+};
+
+const ROLE_CONTEXT_LABELS: Record<Role, string> = {
+  ADMIN: "Administration",
+  SCOLARITE: "Scolarite",
+  ENSEIGNANT: "Espace enseignant",
+  COMPTABLE: "Espace comptable",
+  PARENT: "Espace parent"
+};
+
+const ROLE_LABELS: Record<Role, string> = {
+  ADMIN: "Administrateur",
+  SCOLARITE: "Scolarite",
+  ENSEIGNANT: "Enseignant",
+  COMPTABLE: "Comptable",
+  PARENT: "Parent"
+};
+
+const INVOICE_STATUS_LABELS: Record<string, string> = {
+  OPEN: "Ouverte",
+  PARTIAL: "Partiellement reglee",
+  PAID: "Soldee",
+  VOID: "Annulee"
+};
+
+const ATTENDANCE_STATUS_LABELS: Record<string, string> = {
+  PRESENT: "Present",
+  ABSENT: "Absent",
+  LATE: "Retard",
+  EXCUSED: "Excuse"
+};
+
+const VALIDATION_STATUS_LABELS: Record<string, string> = {
+  PENDING: "En attente",
+  APPROVED: "Validee",
+  REJECTED: "Rejetee"
+};
+
+const PORTAL_NOTIFICATION_STATUS_LABELS: Record<string, string> = {
+  PENDING: "En attente",
+  SCHEDULED: "Planifiee",
+  SENT: "Envoyee",
+  FAILED: "Echec",
+  DELIVERED: "Livree",
+  SENT_TO_PROVIDER: "Transmise",
+  RETRYING: "Nouvelle tentative",
+  UNDELIVERABLE: "Non distribuable"
+};
+
+const AUDIENCE_ROLE_LABELS: Record<string, string> = {
+  ADMIN: "Administration",
+  SCOLARITE: "Scolarite",
+  ENSEIGNANT: "Enseignants",
+  COMPTABLE: "Comptabilite",
+  PARENT: "Parents"
+};
+
+const MEMBER_STATUS_LABELS: Record<string, string> = {
+  ACTIVE: "Actif",
+  INACTIVE: "Inactif"
+};
+
+const ENROLLMENT_STATUS_LABELS: Record<string, string> = {
+  ENROLLED: "Inscrit",
+  PENDING: "En attente",
+  CANCELLED: "Annulee",
+  COMPLETED: "Finalisee"
+};
+
+const WEEKDAY_LABELS: Record<number, string> = {
+  1: "Lundi",
+  2: "Mardi",
+  3: "Mercredi",
+  4: "Jeudi",
+  5: "Vendredi",
+  6: "Samedi",
+  7: "Dimanche"
+};
+
+const PERMISSION_ACTION_LABELS: Record<PermissionAction, string> = {
+  read: "Lecture",
+  create: "Creation",
+  update: "Modification",
+  delete: "Suppression",
+  validate: "Validation",
+  dispatch: "Envoi"
+};
+
+const PERMISSION_RESOURCE_LABELS: Record<PermissionResource, string> = {
+  students: "Eleves",
+  users: "Utilisateurs",
+  teacherPortal: "Portail enseignant",
+  parentPortal: "Portail parent",
+  enrollments: "Inscriptions",
+  reference: "Referentiel",
+  finance: "Finance",
+  payments: "Paiements",
+  grades: "Notes",
+  reportCards: "Bulletins",
+  attendance: "Absences",
+  attendanceAttachment: "Justificatifs",
+  attendanceValidation: "Validation absences",
+  timetable: "Emploi du temps",
+  notifications: "Notifications",
+  mosque: "Mosquee",
+  analytics: "Analytique",
+  audit: "Audit"
 };
 
 const hasScreenAccess = (role: Role, screen: ScreenId): boolean =>
@@ -699,7 +828,7 @@ const MODULE_TILES: ModuleTile[] = [
   {
     screen: "reports",
     title: "Rapports & conformite",
-    subtitle: "KPI executifs et journal d'audit",
+    subtitle: "Indicateurs executifs et journal d'audit",
     icon: "chart",
     tone: "orange",
     tags: ["reporting", "audit", "conformite", "kpi"]
@@ -715,7 +844,7 @@ const MODULE_TILES: ModuleTile[] = [
   {
     screen: "grades",
     title: "Notes & bulletins",
-    subtitle: "Evaluation et PDF",
+    subtitle: "Evaluations et bulletins PDF",
     icon: "book",
     tone: "blue",
     tags: ["notes", "bulletin", "moyenne"]
@@ -1307,7 +1436,7 @@ export function App(): JSX.Element {
   const [mosqueDonationErrors, setMosqueDonationErrors] = useState<FieldErrors>({});
 
   const currentRole = (session?.user.role as Role | undefined) || null;
-  const currentRoleLabel = currentRole || "GUEST";
+  const currentRoleLabel = currentRole ? formatRoleLabel(currentRole) : "Visiteur";
   const fieldError = (errors: FieldErrors, key: string): JSX.Element | null =>
     errors[key] ? <span className="field-error">{errors[key]}</span> : null;
   const focusFirstInlineErrorField = (stepId?: string): void => {
@@ -1329,10 +1458,21 @@ export function App(): JSX.Element {
     }, 0);
   };
 
-  const schoolYearLabel = useMemo(
-    () => schoolYears.find((item) => item.isActive)?.code || schoolYears[0]?.code || "2025-2026",
-    [schoolYears]
-  );
+  const schoolYearLabel = useMemo(() => {
+    if (currentRole === "PARENT") {
+      return (
+        parentChildren.find((item) => item.schoolYearCode)?.schoolYearCode ||
+        parentTimetable.find((item) => item.schoolYearCode)?.schoolYearCode ||
+        "2025-2026"
+      );
+    }
+
+    if (currentRole === "ENSEIGNANT") {
+      return teacherClasses.find((item) => item.schoolYearCode)?.schoolYearCode || "2025-2026";
+    }
+
+    return schoolYears.find((item) => item.isActive)?.code || schoolYears[0]?.code || "2025-2026";
+  }, [currentRole, parentChildren, parentTimetable, schoolYears, teacherClasses]);
 
   const homeTiles = useMemo(() => {
     if (!currentRole) return [] as ModuleTile[];
@@ -1959,7 +2099,7 @@ export function App(): JSX.Element {
     if (hasScreenAccess(currentRole, "mosque")) {
       await loadMosqueData();
     }
-    if (hasScreenAccess(currentRole, "grades") || hasScreenAccess(currentRole, "teacherPortal")) {
+    if (hasScreenAccess(currentRole, "grades")) {
       await loadGrades();
       await loadReportCards();
     }
@@ -1999,10 +2139,10 @@ export function App(): JSX.Element {
       return;
     }
 
-    const needStudents = ["students", "enrollments", "grades", "schoolLifeAttendance", "teacherPortal"].some(
+    const needStudents = ["students", "enrollments", "grades", "schoolLifeAttendance"].some(
       (screen) => hasScreenAccess(currentRole, screen as ScreenId)
     );
-    const needReference = ["reference", "enrollments", "grades", "schoolLifeAttendance", "schoolLifeTimetable", "teacherPortal", "parentPortal"].some(
+    const needReference = ["reference", "enrollments", "grades", "schoolLifeAttendance", "schoolLifeTimetable", "teacherPortal"].some(
       (screen) => hasScreenAccess(currentRole, screen as ScreenId)
     );
 
@@ -2021,7 +2161,7 @@ export function App(): JSX.Element {
       void loadAuditLogs(auditFiltersRef.current);
     }
     if (hasScreenAccess(currentRole, "mosque")) void loadMosqueData();
-    if (hasScreenAccess(currentRole, "grades") || hasScreenAccess(currentRole, "teacherPortal")) {
+    if (hasScreenAccess(currentRole, "grades")) {
       void loadGrades();
       void loadReportCards();
     }
@@ -2430,7 +2570,7 @@ export function App(): JSX.Element {
     }
 
     setRolePermissions((await response.json()) as RolePermissionView[]);
-    setNotice(`Permissions ${rolePermissionTarget} mises a jour.`);
+    setNotice(`Droits ${formatRoleLabel(rolePermissionTarget)} mis a jour.`);
     setIamWorkflowStep("permissions");
   };
 
@@ -3421,7 +3561,7 @@ export function App(): JSX.Element {
   };
 
   const deleteInvoice = async (id: string): Promise<void> => {
-    if (!window.confirm("Delete invoice?")) return;
+    if (!window.confirm("Supprimer cette facture ?")) return;
     const response = await api(`/invoices/${id}`, { method: "DELETE" });
     if (!response.ok) {
       setError(await parseError(response));
@@ -3876,7 +4016,7 @@ export function App(): JSX.Element {
       >
         <section id="finance-overview" data-step-id="overview" className="panel table-panel workflow-section module-modern">
           <div className="table-header">
-            <h2>Dashboard recouvrement</h2>
+            <h2>Synthese du recouvrement</h2>
           </div>
           <p className="section-lead">Suivez la sante financiere avant de passer aux operations de saisie.</p>
           <div className="metrics-grid">
@@ -3907,7 +4047,7 @@ export function App(): JSX.Element {
                 className="button-ghost"
                 onClick={() => window.open(receiptPdfUrl, "_blank", "noopener,noreferrer")}
               >
-                Ouvrir dernier recu
+                Ouvrir le dernier recu
               </button>
             ) : null}
           </div>
@@ -4132,7 +4272,7 @@ export function App(): JSX.Element {
                       <td>{formatAmount(item.amountDue)}</td>
                       <td>{formatAmount(item.amountPaid)}</td>
                       <td>{formatAmount(item.remainingAmount)}</td>
-                      <td>{item.status}</td>
+                      <td>{formatInvoiceStatusLabel(item.status)}</td>
                       <td>
                         <button type="button" className="button-danger" onClick={() => void deleteInvoice(item.id)}>
                           Supprimer
@@ -4240,7 +4380,7 @@ export function App(): JSX.Element {
                       <td>{new Date(item.paidAt).toLocaleString("fr-FR")}</td>
                       <td>
                         <button type="button" className="button-ghost" onClick={() => void openReceipt(item.id)}>
-                          Recu PDF
+                          Recu en PDF
                         </button>
                       </td>
                     </tr>
@@ -4259,7 +4399,7 @@ export function App(): JSX.Element {
       { id: "members", title: "Membres", hint: "Gerer le registre des fideles.", done: mosqueMembers.length > 0 },
       { id: "activities", title: "Activites", hint: "Planifier les activites de la mosquee.", done: mosqueActivities.length > 0 },
       { id: "donations", title: "Dons", hint: "Saisir et suivre les donations.", done: mosqueDonations.length > 0 },
-      { id: "overview", title: "Pilotage", hint: "Suivre les KPI du module.", done: !!mosqueDashboard }
+      { id: "overview", title: "Pilotage", hint: "Suivre les indicateurs clefs du module.", done: !!mosqueDashboard }
     ];
 
     const scrollToMosque = (stepId: string): void => {
@@ -4332,8 +4472,8 @@ export function App(): JSX.Element {
               <label>
                 Statut
                 <select value={mosqueMemberForm.status} onChange={(event) => setMosqueMemberForm((prev) => ({ ...prev, status: event.target.value }))}>
-                  <option value="ACTIVE">ACTIVE</option>
-                  <option value="INACTIVE">INACTIVE</option>
+                  <option value="ACTIVE">{formatMemberStatusLabel("ACTIVE")}</option>
+                  <option value="INACTIVE">{formatMemberStatusLabel("INACTIVE")}</option>
                 </select>
                 {fieldError(mosqueMemberErrors, "status")}
               </label>
@@ -4367,8 +4507,8 @@ export function App(): JSX.Element {
                 Statut
                 <select value={mosqueMemberFilters.status} onChange={(event) => setMosqueMemberFilters((prev) => ({ ...prev, status: event.target.value }))}>
                   <option value="">Tous</option>
-                  <option value="ACTIVE">ACTIVE</option>
-                  <option value="INACTIVE">INACTIVE</option>
+                  <option value="ACTIVE">{formatMemberStatusLabel("ACTIVE")}</option>
+                  <option value="INACTIVE">{formatMemberStatusLabel("INACTIVE")}</option>
                 </select>
               </label>
               <label>
@@ -4415,7 +4555,7 @@ export function App(): JSX.Element {
                       <tr key={item.id}>
                         <td>{item.memberCode}</td>
                         <td>{item.fullName}</td>
-                        <td>{item.status}</td>
+                        <td>{formatMemberStatusLabel(item.status)}</td>
                         <td>{item.phone || item.email || "-"}</td>
                         <td>{item.joinedAt || "-"}</td>
                         <td>
@@ -4703,7 +4843,7 @@ export function App(): JSX.Element {
                               className="button-ghost"
                               onClick={() => void openMosqueDonationReceipt(item.id)}
                             >
-                              Recu PDF
+                              Recu en PDF
                             </button>
                             <button type="button" className="button-danger" onClick={() => void deleteMosqueDonation(item.id)}>
                               Supprimer
@@ -4720,7 +4860,7 @@ export function App(): JSX.Element {
 
           <section id="mosque-overview" data-step-id="overview" className="panel table-panel workflow-section">
             <div className="table-header">
-              <h2>Dashboard mosquee</h2>
+              <h2>Synthese du module mosquee</h2>
               <button type="button" className="button-ghost" onClick={() => void loadMosqueWithCurrentFilters()}>
                 Actualiser
               </button>
@@ -5224,20 +5364,20 @@ export function App(): JSX.Element {
     const reportSteps: WorkflowStepDef[] = [
       {
         id: "overview",
-        title: "KPI executifs",
+        title: "Indicateurs executifs",
         hint: "Synthese multi-modules",
         done: !!analyticsOverview
       },
       {
         id: "compliance",
         title: "Journal d'audit",
-        hint: "Traçabilite des actions",
+        hint: "Tracabilite des actions",
         done: (auditLogs?.items.length || 0) > 0
       },
       {
         id: "export",
-        title: "Export client",
-        hint: "Pack de restitution"
+        title: "Exports metier",
+        hint: "Livrables de pilotage"
       }
     ];
 
@@ -5279,7 +5419,7 @@ export function App(): JSX.Element {
 
     return (
       <WorkflowGuide
-        title="Reporting avance & conformite"
+        title="Rapports avances et conformite"
         steps={reportSteps}
         activeStepId={reportWorkflowStep}
         onStepChange={setReportWorkflowStep}
@@ -5469,7 +5609,7 @@ export function App(): JSX.Element {
                 onChange={(event) =>
                   setAuditFilters((prev) => ({ ...prev, q: event.target.value }))
                 }
-                placeholder="resource id, username..."
+                placeholder="ID ressource, identifiant utilisateur..."
               />
             </label>
             <label>
@@ -5633,96 +5773,351 @@ export function App(): JSX.Element {
               </button>
             </article>
             <article className="panel soft-card">
-              <h3>Checklist mise en ligne</h3>
-              <ul className="plain-list">
-                <li>API production: health/live/ready + metrics</li>
-                <li>Sauvegarde PostgreSQL automatisable</li>
-                <li>Notifications externes avec statut de delivrabilite</li>
-                <li>Exports PDF/Excel metier (finance, mosquee, audit)</li>
-              </ul>
-            </article>
+                <h3>Points de controle avant mise en ligne</h3>
+                <ul className="plain-list">
+                  <li>API de production avec sondes de sante et metriques d'exploitation</li>
+                  <li>Sauvegarde PostgreSQL automatisee</li>
+                  <li>Notifications externes avec suivi de delivrabilite</li>
+                  <li>Exports PDF et Excel metier pour la finance, la mosquee et l'audit</li>
+                </ul>
+              </article>
           </div>
         </section>
       </WorkflowGuide>
     );
   };
 
-  const dashboardCards = [
-    { label: "Eleves", value: students.length, hint: "Population" },
-    { label: "Classes", value: classes.length, hint: "Organisation" },
-    { label: "Inscriptions", value: enrollments.length, hint: "Actives" },
-    {
-      label: "Recouvrement",
-      value: `${recovery ? recovery.totals.recoveryRatePercent.toFixed(1) : "0.0"}%`,
-      hint: "Sante financiere"
-    },
-    { label: "Notes saisies", value: grades.length, hint: "Evaluations" },
-    { label: "Bulletins", value: reportCards.length, hint: "Publies" },
-    {
-      label: "Dons mosquee",
-      value: formatMoney(mosqueDashboard?.totals.donationsTotal ?? 0),
-      hint: "Total cumule"
-    }
-  ];
-
   const renderDashboard = (): JSX.Element => {
+    if (!currentRole) {
+      return <></>;
+    }
+
     const activeModules = filteredTiles.slice(0, 8);
     const primaryModule = filteredTiles[0];
     const openInvoices = invoices.filter((item) => item.status !== "PAID").length;
     const pendingReports = Math.max(0, classes.length - reportCards.length);
     const lowRecovery = (recovery?.totals.recoveryRatePercent ?? 0) < 70;
-    const dashboardNotifications = [
-      lowRecovery
-        ? {
-            id: "recovery",
-            tone: "warning",
-            title: "Recouvrement a surveiller",
-            text: `Taux actuel: ${(recovery?.totals.recoveryRatePercent ?? 0).toFixed(1)}%`
-          }
-        : null,
-      openInvoices > 0
-        ? {
-            id: "invoices",
-            tone: "info",
-            title: "Factures en attente",
-            text: `${openInvoices} facture(s) restent a suivre.`
-          }
-        : null,
-      pendingReports > 0
-        ? {
-            id: "reports",
-            tone: "info",
-            title: "Bulletins a publier",
-            text: `${pendingReports} classe(s) sans bulletin genere.`
-          }
-        : null
-    ].filter(
-      (
-        item
-      ): item is {
-        id: string;
-        tone: "warning" | "info";
-        title: string;
-        text: string;
-      } => item !== null
-    );
+    let heroEyebrow = "Accueil simplifie";
+    let heroTitle = "Tableau de bord clair et actionnable";
+    let heroText = currentSlide.quote;
+    let primaryActionScreen: ScreenId = primaryModule?.screen || ROLE_HOME_SCREEN[currentRole];
+    let primaryActionLabel = primaryModule
+      ? `Ouvrir ${primaryModule.title}`
+      : "Ouvrir l'espace principal";
+
+    let dashboardCards: Array<{ label: string; value: string | number; hint: string }> = [];
+    let dashboardTasks: Array<{ id: string; title: string; text: string; screen: ScreenId }> = [];
+    let dashboardNotifications: Array<{
+      id: string;
+      tone: "warning" | "info";
+      title: string;
+      text: string;
+    }> = [];
+
+    if (currentRole === "PARENT") {
+      heroEyebrow = "Espace parent";
+      heroTitle = "Suivi famille strictement limite a vos enfants";
+      heroText =
+        "Accedez uniquement aux absences, bulletins, emplois du temps et paiements qui concernent votre famille.";
+      primaryActionScreen = "parentPortal";
+      primaryActionLabel = "Ouvrir le portail parent";
+      dashboardCards = [
+        {
+          label: "Enfants",
+          value: parentOverview?.childrenCount ?? parentChildren.length,
+          hint: "Suivi famille"
+        },
+        {
+          label: "Factures ouvertes",
+          value: parentOverview?.openInvoicesCount ?? parentInvoices.filter((item) => item.status !== "PAID").length,
+          hint: "A regler"
+        },
+        {
+          label: "Reste a payer",
+          value: formatMoney(parentOverview?.remainingAmount ?? 0),
+          hint: "Situation famille"
+        },
+        {
+          label: "Notifications",
+          value: parentOverview?.notificationsCount ?? parentNotifications.length,
+          hint: "Messages recus"
+        }
+      ];
+      dashboardTasks = [
+        {
+          id: "parent-portal",
+          title: "Ouvrir le portail parent",
+          text: "Retrouver les notes, absences et bulletins de vos enfants.",
+          screen: "parentPortal"
+        },
+        {
+          id: "family-payments",
+          title: "Verifier les paiements",
+          text: "Consulter les factures ouvertes et les reglements deja recus.",
+          screen: "parentPortal"
+        },
+        {
+          id: "family-timetable",
+          title: "Consulter l'emploi du temps",
+          text: "Voir les horaires utiles directement depuis l'espace famille.",
+          screen: "parentPortal"
+        }
+      ];
+      dashboardNotifications = [
+        (parentOverview?.remainingAmount ?? 0) > 0
+          ? {
+              id: "parent-remaining",
+              tone: "warning",
+              title: "Paiements a suivre",
+              text: `Reste a payer: ${formatMoney(parentOverview?.remainingAmount ?? 0)}`
+            }
+          : null,
+        (parentOverview?.absencesCount ?? 0) > 0
+          ? {
+              id: "parent-attendance",
+              tone: "info",
+              title: "Absences ou retards a consulter",
+              text: `${parentOverview?.absencesCount ?? 0} evenement(s) concernent vos enfants.`
+            }
+          : null,
+        parentNotifications[0]
+          ? {
+              id: `parent-notification-${parentNotifications[0].id}`,
+              tone: "info",
+              title: parentNotifications[0].title,
+              text: parentNotifications[0].message
+            }
+          : null
+      ].filter(
+        (
+          item
+        ): item is {
+          id: string;
+          tone: "warning" | "info";
+          title: string;
+          text: string;
+        } => item !== null
+      );
+    } else if (currentRole === "ENSEIGNANT") {
+      heroEyebrow = "Espace enseignant";
+      heroTitle = "Vue enseignant limitee a vos classes";
+      heroText =
+        "Retrouvez vos classes, vos notes, votre emploi du temps et les notifications utiles a votre mission.";
+      primaryActionScreen = "teacherPortal";
+      primaryActionLabel = "Ouvrir le portail enseignant";
+      dashboardCards = [
+        {
+          label: "Classes",
+          value: teacherOverview?.classesCount ?? teacherClasses.length,
+          hint: "Affectations"
+        },
+        {
+          label: "Eleves suivis",
+          value: teacherOverview?.studentsCount ?? teacherStudents.length,
+          hint: "Perimetre"
+        },
+        {
+          label: "Notes",
+          value: teacherOverview?.gradesCount ?? teacherGrades.length,
+          hint: "Saisies"
+        },
+        {
+          label: "Notifications",
+          value: teacherOverview?.notificationsCount ?? teacherNotifications.length,
+          hint: "Messages utiles"
+        }
+      ];
+      dashboardTasks = [
+        {
+          id: "teacher-portal",
+          title: "Ouvrir le portail enseignant",
+          text: "Acceder aux classes, eleves et notes sous votre responsabilite.",
+          screen: "teacherPortal"
+        },
+        {
+          id: "teacher-grades",
+          title: "Saisir les notes",
+          text: "Renseigner les evaluations de vos classes affectees.",
+          screen: "teacherPortal"
+        },
+        {
+          id: "teacher-timetable",
+          title: "Consulter l'emploi du temps",
+          text: "Verifier rapidement vos creneaux hebdomadaires.",
+          screen: "teacherPortal"
+        }
+      ];
+      dashboardNotifications = [
+        (teacherOverview?.pendingJustifications ?? 0) > 0
+          ? {
+              id: "teacher-justifications",
+              tone: "warning",
+              title: "Justificatifs en attente",
+              text: `${teacherOverview?.pendingJustifications ?? 0} justificatif(s) restent a suivre.`
+            }
+          : null,
+        teacherNotifications[0]
+          ? {
+              id: `teacher-notification-${teacherNotifications[0].id}`,
+              tone: "info",
+              title: teacherNotifications[0].title,
+              text: teacherNotifications[0].message
+            }
+          : null,
+        teacherNotifications[1]
+          ? {
+              id: `teacher-notification-${teacherNotifications[1].id}`,
+              tone: "info",
+              title: teacherNotifications[1].title,
+              text: teacherNotifications[1].message
+            }
+          : null
+      ].filter(
+        (
+          item
+        ): item is {
+          id: string;
+          tone: "warning" | "info";
+          title: string;
+          text: string;
+        } => item !== null
+      );
+    } else {
+      const backOfficeCards: Array<{ label: string; value: string | number; hint: string } | null> = [
+        hasScreenAccess(currentRole, "students")
+          ? { label: "Eleves", value: students.length, hint: "Population" }
+          : null,
+        hasScreenAccess(currentRole, "reference") || hasScreenAccess(currentRole, "enrollments")
+          ? { label: "Classes", value: classes.length, hint: "Organisation" }
+          : null,
+        hasScreenAccess(currentRole, "enrollments")
+          ? { label: "Inscriptions", value: enrollments.length, hint: "Actives" }
+          : null,
+        hasScreenAccess(currentRole, "finance")
+          ? {
+              label: "Recouvrement",
+              value: `${recovery ? recovery.totals.recoveryRatePercent.toFixed(1) : "0.0"}%`,
+              hint: "Sante financiere"
+            }
+          : null,
+        hasScreenAccess(currentRole, "grades")
+          ? { label: "Bulletins", value: reportCards.length, hint: "Publies" }
+          : null,
+        hasScreenAccess(currentRole, "mosque")
+          ? {
+              label: "Dons mosquee",
+              value: formatMoney(mosqueDashboard?.totals.donationsTotal ?? 0),
+              hint: "Total cumule"
+            }
+          : null
+      ];
+      dashboardCards = backOfficeCards.filter(
+        (item): item is { label: string; value: string | number; hint: string } => item !== null
+      );
+
+      dashboardTasks = [
+        hasScreenAccess(currentRole, "students")
+          ? {
+              id: "students",
+              title: "Creer un eleve",
+              text: "Commencer un nouveau dossier eleve.",
+              screen: "students" as ScreenId
+            }
+          : null,
+        hasScreenAccess(currentRole, "enrollments")
+          ? {
+              id: "enrollments",
+              title: "Valider les inscriptions",
+              text: "Relier eleves, classes et annee scolaire.",
+              screen: "enrollments" as ScreenId
+            }
+          : null,
+        hasScreenAccess(currentRole, "finance")
+          ? {
+              id: "finance",
+              title: "Suivre les paiements",
+              text: "Verifier factures ouvertes et recouvrement.",
+              screen: "finance" as ScreenId
+            }
+          : null,
+        hasScreenAccess(currentRole, "grades")
+          ? {
+              id: "grades",
+              title: "Publier les bulletins",
+              text: "Generer les bulletins PDF de periode.",
+              screen: "grades" as ScreenId
+            }
+          : null,
+        hasScreenAccess(currentRole, "reports")
+          ? {
+              id: "reports",
+              title: "Consulter les rapports",
+              text: "Suivre les indicateurs et les journaux de conformite.",
+              screen: "reports" as ScreenId
+            }
+          : null
+      ].filter(
+        (
+          item
+        ): item is {
+          id: string;
+          title: string;
+          text: string;
+          screen: ScreenId;
+        } => item !== null
+      );
+
+      dashboardNotifications = [
+        hasScreenAccess(currentRole, "finance") && lowRecovery
+          ? {
+              id: "recovery",
+              tone: "warning",
+              title: "Recouvrement a surveiller",
+              text: `Taux actuel: ${(recovery?.totals.recoveryRatePercent ?? 0).toFixed(1)}%`
+            }
+          : null,
+        hasScreenAccess(currentRole, "finance") && openInvoices > 0
+          ? {
+              id: "invoices",
+              tone: "info",
+              title: "Factures en attente",
+              text: `${openInvoices} facture(s) restent a suivre.`
+            }
+          : null,
+        hasScreenAccess(currentRole, "grades") && pendingReports > 0
+          ? {
+              id: "reports",
+              tone: "info",
+              title: "Bulletins a publier",
+              text: `${pendingReports} classe(s) sans bulletin genere.`
+            }
+          : null
+      ].filter(
+        (
+          item
+        ): item is {
+          id: string;
+          tone: "warning" | "info";
+          title: string;
+          text: string;
+        } => item !== null
+      );
+    }
 
     return (
       <>
         <section className="panel dashboard-hero">
           <div>
-            <p className="eyebrow">Accueil simplifie</p>
-            <h2>Tableau de bord clair et actionnable</h2>
-            <p className="subtle">
-              {currentSlide.quote}
-            </p>
+            <p className="eyebrow">{heroEyebrow}</p>
+            <h2>{heroTitle}</h2>
+            <p className="subtle">{heroText}</p>
           </div>
           <button
             type="button"
             className="hero-primary-cta"
-            onClick={() => setTab(primaryModule?.screen || "students")}
+            onClick={() => setTab(primaryActionScreen)}
           >
-            {primaryModule ? `Ouvrir ${primaryModule.title}` : "Ouvrir le module principal"}
+            {primaryActionLabel}
           </button>
         </section>
 
@@ -5780,41 +6175,44 @@ export function App(): JSX.Element {
             </div>
           </article>
 
-          <aside className="dashboard-side">
-            <article className="panel priority-panel">
-              <div className="table-header">
-                <h3>Taches prioritaires</h3>
-              </div>
-              <div className="priority-list">
-                <button type="button" className="priority-item" onClick={() => setTab("students")}>
-                  <strong>Creer un eleve</strong>
-                  <small>Commencer un nouveau dossier eleve.</small>
-                </button>
-                <button type="button" className="priority-item" onClick={() => setTab("enrollments")}>
-                  <strong>Valider les inscriptions</strong>
-                  <small>Relier eleves, classes et annee scolaire.</small>
-                </button>
-                <button type="button" className="priority-item" onClick={() => setTab("finance")}>
-                  <strong>Suivre les paiements</strong>
-                  <small>Verifier factures ouvertes et recouvrement.</small>
-                </button>
-                <button type="button" className="priority-item" onClick={() => setTab("grades")}>
-                  <strong>Publier les bulletins</strong>
-                  <small>Generer les bulletins PDF de periode.</small>
-                </button>
-              </div>
-            </article>
+            <aside className="dashboard-side">
+              <article className="panel priority-panel">
+                <div className="table-header">
+                  <h3>{currentRole === "PARENT" ? "Actions utiles" : "Taches prioritaires"}</h3>
+                </div>
+                <div className="priority-list">
+                  {dashboardTasks.length === 0 ? (
+                    <p className="subtle">Aucune action prioritaire pour ce profil.</p>
+                  ) : (
+                    dashboardTasks.map((task) => (
+                      <button
+                        key={task.id}
+                        type="button"
+                        className="priority-item"
+                        onClick={() => setTab(task.screen)}
+                      >
+                        <strong>{task.title}</strong>
+                        <small>{task.text}</small>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </article>
 
-            <article className="panel priority-panel">
-              <div className="table-header">
-                <h3>Notifications recentes</h3>
-              </div>
-              <div className="notice-list">
-                {dashboardNotifications.length === 0 ? (
-                  <p className="subtle">Aucune alerte critique pour le moment.</p>
-                ) : (
-                  dashboardNotifications.map((item) => (
-                    <article key={item.id} className={`notice-card notice-${item.tone}`}>
+              <article className="panel priority-panel">
+                <div className="table-header">
+                  <h3>{currentRole === "PARENT" ? "Informations recentes" : "Notifications recentes"}</h3>
+                </div>
+                <div className="notice-list">
+                  {dashboardNotifications.length === 0 ? (
+                    <p className="subtle">
+                      {currentRole === "PARENT"
+                        ? "Aucune information sensible ou urgente a signaler."
+                        : "Aucune alerte critique pour le moment."}
+                    </p>
+                  ) : (
+                    dashboardNotifications.map((item) => (
+                      <article key={item.id} className={`notice-card notice-${item.tone}`}>
                       <strong>{item.title}</strong>
                       <p>{item.text}</p>
                     </article>
@@ -6105,10 +6503,10 @@ export function App(): JSX.Element {
                     setTeacherAttendanceForm((prev) => ({ ...prev, defaultStatus: event.target.value }))
                   }
                 >
-                  <option value="PRESENT">PRESENT</option>
-                  <option value="ABSENT">ABSENT</option>
-                  <option value="LATE">LATE</option>
-                  <option value="EXCUSED">EXCUSED</option>
+                  <option value="PRESENT">{formatAttendanceStatusLabel("PRESENT")}</option>
+                  <option value="ABSENT">{formatAttendanceStatusLabel("ABSENT")}</option>
+                  <option value="LATE">{formatAttendanceStatusLabel("LATE")}</option>
+                  <option value="EXCUSED">{formatAttendanceStatusLabel("EXCUSED")}</option>
                 </select>
               </label>
               <label>
@@ -6210,7 +6608,7 @@ export function App(): JSX.Element {
                     <tr key={item.id}>
                       <td>{item.studentName || "-"}</td>
                       <td>{item.subjectLabel || "-"}</td>
-                      <td>{periods.find((period) => period.id === item.academicPeriodId)?.label || "-"}</td>
+                        <td>{periods.find((period) => period.id === item.academicPeriodId)?.label || "-"}</td>
                       <td>{item.assessmentLabel}</td>
                       <td>{item.score}/{item.scoreMax}</td>
                     </tr>
@@ -6243,7 +6641,7 @@ export function App(): JSX.Element {
                   ) : (
                     teacherTimetable.map((item) => (
                       <tr key={item.id}>
-                        <td>{item.dayOfWeek}</td>
+                        <td>{formatWeekdayLabel(item.dayOfWeek)}</td>
                         <td>{item.classLabel || "-"}</td>
                         <td>{item.subjectLabel || "-"}</td>
                         <td>{item.startTime} - {item.endTime}</td>
@@ -6278,8 +6676,8 @@ export function App(): JSX.Element {
                       <tr key={item.id}>
                         <td>{new Date(item.createdAt).toLocaleString("fr-FR")}</td>
                         <td>{item.title}</td>
-                        <td>{item.studentName || item.audienceRole || "-"}</td>
-                        <td>{item.status}</td>
+                        <td>{item.studentName || formatAudienceRoleLabel(item.audienceRole) || "-"}</td>
+                        <td>{formatPortalNotificationStatusLabel(item.status)}</td>
                       </tr>
                     ))
                   )}
@@ -6302,8 +6700,8 @@ export function App(): JSX.Element {
       },
       {
         id: "permissions",
-        title: "Permissions par role",
-        hint: "Ajuster les droits API ressource/action.",
+        title: "Droits par profil",
+        hint: "Ajuster les autorisations API par ressource et action.",
         done: rolePermissions.some((item) => item.source === "CUSTOM")
       },
       {
@@ -6360,14 +6758,14 @@ export function App(): JSX.Element {
                 {fieldError(userErrors, "password")}
               </label>
               <label>
-                Role
+                Profil
                 <select
                   value={userForm.role}
                   onChange={(event) => setUserForm((prev) => ({ ...prev, role: event.target.value as Role }))}
                 >
                   {ROLE_VALUES.map((role) => (
                     <option key={role} value={role}>
-                      {role}
+                      {formatRoleLabel(role)}
                     </option>
                   ))}
                 </select>
@@ -6401,8 +6799,8 @@ export function App(): JSX.Element {
               <table>
                 <thead>
                   <tr>
-                    <th>Username</th>
-                    <th>Role</th>
+                    <th>Identifiant</th>
+                    <th>Profil</th>
                     <th>Statut</th>
                     <th>Maj</th>
                     <th>Actions</th>
@@ -6419,13 +6817,13 @@ export function App(): JSX.Element {
                     users.map((item) => (
                       <tr key={item.id}>
                         <td>{item.username}</td>
-                        <td>{item.role}</td>
+                        <td>{formatRoleLabel(item.role)}</td>
                         <td>{item.isActive ? "ACTIF" : "INACTIF"}</td>
                         <td>{new Date(item.updatedAt).toLocaleString("fr-FR")}</td>
                         <td>
                           <div className="inline-actions">
                             <button type="button" className="button-ghost" onClick={() => startEditUser(item)}>
-                              Editer
+                              Modifier
                             </button>
                             <button type="button" className="button-danger" onClick={() => void deleteUserAccount(item.id)}>
                               Supprimer
@@ -6442,10 +6840,10 @@ export function App(): JSX.Element {
 
           <section id="iam-permissions" data-step-id="permissions" className="panel table-panel workflow-section">
             <div className="table-header">
-              <h2>Permissions API par role</h2>
+              <h2>Droits API par profil</h2>
               <div className="inline-actions">
                 <label>
-                  Role cible
+                  Profil cible
                   <select
                     value={rolePermissionTarget}
                     onChange={(event) => {
@@ -6456,7 +6854,7 @@ export function App(): JSX.Element {
                   >
                     {ROLE_VALUES.map((role) => (
                       <option key={role} value={role}>
-                        {role}
+                        {formatRoleLabel(role)}
                       </option>
                     ))}
                   </select>
@@ -6465,12 +6863,12 @@ export function App(): JSX.Element {
                   Recharger
                 </button>
                 <button type="button" onClick={() => void saveRolePermissions()}>
-                  Enregistrer permissions
+                  Enregistrer les droits
                 </button>
               </div>
             </div>
             <p className="subtle">
-              Coche pour autoriser. Les routes restent aussi protegees par les roles ecran/API.
+              Cochez pour autoriser. Les routes restent proteges par les profils d'ecran et d'API.
             </p>
             <div className="table-wrap">
               <table>
@@ -6478,14 +6876,14 @@ export function App(): JSX.Element {
                   <tr>
                     <th>Ressource</th>
                     {PERMISSION_ACTION_VALUES.map((action) => (
-                      <th key={action}>{action}</th>
+                      <th key={action}>{formatPermissionActionLabel(action)}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {PERMISSION_RESOURCE_VALUES.map((resource) => (
                     <tr key={resource}>
-                      <td>{resource}</td>
+                      <td>{formatPermissionResourceLabel(resource)}</td>
                       {PERMISSION_ACTION_VALUES.map((action) => (
                         <td key={`${resource}:${action}`}>
                           <input
@@ -6865,7 +7263,7 @@ export function App(): JSX.Element {
                               className="button-ghost"
                               onClick={() => window.open(item.pdfDataUrl, "_blank", "noopener,noreferrer")}
                             >
-                              Ouvrir PDF
+                              Consulter le PDF
                             </button>
                           ) : (
                             "-"
@@ -6905,8 +7303,8 @@ export function App(): JSX.Element {
                         <td>{item.attendanceDate}</td>
                         <td>{item.studentName || "-"}</td>
                         <td>{item.classLabel || "-"}</td>
-                        <td>{item.status}</td>
-                        <td>{item.justificationStatus}</td>
+                        <td>{formatAttendanceStatusLabel(item.status)}</td>
+                        <td>{formatValidationStatusLabel(item.justificationStatus)}</td>
                       </tr>
                     ))
                   )}
@@ -6942,7 +7340,7 @@ export function App(): JSX.Element {
                         <td>{formatAmount(item.amountDue)}</td>
                         <td>{formatAmount(item.amountPaid)}</td>
                         <td>{formatAmount(item.remainingAmount)}</td>
-                        <td>{item.status}</td>
+                        <td>{formatInvoiceStatusLabel(item.status)}</td>
                       </tr>
                     ))
                   )}
@@ -7009,7 +7407,7 @@ export function App(): JSX.Element {
                     parentTimetable.map((item) => (
                       <tr key={item.slotId}>
                         <td>{item.studentName}</td>
-                        <td>{item.dayOfWeek}</td>
+                        <td>{formatWeekdayLabel(item.dayOfWeek)}</td>
                         <td>{item.subjectLabel}</td>
                         <td>{item.startTime} - {item.endTime}</td>
                         <td>{item.room || "-"}</td>
@@ -7046,10 +7444,10 @@ export function App(): JSX.Element {
                       <td>{new Date(item.createdAt).toLocaleString("fr-FR")}</td>
                       <td>{item.title}</td>
                       <td>{item.message}</td>
-                      <td>{item.studentName || item.audienceRole || "-"}</td>
-                      <td>{item.status}</td>
+                      <td>{item.studentName || formatAudienceRoleLabel(item.audienceRole) || "-"}</td>
+                      <td>{formatPortalNotificationStatusLabel(item.status)}</td>
                     </tr>
-                  ))
+                    ))
                 )}
               </tbody>
             </table>
@@ -7062,7 +7460,7 @@ export function App(): JSX.Element {
   const renderForbidden = (): JSX.Element => (
     <section className="panel table-panel">
       <h2>Acces refuse</h2>
-      <p className="subtle">Votre role ({currentRoleLabel}) n'a pas acces a cet ecran.</p>
+      <p className="subtle">Votre profil ({currentRoleLabel}) n'a pas acces a cet ecran.</p>
     </section>
   );
 
@@ -7170,7 +7568,7 @@ export function App(): JSX.Element {
                 <div className="mini-list">
                   {schoolYears.map((item) => (
                     <div key={item.id} className="mini-item">
-                      <span>{item.code} {item.isActive ? "(Active)" : ""}</span>
+                      <span>{item.code} {item.isActive ? "(En cours)" : ""}</span>
                       <button type="button" className="button-ghost" onClick={() => void deleteRef(`/school-years/${item.id}`, "Annee supprimee.")}>
                         Suppr.
                       </button>
@@ -7735,7 +8133,7 @@ export function App(): JSX.Element {
                             <td>{item.classLabel || localClass?.label || "-"}</td>
                             <td>{item.studentName || fallbackStudent}</td>
                             <td>{item.enrollmentDate}</td>
-                            <td>{item.enrollmentStatus}</td>
+                            <td>{formatEnrollmentStatusLabel(item.enrollmentStatus)}</td>
                             <td>
                               <button
                                 type="button"
@@ -7824,6 +8222,7 @@ export function App(): JSX.Element {
 
   const activeScreen = SCREEN_DEFS.find((entry) => entry.id === tab) ?? SCREEN_DEFS[0];
   const profileInitial = session?.user.username?.charAt(0)?.toUpperCase() || "U";
+  const profileContextLabel = currentRole ? ROLE_CONTEXT_LABELS[currentRole] : "Session";
   const quickLinks = homeTiles.filter((tile) => tile.screen !== tab).slice(0, 4);
   const visibleScreens = currentRole
     ? SCREEN_DEFS.filter((entry) => entry.roles.includes(currentRole))
@@ -7851,7 +8250,7 @@ export function App(): JSX.Element {
               <h2>Bienvenue a {SCHOOL_NAME}</h2>
               <img
                 className="auth-illustration-photo"
-                src="/ImageLogin.png"
+                src="/loginPage.png"
                 alt={`Apercu reel de l'interface ${PLATFORM_NAME}`}
                 loading="lazy"
               />
@@ -8089,7 +8488,7 @@ export function App(): JSX.Element {
                 <div className="profile-meta">
                   <strong>{session.user.username}</strong>
                   <small>
-                    Role: {session.user.role} | Annee: {schoolYearLabel}
+                    {profileContextLabel} | Annee: {schoolYearLabel}
                   </small>
                 </div>
                 <button type="button" className="button-danger" onClick={() => void logout()}>
@@ -8223,3 +8622,4 @@ export function App(): JSX.Element {
     </main>
   );
 }
+

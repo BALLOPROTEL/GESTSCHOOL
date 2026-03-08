@@ -34,7 +34,7 @@ export class StudentsController {
   ) {}
 
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("students", "read")
   @ApiHeader({
     name: "x-tenant-id",
@@ -51,7 +51,7 @@ export class StudentsController {
   }
 
   @Get(":id")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("students", "read")
   @ApiHeader({
     name: "x-tenant-id",
@@ -131,3 +131,4 @@ export class StudentsController {
     return resolveTenantContext(this.configService, user, tenantHeader);
   }
 }
+

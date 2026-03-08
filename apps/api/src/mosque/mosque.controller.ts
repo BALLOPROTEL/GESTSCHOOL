@@ -45,7 +45,7 @@ export class MosqueController {
   ) {}
 
   @Get("dashboard")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.COMPTABLE)
+  @Roles(UserRole.ADMIN, UserRole.COMPTABLE)
   @RequirePermission("mosque", "read")
   @ApiOperation({ summary: "Mosque dashboard" })
   async dashboard(
@@ -57,7 +57,7 @@ export class MosqueController {
   }
 
   @Get("members")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.COMPTABLE)
+  @Roles(UserRole.ADMIN, UserRole.COMPTABLE)
   @RequirePermission("mosque", "read")
   @ApiOperation({ summary: "List mosque members" })
   async listMembers(
@@ -71,7 +71,7 @@ export class MosqueController {
   }
 
   @Get("members/export")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.COMPTABLE)
+  @Roles(UserRole.ADMIN, UserRole.COMPTABLE)
   @RequirePermission("mosque", "read")
   @ApiOperation({ summary: "Export mosque members (PDF/Excel)" })
   async exportMembers(
@@ -86,7 +86,7 @@ export class MosqueController {
   }
 
   @Post("members")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.COMPTABLE)
+  @Roles(UserRole.ADMIN, UserRole.COMPTABLE)
   @RequirePermission("mosque", "create")
   @ApiOperation({ summary: "Create mosque member" })
   async createMember(
@@ -99,7 +99,7 @@ export class MosqueController {
   }
 
   @Patch("members/:id")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.COMPTABLE)
+  @Roles(UserRole.ADMIN, UserRole.COMPTABLE)
   @RequirePermission("mosque", "update")
   @ApiOperation({ summary: "Update mosque member" })
   async updateMember(
@@ -113,7 +113,7 @@ export class MosqueController {
   }
 
   @Delete("members/:id")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.COMPTABLE)
+  @Roles(UserRole.ADMIN, UserRole.COMPTABLE)
   @RequirePermission("mosque", "delete")
   @ApiOperation({ summary: "Delete mosque member" })
   async deleteMember(
@@ -126,7 +126,7 @@ export class MosqueController {
   }
 
   @Get("activities")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.COMPTABLE)
+  @Roles(UserRole.ADMIN, UserRole.COMPTABLE)
   @RequirePermission("mosque", "read")
   @ApiOperation({ summary: "List mosque activities" })
   async listActivities(
@@ -142,7 +142,7 @@ export class MosqueController {
   }
 
   @Get("activities/export")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.COMPTABLE)
+  @Roles(UserRole.ADMIN, UserRole.COMPTABLE)
   @RequirePermission("mosque", "read")
   @ApiOperation({ summary: "Export mosque activities (PDF/Excel)" })
   async exportActivities(
@@ -163,7 +163,7 @@ export class MosqueController {
   }
 
   @Post("activities")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.COMPTABLE)
+  @Roles(UserRole.ADMIN, UserRole.COMPTABLE)
   @RequirePermission("mosque", "create")
   @ApiOperation({ summary: "Create mosque activity" })
   async createActivity(
@@ -176,7 +176,7 @@ export class MosqueController {
   }
 
   @Patch("activities/:id")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.COMPTABLE)
+  @Roles(UserRole.ADMIN, UserRole.COMPTABLE)
   @RequirePermission("mosque", "update")
   @ApiOperation({ summary: "Update mosque activity" })
   async updateActivity(
@@ -190,7 +190,7 @@ export class MosqueController {
   }
 
   @Delete("activities/:id")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.COMPTABLE)
+  @Roles(UserRole.ADMIN, UserRole.COMPTABLE)
   @RequirePermission("mosque", "delete")
   @ApiOperation({ summary: "Delete mosque activity" })
   async deleteActivity(
@@ -203,7 +203,7 @@ export class MosqueController {
   }
 
   @Get("donations")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.COMPTABLE)
+  @Roles(UserRole.ADMIN, UserRole.COMPTABLE)
   @RequirePermission("mosque", "read")
   @ApiOperation({ summary: "List mosque donations" })
   async listDonations(
@@ -224,7 +224,7 @@ export class MosqueController {
   }
 
   @Get("donations/export")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.COMPTABLE)
+  @Roles(UserRole.ADMIN, UserRole.COMPTABLE)
   @RequirePermission("mosque", "read")
   @ApiOperation({ summary: "Export mosque donations (PDF/Excel)" })
   async exportDonations(
@@ -245,7 +245,7 @@ export class MosqueController {
   }
 
   @Post("donations")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.COMPTABLE)
+  @Roles(UserRole.ADMIN, UserRole.COMPTABLE)
   @RequirePermission("mosque", "create")
   @ApiOperation({ summary: "Create mosque donation" })
   async createDonation(
@@ -258,7 +258,7 @@ export class MosqueController {
   }
 
   @Get("donations/:id/receipt")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.COMPTABLE)
+  @Roles(UserRole.ADMIN, UserRole.COMPTABLE)
   @RequirePermission("mosque", "read")
   @ApiOperation({ summary: "Generate donation receipt PDF" })
   async donationReceipt(
@@ -271,7 +271,7 @@ export class MosqueController {
   }
 
   @Patch("donations/:id")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.COMPTABLE)
+  @Roles(UserRole.ADMIN, UserRole.COMPTABLE)
   @RequirePermission("mosque", "update")
   @ApiOperation({ summary: "Update mosque donation" })
   async updateDonation(
@@ -285,7 +285,7 @@ export class MosqueController {
   }
 
   @Delete("donations/:id")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.COMPTABLE)
+  @Roles(UserRole.ADMIN, UserRole.COMPTABLE)
   @RequirePermission("mosque", "delete")
   @ApiOperation({ summary: "Delete mosque donation" })
   async deleteDonation(
@@ -313,3 +313,4 @@ export class MosqueController {
     throw new BadRequestException("format must be one of: PDF, EXCEL.");
   }
 }
+

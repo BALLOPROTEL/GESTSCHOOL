@@ -52,7 +52,7 @@ export class SchoolLifeController {
   ) {}
 
   @Get("attendance/summary")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("attendance", "read")
   @ApiOperation({ summary: "Attendance summary dashboard" })
   async attendanceSummary(
@@ -71,7 +71,7 @@ export class SchoolLifeController {
   }
 
   @Get("attendance")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("attendance", "read")
   @ApiOperation({ summary: "List attendance" })
   async listAttendance(
@@ -94,7 +94,7 @@ export class SchoolLifeController {
   }
 
   @Post("attendance")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("attendance", "create")
   @ApiOperation({ summary: "Create attendance" })
   async createAttendance(
@@ -107,7 +107,7 @@ export class SchoolLifeController {
   }
 
   @Post("attendance/bulk")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("attendance", "create")
   @ApiOperation({ summary: "Bulk create or update attendance" })
   async upsertAttendanceBulk(
@@ -120,7 +120,7 @@ export class SchoolLifeController {
   }
 
   @Patch("attendance/:id")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("attendance", "update")
   @ApiOperation({ summary: "Update attendance" })
   async updateAttendance(
@@ -147,7 +147,7 @@ export class SchoolLifeController {
   }
 
   @Get("attendance/:id/attachments")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("attendanceAttachment", "read")
   @ApiOperation({ summary: "List attendance attachments" })
   async listAttendanceAttachments(
@@ -160,7 +160,7 @@ export class SchoolLifeController {
   }
 
   @Post("attendance/:id/attachments")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("attendanceAttachment", "create")
   @ApiOperation({ summary: "Add attendance attachment" })
   async addAttendanceAttachment(
@@ -212,7 +212,7 @@ export class SchoolLifeController {
   }
 
   @Get("timetable-slots")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT, UserRole.PARENT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("timetable", "read")
   @ApiOperation({ summary: "List timetable slots" })
   async listTimetableSlots(
@@ -231,7 +231,7 @@ export class SchoolLifeController {
   }
 
   @Get("timetable-slots/grid")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT, UserRole.PARENT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("timetable", "read")
   @ApiOperation({ summary: "Weekly timetable grouped by day" })
   async timetableGrid(
@@ -285,7 +285,7 @@ export class SchoolLifeController {
   }
 
   @Get("notifications")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.ENSEIGNANT, UserRole.COMPTABLE)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("notifications", "read")
   @ApiOperation({ summary: "List notifications" })
   async listNotifications(
@@ -310,7 +310,7 @@ export class SchoolLifeController {
   }
 
   @Post("notifications")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.COMPTABLE)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("notifications", "create")
   @ApiOperation({ summary: "Create notification" })
   async createNotification(
@@ -343,7 +343,7 @@ export class SchoolLifeController {
   }
 
   @Post("notifications/dispatch-pending")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.COMPTABLE)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("notifications", "dispatch")
   @ApiOperation({ summary: "Dispatch pending/scheduled notifications" })
   async dispatchPendingNotifications(
@@ -356,7 +356,7 @@ export class SchoolLifeController {
   }
 
   @Patch("notifications/:id/status")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.COMPTABLE)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("notifications", "update")
   @ApiOperation({ summary: "Update notification status" })
   async updateNotificationStatus(
@@ -373,3 +373,7 @@ export class SchoolLifeController {
     return resolveTenantContext(this.configService, user, tenantHeader);
   }
 }
+
+
+
+

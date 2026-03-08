@@ -34,7 +34,7 @@ export class AnalyticsController {
   ) {}
 
   @Get("overview")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE, UserRole.COMPTABLE)
+  @Roles(UserRole.ADMIN)
   @RequirePermission("analytics", "read")
   @ApiOperation({ summary: "Executive reporting overview (Sprint 11)" })
   async getOverview(
@@ -79,3 +79,4 @@ export class AnalyticsController {
     return resolveTenantContext(this.configService, user, tenantHeader);
   }
 }
+
