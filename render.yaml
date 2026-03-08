@@ -19,7 +19,6 @@ services:
       pnpm --filter @gestschool/api build
     startCommand: >
       pnpm --filter @gestschool/api prisma:migrate:deploy &&
-      pnpm --filter @gestschool/api seed:users &&
       pnpm --filter @gestschool/api start:prod
     envVars:
       - key: NODE_ENV
@@ -30,14 +29,20 @@ services:
           property: connectionString
       - key: JWT_SECRET
         generateValue: true
+      - key: PASSWORD_RESET_SECRET
+        generateValue: true
       - key: JWT_EXPIRES_IN
         value: 1h
+      - key: PASSWORD_RESET_DEV_EXPOSE_TOKEN
+        value: "false"
       - key: REFRESH_TOKEN_TTL_DAYS
         value: "30"
       - key: DEFAULT_TENANT_ID
         value: 00000000-0000-0000-0000-000000000001
       - key: NOTIFICATIONS_WORKER_ENABLED
         value: "true"
+      - key: NOTIFICATIONS_DISPATCH_CLAIM_TTL_SECONDS
+        value: "120"
       - key: NOTIFY_EMAIL_PROVIDER
         value: MOCK
       - key: NOTIFY_SMS_PROVIDER
@@ -54,3 +59,5 @@ services:
         value: "45"
       - key: CORS_ORIGINS
         value: https://gestschool-web.vercel.app
+      - key: SWAGGER_ENABLED
+        value: "false"

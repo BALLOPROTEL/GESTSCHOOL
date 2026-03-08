@@ -315,7 +315,7 @@ export class MosqueService {
           tenantId,
           memberId: payload.memberId,
           amount: payload.amount,
-          currency: (payload.currency || "XOF").trim().toUpperCase(),
+          currency: (payload.currency || "CFA").trim().toUpperCase(),
           channel: (payload.channel || "CASH").trim().toUpperCase(),
           donatedAt: payload.donatedAt ? new Date(payload.donatedAt) : new Date(),
           referenceNo: this.cleanOptional(payload.referenceNo),

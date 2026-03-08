@@ -19,6 +19,7 @@ import { resolveTenantContext } from "../common/tenant-context.util";
 import { Public } from "../security/public.decorator";
 import { type AuthenticatedUser } from "../security/authenticated-user.interface";
 import { RequirePermission } from "../security/permissions.decorator";
+import { RateLimit } from "../security/rate-limit.decorator";
 import { Roles } from "../security/roles.decorator";
 import { UserRole } from "../security/roles.enum";
 import {
@@ -323,6 +324,7 @@ export class SchoolLifeController {
 
   @Public()
   @Post("notifications/delivery-events")
+  @RateLimit({ bucket: "notifications-delivery-events", max: 120, windowMs: 60_000 })
   @ApiOperation({ summary: "Provider callback: update notification deliverability status" })
   async recordNotificationDeliveryEvent(
     @Body() body: NotificationDeliveryEventDto,

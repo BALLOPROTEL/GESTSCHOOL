@@ -109,7 +109,7 @@ export class CreateMosqueDonationDto {
   @IsPositive()
   amount!: number;
 
-  @ApiPropertyOptional({ example: "XOF", default: "XOF" })
+  @ApiPropertyOptional({ example: "CFA", default: "CFA" })
   @IsOptional()
   @IsString()
   @MaxLength(3)

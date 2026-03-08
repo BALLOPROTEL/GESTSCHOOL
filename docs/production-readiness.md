@@ -33,7 +33,10 @@
 - Liveness: `GET /api/v1/health/live`
 - Readiness DB: `GET /api/v1/health/ready`
 - Metrics: `GET /api/v1/monitoring/metrics`
-  - Optionnel: protéger via `MONITORING_METRICS_TOKEN` + header `x-metrics-token`.
+  - En production: exiger `MONITORING_METRICS_TOKEN` + header `x-metrics-token`.
+- Swagger:
+  - Contrôler l'exposition via `SWAGGER_ENABLED`.
+  - Recommandation prod: `SWAGGER_ENABLED=false`.
 - Exemple Prometheus config: `infra/monitoring/prometheus.yml`
 
 ## 4) Backups PostgreSQL

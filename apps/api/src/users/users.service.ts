@@ -1,7 +1,8 @@
-import { hash } from "bcryptjs";
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { compare, hash } from "bcryptjs";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma, type User } from "@prisma/client";
 
+import { findPasswordPolicyViolation } from "../common/password-policy";
 import { PrismaService } from "../database/prisma.service";
 import {
   PERMISSION_ACTIONS,
@@ -104,6 +105,7 @@ export class UsersService {
     actorUserId: string,
     payload: CreateUserDto
   ): Promise<UserView> {
+    this.assertPasswordPolicy(payload.password, payload.username);
     const passwordHash = await hash(payload.password, 10);
 
     try {
@@ -149,6 +151,12 @@ export class UsersService {
     };
 
     if (payload.password) {
+      const usernameForPolicy = payload.username?.trim() || existing.username;
+      this.assertPasswordPolicy(payload.password, usernameForPolicy);
+      const samePassword = await compare(payload.password, existing.passwordHash);
+      if (samePassword) {
+        throw new BadRequestException("Le nouveau mot de passe doit etre different de l'ancien.");
+      }
       data.passwordHash = await hash(payload.password, 10);
     }
 
@@ -159,7 +167,7 @@ export class UsersService {
           data
         });
 
-        if (payload.isActive === false) {
+        if (payload.isActive === false || payload.password) {
           await transaction.refreshToken.updateMany({
             where: {
               userId: existing.id,
@@ -709,6 +717,13 @@ export class UsersService {
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString()
     };
+  }
+
+  private assertPasswordPolicy(password: string, username?: string): void {
+    const violation = findPasswordPolicyViolation(password, username);
+    if (violation) {
+      throw new BadRequestException(violation);
+    }
   }
 
   private teacherAssignmentView(row: TeacherAssignmentWithRelations): TeacherAssignmentView {

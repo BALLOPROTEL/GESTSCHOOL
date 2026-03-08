@@ -24,6 +24,7 @@ import { ReferenceService } from "./reference/reference.service";
 import { MosqueController } from "./mosque/mosque.controller";
 import { MosqueService } from "./mosque/mosque.service";
 import { JwtAuthGuard } from "./security/jwt-auth.guard";
+import { RateLimitGuard } from "./security/rate-limit.guard";
 import { PermissionsGuard } from "./security/permissions.guard";
 import { RolesGuard } from "./security/roles.guard";
 import { SchoolLifeController } from "./school-life/school-life.controller";
@@ -84,6 +85,10 @@ import { UsersService } from "./users/users.service";
     StorageService,
     UsersService,
     MosqueService,
+    {
+      provide: APP_GUARD,
+      useClass: RateLimitGuard
+    },
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard

@@ -273,7 +273,7 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
         levelId,
         label: "Frais CP1",
         totalAmount: 300000,
-        currency: "XOF"
+      currency: "CFA"
       })
       .expect(201);
 
@@ -952,7 +952,7 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
       .send({
         memberId: mosqueMemberId,
         amount: 5000,
-        currency: "XOF",
+      currency: "CFA",
         channel: "CASH",
         referenceNo: "DON-0001"
       })

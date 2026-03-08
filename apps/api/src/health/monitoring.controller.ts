@@ -4,6 +4,7 @@ import { ApiOperation, ApiTags } from "@nestjs/swagger";
 
 import { PrismaService } from "../database/prisma.service";
 import { Public } from "../security/public.decorator";
+import { RateLimit } from "../security/rate-limit.decorator";
 
 @ApiTags("monitoring")
 @Controller("monitoring")
@@ -16,6 +17,7 @@ export class MonitoringController {
   @Public()
   @Get("metrics")
   @Header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+  @RateLimit({ bucket: "monitoring-metrics", max: 60, windowMs: 60_000 })
   @ApiOperation({ summary: "Prometheus-like metrics endpoint" })
   async metrics(@Headers("x-metrics-token") tokenHeader?: string): Promise<string> {
     this.assertMetricsToken(tokenHeader);
@@ -77,7 +79,11 @@ export class MonitoringController {
 
   private assertMetricsToken(tokenHeader?: string): void {
     const expectedToken = this.configService.get<string>("MONITORING_METRICS_TOKEN", "").trim();
+    const nodeEnv = this.configService.get<string>("NODE_ENV", "development").trim().toLowerCase();
     if (!expectedToken) {
+      if (nodeEnv === "production") {
+        throw new ForbiddenException("Metrics endpoint is disabled.");
+      }
       return;
     }
     if (!tokenHeader || tokenHeader.trim() !== expectedToken) {

@@ -11,9 +11,11 @@ La base du projet est **PostgreSQL** (pas MongoDB).
 En production:
 - Render cree une base geree (`gestschool-postgres`) via `render.yaml`.
 - L'API utilise `DATABASE_URL` (injecte automatiquement par Render).
-- Au demarrage, l'API applique:
+- Au demarrage, l'API applique uniquement:
   - `prisma migrate deploy`
-  - `seed:users` (comptes demo)
+- `seed:users` ne doit plus etre lance automatiquement en production.
+- Si des comptes de demo sont necessaires, lancer `pnpm --filter @gestschool/api seed:users`
+  une seule fois depuis un shell d'administration ou un job ponctuel.
 
 ## 2) Push du code sur GitHub
 
@@ -44,7 +46,7 @@ Apres premier deploy:
    - `CORS_ORIGINS` avec l'URL Vercel finale (voir etape 4).
 3. Verifie:
    - `https://<api>.onrender.com/api/v1/health/live`
-   - `https://<api>.onrender.com/api/docs`
+   - `https://<api>.onrender.com/api/docs` seulement si `SWAGGER_ENABLED=true`
 
 ## 4) Deployer le web-admin sur Vercel
 

@@ -1,6 +1,12 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsBoolean, IsEnum, IsOptional, IsString, MinLength } from "class-validator";
+import { IsBoolean, IsEnum, IsOptional, IsString, Matches, MaxLength, MinLength } from "class-validator";
 
+import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_POLICY_MESSAGE,
+  PASSWORD_POLICY_REGEX
+} from "../../common/password-policy";
 import { UserRole } from "../../security/roles.enum";
 
 export class UpdateUserDto {
@@ -10,10 +16,12 @@ export class UpdateUserDto {
   @MinLength(3)
   username?: string;
 
-  @ApiProperty({ required: false, example: "newStrongPassword123" })
+  @ApiProperty({ required: false, example: "NouveauMot4Passe!" })
   @IsOptional()
   @IsString()
-  @MinLength(8)
+  @MinLength(PASSWORD_MIN_LENGTH)
+  @MaxLength(PASSWORD_MAX_LENGTH)
+  @Matches(PASSWORD_POLICY_REGEX, { message: PASSWORD_POLICY_MESSAGE })
   password?: string;
 
   @ApiProperty({ required: false, enum: UserRole, example: UserRole.SCOLARITE })

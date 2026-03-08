@@ -194,7 +194,7 @@ CREATE TABLE fee_plans (
   level_id UUID NOT NULL REFERENCES levels(id),
   label VARCHAR(120) NOT NULL,
   total_amount NUMERIC(14,2) NOT NULL,
-  currency CHAR(3) NOT NULL DEFAULT 'XOF',
+  currency CHAR(3) NOT NULL DEFAULT 'CFA',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (tenant_id, school_year_id, level_id, label)

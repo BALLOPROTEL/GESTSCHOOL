@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS mosque_donations (
   tenant_id UUID NOT NULL,
   member_id UUID REFERENCES mosque_members(id) ON DELETE SET NULL,
   amount NUMERIC(14,2) NOT NULL CHECK (amount > 0),
-  currency CHAR(3) NOT NULL DEFAULT 'XOF',
+  currency CHAR(3) NOT NULL DEFAULT 'CFA',
   channel VARCHAR(30) NOT NULL DEFAULT 'CASH',
   donated_at TIMESTAMPTZ NOT NULL,
   reference_no VARCHAR(60),

@@ -130,24 +130,30 @@ a:hover {
 }
 
 .brand-logo {
-  width: 2.55rem;
-  height: 2.55rem;
+  width: 3.2rem;
+  height: 3.2rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0.8rem;
-  background: linear-gradient(145deg, var(--primary), #16a394);
-  color: #fff;
-  font-weight: 800;
-  font-family: "Montserrat", "Nunito Sans", sans-serif;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid color-mix(in srgb, var(--primary) 16%, var(--line));
+  box-shadow: 0 18px 32px rgba(37, 99, 235, 0.14);
+}
+
+.brand-logo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .brand-name {
   margin: 0;
   color: var(--primary);
   font-weight: 800;
-  letter-spacing: 0.12em;
-  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  font-size: 0.76rem;
   text-transform: uppercase;
 }
 
@@ -1671,6 +1677,61 @@ tbody tr:hover td {
   font-weight: 700;
 }
 
+.toast-stack {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 40;
+  display: grid;
+  gap: 0.7rem;
+  max-width: min(24rem, calc(100vw - 2rem));
+}
+
+.toast-pop {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.8rem;
+  align-items: start;
+  border-radius: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(16px);
+  background: color-mix(in srgb, var(--panel) 92%, #ffffff);
+}
+
+.toast-pop strong {
+  display: block;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.toast-pop p {
+  margin: 0.22rem 0 0;
+  color: var(--ink-700);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.toast-pop button {
+  border: 0;
+  background: transparent;
+  color: var(--ink-500);
+  font-weight: 700;
+  font-size: 0.8rem;
+  padding: 0;
+}
+
+.toast-pop-error {
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--line));
+  background: color-mix(in srgb, #fee2e2 78%, var(--panel));
+}
+
+.toast-pop-success {
+  border-color: color-mix(in srgb, var(--success) 55%, var(--line));
+  background: color-mix(in srgb, #dcfce7 78%, var(--panel));
+}
+
 .feedback.ok {
   color: #0f6b4f;
   background: #eafaf2;
@@ -2103,10 +2164,6 @@ label,
   border-color: var(--line);
 }
 
-.brand-logo {
-  background: linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%);
-}
-
 .brand-name {
   color: var(--primary-900);
 }
@@ -2340,6 +2397,27 @@ label,
 
 :root[data-theme="dark"] .notice-info {
   background: #172554;
+}
+
+:root[data-theme="dark"] .toast-pop {
+  background: color-mix(in srgb, var(--panel) 88%, #0f172a);
+  box-shadow: 0 22px 42px rgba(2, 6, 23, 0.45);
+}
+
+:root[data-theme="dark"] .toast-pop p {
+  color: var(--ink-300);
+}
+
+:root[data-theme="dark"] .toast-pop button {
+  color: var(--ink-300);
+}
+
+:root[data-theme="dark"] .toast-pop-error {
+  background: color-mix(in srgb, #3f1d1d 76%, var(--panel));
+}
+
+:root[data-theme="dark"] .toast-pop-success {
+  background: color-mix(in srgb, #123524 72%, var(--panel));
 }
 
 .field-error {
@@ -2786,6 +2864,14 @@ code {
 }
 
 @media (max-width: 640px) {
+  .toast-stack {
+    top: auto;
+    right: 0.75rem;
+    bottom: 0.85rem;
+    left: 0.75rem;
+    max-width: none;
+  }
+
   .header-shortcuts {
     width: 100%;
   }

@@ -1082,6 +1082,10 @@ export class SchoolLifeService {
 
     const updatedRows: NotificationView[] = [];
     for (const row of rows) {
+      const claimed = await this.claimNotificationForDispatch(row.id, now);
+      if (!claimed) {
+        continue;
+      }
       const updated = await this.dispatchSingleNotification(row);
       updatedRows.push(updated);
     }
@@ -1090,6 +1094,26 @@ export class SchoolLifeService {
       dispatchedCount: updatedRows.filter((row) => row.status === "SENT").length,
       notifications: updatedRows
     };
+  }
+
+  private async claimNotificationForDispatch(id: string, now: Date): Promise<boolean> {
+    const claimUntil = new Date(now.getTime() + this.notificationDispatchClaimTtlMs());
+    const result = await this.prisma.notification.updateMany({
+      where: {
+        id,
+        status: {
+          in: ["PENDING", "SCHEDULED"]
+        },
+        OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }],
+        AND: [{ OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }] }]
+      },
+      data: {
+        nextAttemptAt: claimUntil,
+        updatedAt: now
+      }
+    });
+
+    return result.count === 1;
   }
 
   private async dispatchSingleNotification(
@@ -1297,6 +1321,16 @@ export class SchoolLifeService {
     const baseRaw = Number(this.configService.get<string>("NOTIFY_RETRY_BASE_MINUTES", "3"));
     const base = Number.isFinite(baseRaw) && baseRaw > 0 ? baseRaw : 3;
     return Math.min(base * Math.pow(2, Math.max(0, attempt - 1)), 120);
+  }
+
+  private notificationDispatchClaimTtlMs(): number {
+    const raw = Number(
+      this.configService.get<string>("NOTIFICATIONS_DISPATCH_CLAIM_TTL_SECONDS", "120")
+    );
+    if (!Number.isFinite(raw) || raw <= 0) {
+      return 120_000;
+    }
+    return raw * 1000;
   }
 
   private extractDispatchErrorMessage(error: unknown): string {

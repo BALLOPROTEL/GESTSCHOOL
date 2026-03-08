@@ -208,7 +208,7 @@ model FeePlan {
   levelId      String    @map("level_id") @db.Uuid
   label        String    @db.VarChar(120)
   totalAmount  Decimal   @map("total_amount") @db.Decimal(14, 2)
-  currency     String    @default("XOF") @db.Char(3)
+  currency     String    @default("CFA") @db.Char(3)
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
   schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id])
@@ -483,7 +483,7 @@ model MosqueDonation {
   tenantId    String       @map("tenant_id") @db.Uuid
   memberId    String?      @map("member_id") @db.Uuid
   amount      Decimal      @db.Decimal(14, 2)
-  currency    String       @default("XOF") @db.Char(3)
+  currency    String       @default("CFA") @db.Char(3)
   channel     String       @default("CASH") @db.VarChar(30)
   donatedAt   DateTime     @map("donated_at") @db.Timestamptz(6)
   referenceNo String?      @map("reference_no") @db.VarChar(60)

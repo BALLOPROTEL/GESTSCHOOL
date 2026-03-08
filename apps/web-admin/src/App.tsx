@@ -153,8 +153,6 @@ type RememberedLogin = {
 };
 type ForgotPasswordResponse = {
   message: string;
-  resetToken?: string;
-  expiresAt?: string;
 };
 type AuthMessageResponse = {
   message: string;
@@ -164,11 +162,19 @@ const hasFieldErrors = (errors: FieldErrors): boolean => Object.keys(errors).len
 
 const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
 const DEFAULT_TENANT = "00000000-0000-0000-0000-000000000001";
+const DEFAULT_CURRENCY = "CFA";
+const SCHOOL_NAME = "Al Manarat Islamiyat";
+const PLATFORM_NAME = "Gest-School";
 const STORAGE_KEY = "gestschool.web-admin.session";
 const THEME_STORAGE_KEY = "gestschool.web-admin.theme";
 const LOGIN_HINT_STORAGE_KEY = "gestschool.web-admin.login-hint";
+const STRONG_PASSWORD_REGEX =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s])\S{12,128}$/;
+const STRONG_PASSWORD_HINT =
+  "Le mot de passe doit contenir au moins 12 caracteres, avec majuscule, minuscule, chiffre et caractere special.";
 
 const today = (): string => new Date().toISOString().slice(0, 10);
+const isStrongPassword = (value: string): boolean => STRONG_PASSWORD_REGEX.test(value);
 
 const parseError = async (response: Response): Promise<string> => {
   try {
@@ -188,16 +194,6 @@ const triggerFileDownload = (fileName: string, dataUrl: string): void => {
   anchor.download = fileName;
   anchor.rel = "noopener";
   anchor.click();
-};
-
-const readSession = (): Session | null => {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as Session;
-  } catch {
-    return null;
-  }
 };
 
 const readRememberedLogin = (): RememberedLogin | null => {
@@ -941,14 +937,14 @@ function WorkflowGuide(props: {
 
 export function App(): JSX.Element {
   const [tab, setTab] = useState<ScreenId>("dashboard");
-  const [session, setSession] = useState<Session | null>(() => readSession());
+  const [session, setSession] = useState<Session | null>(null);
   const sessionRef = useRef<Session | null>(session);
   const rememberedLogin = useMemo(() => readRememberedLogin(), []);
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => readThemePreference());
 
   const [loginForm, setLoginForm] = useState({
-    username: rememberedLogin?.username || "admin@gestschool.local",
-    password: "admin12345",
+    username: rememberedLogin?.username || "",
+    password: "",
     tenantId: rememberedLogin?.tenantId || DEFAULT_TENANT
   });
   const [loadingAuth, setLoadingAuth] = useState(false);
@@ -956,7 +952,7 @@ export function App(): JSX.Element {
   const [authAssistMode, setAuthAssistMode] = useState<"none" | "forgot" | "first">("none");
   const [authAssistLoading, setAuthAssistLoading] = useState(false);
   const [forgotPasswordForm, setForgotPasswordForm] = useState({
-    username: rememberedLogin?.username || "admin@gestschool.local",
+    username: rememberedLogin?.username || "",
     tenantId: rememberedLogin?.tenantId || DEFAULT_TENANT
   });
   const [resetPasswordForm, setResetPasswordForm] = useState({
@@ -965,14 +961,12 @@ export function App(): JSX.Element {
     confirmPassword: ""
   });
   const [firstConnectionForm, setFirstConnectionForm] = useState({
-    username: rememberedLogin?.username || "admin@gestschool.local",
+    username: rememberedLogin?.username || "",
     tenantId: rememberedLogin?.tenantId || DEFAULT_TENANT,
     temporaryPassword: "",
     newPassword: "",
     confirmPassword: ""
   });
-  const [generatedResetToken, setGeneratedResetToken] = useState("");
-
   const [students, setStudents] = useState<Student[]>([]);
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [studentSearch, setStudentSearch] = useState("");
@@ -1031,7 +1025,7 @@ export function App(): JSX.Element {
     levelId: "",
     label: "",
     totalAmount: "",
-    currency: "CFA"
+      currency: DEFAULT_CURRENCY
   });
   const [invoiceForm, setInvoiceForm] = useState({
     studentId: "",
@@ -1236,7 +1230,7 @@ export function App(): JSX.Element {
   const [mosqueDonationForm, setMosqueDonationForm] = useState({
     memberId: "",
     amount: "",
-    currency: "XOF",
+    currency: DEFAULT_CURRENCY,
     channel: "CASH",
     donatedAt: `${today()}T08:00`,
     referenceNo: "",
@@ -1356,9 +1350,29 @@ export function App(): JSX.Element {
 
   useEffect(() => {
     sessionRef.current = session;
-    if (session) localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-    else localStorage.removeItem(STORAGE_KEY);
   }, [session]);
+
+  useEffect(() => {
+    localStorage.removeItem(STORAGE_KEY);
+  }, []);
+
+  useEffect(() => {
+    if (!notice) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => setNotice(null), 4200);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+
+  useEffect(() => {
+    if (!error) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => setError(null), 5200);
+    return () => window.clearTimeout(timer);
+  }, [error]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", themeMode);
@@ -1455,7 +1469,7 @@ export function App(): JSX.Element {
       const next: Session = { ...payload, tenantId: current.tenantId || payload.user.tenantId };
       setSession(next);
       setLastSyncAt(new Date().toISOString());
-      setNotice("Refresh OK.");
+      setNotice("Session actualisee.");
       return next;
     } catch {
       setSession(null);
@@ -2315,11 +2329,11 @@ export function App(): JSX.Element {
 
     const errors: FieldErrors = {};
     if (!userForm.username.trim()) errors.username = "Nom utilisateur requis.";
-    if (!editingUserId && userForm.password.trim().length < 8) {
-      errors.password = "Mot de passe minimum 8 caracteres.";
+    if (!editingUserId && !isStrongPassword(userForm.password.trim())) {
+      errors.password = STRONG_PASSWORD_HINT;
     }
-    if (userForm.password.trim() && userForm.password.trim().length < 8) {
-      errors.password = "Mot de passe minimum 8 caracteres.";
+    if (userForm.password.trim() && !isStrongPassword(userForm.password.trim())) {
+      errors.password = STRONG_PASSWORD_HINT;
     }
 
     setUserErrors(errors);
@@ -2653,13 +2667,6 @@ export function App(): JSX.Element {
       }
 
       const payload = (await response.json()) as ForgotPasswordResponse;
-      if (payload.resetToken) {
-        setGeneratedResetToken(payload.resetToken);
-        setResetPasswordForm((prev) => ({ ...prev, token: payload.resetToken || prev.token }));
-      } else {
-        setGeneratedResetToken("");
-      }
-
       setNotice(payload.message || "Demande de reinitialisation enregistree.");
     } catch {
       setError("Connexion API impossible pendant la demande de reinitialisation.");
@@ -2677,8 +2684,8 @@ export function App(): JSX.Element {
       setError("Token de reinitialisation requis.");
       return;
     }
-    if (!resetPasswordForm.newPassword || resetPasswordForm.newPassword.length < 8) {
-      setError("Le nouveau mot de passe doit contenir au moins 8 caracteres.");
+    if (!isStrongPassword(resetPasswordForm.newPassword)) {
+      setError(STRONG_PASSWORD_HINT);
       return;
     }
     if (resetPasswordForm.newPassword !== resetPasswordForm.confirmPassword) {
@@ -2710,7 +2717,6 @@ export function App(): JSX.Element {
         password: ""
       }));
       setResetPasswordForm({ token: "", newPassword: "", confirmPassword: "" });
-      setGeneratedResetToken("");
       setAuthAssistMode("none");
     } catch {
       setError("Connexion API impossible pendant la reinitialisation du mot de passe.");
@@ -2736,8 +2742,8 @@ export function App(): JSX.Element {
       setError("Mot de passe temporaire invalide.");
       return;
     }
-    if (!firstConnectionForm.newPassword || firstConnectionForm.newPassword.length < 8) {
-      setError("Le nouveau mot de passe doit contenir au moins 8 caracteres.");
+    if (!isStrongPassword(firstConnectionForm.newPassword)) {
+      setError(STRONG_PASSWORD_HINT);
       return;
     }
     if (firstConnectionForm.newPassword !== firstConnectionForm.confirmPassword) {
@@ -2855,7 +2861,6 @@ export function App(): JSX.Element {
     }
     setSession(null);
     setAuthAssistMode("none");
-    setGeneratedResetToken("");
     setResetPasswordForm({ token: "", newPassword: "", confirmPassword: "" });
     clearData();
     resetStudentForm();
@@ -2903,7 +2908,7 @@ export function App(): JSX.Element {
     setMosqueDonationForm({
       memberId: "",
       amount: "",
-      currency: "XOF",
+      currency: DEFAULT_CURRENCY,
       channel: "CASH",
       donatedAt: `${today()}T08:00`,
       referenceNo: "",
@@ -2925,7 +2930,7 @@ export function App(): JSX.Element {
     setMosqueMemberErrors({});
     setMosqueActivityErrors({});
     setMosqueDonationErrors({});
-    setNotice("Deconnecte.");
+    setNotice("Deconnexion reussie.");
     setError(null);
   };
 
@@ -3315,7 +3320,7 @@ export function App(): JSX.Element {
     if (!feePlanForm.label.trim()) errors.label = "Libelle requis.";
     if (!feePlanForm.currency.trim()) errors.currency = "Devise requise.";
     if (feePlanForm.currency.trim() && feePlanForm.currency.trim().length !== 3) {
-      errors.currency = "Code devise sur 3 lettres (ex: CFA).";
+      errors.currency = "Code devise sur 3 lettres (ex: CFA, affiche F CFA).";
     }
 
     const totalAmount = Number(feePlanForm.totalAmount);
@@ -3345,7 +3350,7 @@ export function App(): JSX.Element {
     }
 
     setFeePlanErrors({});
-    setNotice("Fee plan created.");
+    setNotice("Plan tarifaire cree.");
     setFinanceWorkflowStep("feePlans");
     setFeePlanForm((prev) => ({ ...prev, label: "", totalAmount: "" }));
     await loadFinance();
@@ -3359,7 +3364,7 @@ export function App(): JSX.Element {
       return;
     }
 
-    setNotice("Fee plan deleted.");
+    setNotice("Plan tarifaire supprime.");
     await loadFinance();
   };
 
@@ -3408,7 +3413,7 @@ export function App(): JSX.Element {
     }
 
     setInvoiceErrors({});
-    setNotice("Invoice created.");
+    setNotice("Facture creee.");
     setFinanceWorkflowStep("invoices");
     setInvoiceForm((prev) => ({ ...prev, feePlanId: "", amountDue: "", dueDate: "" }));
     await loadFinance();
@@ -3422,7 +3427,7 @@ export function App(): JSX.Element {
       return;
     }
 
-    setNotice("Invoice deleted.");
+    setNotice("Facture supprimee.");
     await loadFinance();
   };
 
@@ -3459,7 +3464,7 @@ export function App(): JSX.Element {
     }
 
     setPaymentErrors({});
-    setNotice("Payment recorded.");
+    setNotice("Paiement enregistre.");
     setFinanceWorkflowStep("payments");
     setPaymentForm((prev) => ({ ...prev, paidAmount: "", referenceExternal: "" }));
     await loadFinance();
@@ -3539,7 +3544,7 @@ export function App(): JSX.Element {
     }
 
     setGradeErrors({});
-    setNotice("Grade saved.");
+    setNotice("Note enregistree.");
     setGradesWorkflowStep("entry");
     setGradeForm((prev) => ({ ...prev, score: "" }));
     await loadGrades(gradeFilters);
@@ -3562,7 +3567,7 @@ export function App(): JSX.Element {
 
   const computeClassSummary = async (): Promise<void> => {
     if (!gradeFilters.classId || !gradeFilters.academicPeriodId) {
-      setError("Select class and period filters first.");
+      setError("Selectionne d'abord une classe et une periode.");
       return;
     }
 
@@ -3582,7 +3587,7 @@ export function App(): JSX.Element {
 
     setClassSummary((await response.json()) as ClassSummary);
     setGradesWorkflowStep("summary");
-    setNotice("Class summary computed.");
+    setNotice("Synthese de classe calculee.");
   };
 
   const generateReportCard = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -3624,7 +3629,7 @@ export function App(): JSX.Element {
       window.open(payload.pdfDataUrl, "_blank", "noopener,noreferrer");
     }
 
-    setNotice("Report card generated.");
+    setNotice("Bulletin genere.");
     setGradesWorkflowStep("reports");
     await loadReportCards();
   };
@@ -3646,6 +3651,12 @@ export function App(): JSX.Element {
   const studentById = new Map(students.map((item) => [item.id, item]));
   const levelById = new Map(levels.map((item) => [item.id, item]));
   const formatAmount = (value: number): string => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(value);
+  const formatCurrencyLabel = (currency?: string): string => {
+    const normalized = (currency || DEFAULT_CURRENCY).trim().toUpperCase();
+    return normalized === "XOF" || normalized === "CFA" ? "F CFA" : normalized;
+  };
+  const formatMoney = (value: number, currency?: string): string =>
+    `${formatAmount(value)} ${formatCurrencyLabel(currency)}`;
   const gradeFilterClass = classById.get(gradeFilters.classId);
   const gradeFormClass = classById.get(gradeForm.classId);
   const reportFormClass = classById.get(reportForm.classId);
@@ -3866,15 +3877,15 @@ export function App(): JSX.Element {
           <div className="metrics-grid">
             <article className="metric-card">
               <span>Total du</span>
-              <strong>{formatAmount(recovery?.totals.amountDue || 0)} FCFA</strong>
+              <strong>{formatMoney(recovery?.totals.amountDue || 0)}</strong>
             </article>
             <article className="metric-card">
               <span>Montant encaisse</span>
-              <strong>{formatAmount(recovery?.totals.amountPaid || 0)} FCFA</strong>
+              <strong>{formatMoney(recovery?.totals.amountPaid || 0)}</strong>
             </article>
             <article className="metric-card">
               <span>Reste a recouvrer</span>
-              <strong>{formatAmount(recovery?.totals.remainingAmount || 0)} FCFA</strong>
+              <strong>{formatMoney(recovery?.totals.remainingAmount || 0)}</strong>
             </article>
             <article className="metric-card">
               <span>Taux recouvrement</span>
@@ -3995,7 +4006,7 @@ export function App(): JSX.Element {
                       <td>{schoolYearById.get(item.schoolYearId)?.code || "-"}</td>
                       <td>{levelById.get(item.levelId)?.label || "-"}</td>
                       <td>
-                        {formatAmount(item.totalAmount)} {item.currency}
+                        {formatMoney(item.totalAmount, item.currency)}
                       </td>
                       <td>
                         <button type="button" className="button-danger" onClick={() => void deleteFeePlan(item.id)}>
@@ -4678,7 +4689,7 @@ export function App(): JSX.Element {
                         <td>{new Date(item.donatedAt).toLocaleString("fr-FR")}</td>
                         <td>{item.memberName || item.memberCode || "-"}</td>
                         <td>{item.channel}</td>
-                        <td>{formatAmount(item.amount)} {item.currency}</td>
+                        <td>{formatMoney(item.amount, item.currency)}</td>
                         <td>{item.referenceNo || "-"}</td>
                         <td>
                           <div className="row-actions">
@@ -4722,12 +4733,12 @@ export function App(): JSX.Element {
               </article>
               <article className="metric-card">
                 <span>Dons ce mois</span>
-                <strong>{formatAmount(mosqueDashboard?.totals.donationsThisMonth ?? 0)} XOF</strong>
-                <small className="subtle">Moyenne: {formatAmount(mosqueDashboard?.totals.averageDonation ?? 0)} XOF</small>
+                <strong>{formatMoney(mosqueDashboard?.totals.donationsThisMonth ?? 0)}</strong>
+                <small className="subtle">Moyenne: {formatMoney(mosqueDashboard?.totals.averageDonation ?? 0)}</small>
               </article>
               <article className="metric-card">
                 <span>Total dons</span>
-                <strong>{formatAmount(mosqueDashboard?.totals.donationsTotal ?? 0)} XOF</strong>
+                <strong>{formatMoney(mosqueDashboard?.totals.donationsTotal ?? 0)}</strong>
                 <small className="subtle">Cumule historique</small>
               </article>
             </div>
@@ -4746,7 +4757,7 @@ export function App(): JSX.Element {
                       <tr key={item.channel}>
                         <td>{item.channel}</td>
                         <td>{item.count}</td>
-                        <td>{formatAmount(item.totalAmount)} XOF</td>
+                        <td>{formatMoney(item.totalAmount)}</td>
                       </tr>
                     ))
                   ) : (
@@ -5250,7 +5261,7 @@ export function App(): JSX.Element {
                   </div>
                   <strong>
                     {unit === "amount"
-                      ? `${point.value.toLocaleString("fr-FR")} XOF`
+                      ? formatMoney(point.value)
                       : point.value.toLocaleString("fr-FR")}
                   </strong>
                 </div>
@@ -5360,7 +5371,7 @@ export function App(): JSX.Element {
                 {(analyticsOverview?.finance.recoveryRatePercent ?? 0).toFixed(1)}%
               </strong>
               <small className="subtle">
-                Reste {(analyticsOverview?.finance.remainingAmount ?? 0).toLocaleString("fr-FR")} CFA
+                Reste {formatMoney(analyticsOverview?.finance.remainingAmount ?? 0)}
               </small>
             </article>
             <article className="metric-card">
@@ -5373,7 +5384,7 @@ export function App(): JSX.Element {
             <article className="metric-card">
               <span>Dons mosquee</span>
               <strong>
-                {(analyticsOverview?.mosque.donationsInWindow ?? 0).toLocaleString("fr-FR")} XOF
+                {formatMoney(analyticsOverview?.mosque.donationsInWindow ?? 0)}
               </strong>
               <small className="subtle">
                 {analyticsOverview?.mosque.donationsCountInWindow ?? 0} transactions
@@ -5644,7 +5655,7 @@ export function App(): JSX.Element {
     { label: "Bulletins", value: reportCards.length, hint: "Publies" },
     {
       label: "Dons mosquee",
-      value: `${(mosqueDashboard?.totals.donationsTotal ?? 0).toLocaleString("fr-FR")} XOF`,
+      value: formatMoney(mosqueDashboard?.totals.donationsTotal ?? 0),
       hint: "Total cumule"
     }
   ];
@@ -6339,6 +6350,7 @@ export function App(): JSX.Element {
                   value={userForm.password}
                   onChange={(event) => setUserForm((prev) => ({ ...prev, password: event.target.value }))}
                   required={!editingUserId}
+                  minLength={12}
                 />
                 {fieldError(userErrors, "password")}
               </label>
@@ -6727,7 +6739,7 @@ export function App(): JSX.Element {
             </article>
             <article className="metric-card">
               <span>Reste a payer</span>
-              <strong>{formatAmount(parentOverview?.remainingAmount ?? 0)} FCFA</strong>
+              <strong>{formatMoney(parentOverview?.remainingAmount ?? 0)}</strong>
             </article>
             <article className="metric-card">
               <span>Absences/retards</span>
@@ -7831,11 +7843,11 @@ export function App(): JSX.Element {
               <span className="auth-float auth-float-2">{"\u{1F4DA}"}</span>
               <span className="auth-float auth-float-3">{"\u{1F9E0}"}</span>
               <span className="auth-float auth-float-4">{"\u{1F4DD}"}</span>
-              <h2>Bienvenue sur GestSchool</h2>
+              <h2>Bienvenue a {SCHOOL_NAME}</h2>
               <img
                 className="auth-illustration-photo"
                 src="/ImageLogin.png"
-                alt="Apercu reel de l'interface Gest-School"
+                alt={`Apercu reel de l'interface ${PLATFORM_NAME}`}
                 loading="lazy"
               />
             </div>
@@ -7962,7 +7974,7 @@ export function App(): JSX.Element {
                       onChange={(event) =>
                         setResetPasswordForm((prev) => ({ ...prev, newPassword: event.target.value }))
                       }
-                      minLength={8}
+                      minLength={12}
                       required
                     />
                   </label>
@@ -7974,7 +7986,7 @@ export function App(): JSX.Element {
                       onChange={(event) =>
                         setResetPasswordForm((prev) => ({ ...prev, confirmPassword: event.target.value }))
                       }
-                      minLength={8}
+                      minLength={12}
                       required
                     />
                   </label>
@@ -7982,11 +7994,10 @@ export function App(): JSX.Element {
                     {authAssistLoading ? "Validation..." : "Valider la reinitialisation"}
                   </button>
                 </form>
-                {generatedResetToken ? (
-                  <p className="auth-assist-note">
-                    Token genere (env. securise): <code>{generatedResetToken}</code>
-                  </p>
-                ) : null}
+                <p className="auth-assist-note">
+                  Le jeton de reinitialisation n'est plus affiche dans l'application. Utiliser un
+                  jeton transmis par un canal securise.
+                </p>
               </article>
             ) : null}
             {authAssistMode === "first" ? (
@@ -8024,7 +8035,7 @@ export function App(): JSX.Element {
                           temporaryPassword: event.target.value
                         }))
                       }
-                      minLength={8}
+                      minLength={12}
                       required
                     />
                   </label>
@@ -8036,7 +8047,7 @@ export function App(): JSX.Element {
                       onChange={(event) =>
                         setFirstConnectionForm((prev) => ({ ...prev, newPassword: event.target.value }))
                       }
-                      minLength={8}
+                      minLength={12}
                       required
                     />
                   </label>
@@ -8067,11 +8078,13 @@ export function App(): JSX.Element {
         <section className="workspace fade-up">
           <header className="panel app-header app-header-v2 app-shell-header">
             <div className="brand-block">
-              <span className="brand-logo">GS</span>
+              <span className="brand-logo">
+                <img src="/logo.png" alt={`Logo ${SCHOOL_NAME}`} className="brand-logo-image" />
+              </span>
               <div>
-                <p className="brand-name">Ecole franco-arabe</p>
-                <h1>Tableau de bord</h1>
-                <p className="header-tagline">Vue simplifiee, orientee actions metier.</p>
+                <p className="brand-name">{SCHOOL_NAME}</p>
+                <h1>{activeScreen.label}</h1>
+                <p className="header-tagline">{PLATFORM_NAME} | Gestion scolaire, vie educative et finances.</p>
               </div>
             </div>
 
@@ -8199,7 +8212,7 @@ export function App(): JSX.Element {
 
               <footer className="panel app-footer app-footer-minimal">
                 <div className="footer-head">
-                  <strong>Gest-School</strong>
+                  <strong>{SCHOOL_NAME}</strong>
                   <div className="footer-meta">
                     <span>Annee: {schoolYearLabel}</span>
                     <span>Derniere sync: {lastSyncLabel}</span>
@@ -8211,8 +8224,32 @@ export function App(): JSX.Element {
         </section>
       )}
 
-      {error ? <p className="feedback error">{error}</p> : null}
-      {notice ? <p className="feedback ok">{notice}</p> : null}
+      {error || notice ? (
+        <div className="toast-stack" aria-live="polite" aria-atomic="true">
+          {error ? (
+            <div className="toast-pop toast-pop-error" role="alert">
+              <div>
+                <strong>Attention</strong>
+                <p>{error}</p>
+              </div>
+              <button type="button" aria-label="Fermer la notification d'erreur" onClick={() => setError(null)}>
+                Fermer
+              </button>
+            </div>
+          ) : null}
+          {notice ? (
+            <div className="toast-pop toast-pop-success" role="status">
+              <div>
+                <strong>Information</strong>
+                <p>{notice}</p>
+              </div>
+              <button type="button" aria-label="Fermer la notification" onClick={() => setNotice(null)}>
+                Fermer
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </main>
   );
 }

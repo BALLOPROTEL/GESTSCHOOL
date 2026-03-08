@@ -6,6 +6,7 @@ import { JwtService } from "@nestjs/jwt";
 import { Prisma, type User } from "@prisma/client";
 import { compare, hash } from "bcryptjs";
 
+import { findPasswordPolicyViolation } from "../common/password-policy";
 import { PrismaService } from "../database/prisma.service";
 import { UserRole } from "../security/roles.enum";
 import { FirstConnectionDto } from "./dto/first-connection.dto";
@@ -28,8 +29,8 @@ export type AuthTokensResponse = {
 
 export type ForgotPasswordResponse = {
   message: string;
-  resetToken?: string;
-  expiresAt?: string;
+  debugResetToken?: string;
+  debugExpiresAt?: string;
 };
 
 export type MessageResponse = {
@@ -146,7 +147,7 @@ export class AuthService {
     });
 
     const genericMessage =
-      "Si le compte existe, un token de reinitialisation a ete genere et doit etre transmis de facon securisee.";
+      "Si le compte existe, la demande de reinitialisation a ete enregistree.";
     if (!user) {
       return { message: genericMessage };
     }
@@ -171,11 +172,15 @@ export class AuthService {
       username: user.username
     });
 
-    return {
-      message: genericMessage,
-      resetToken,
-      expiresAt: expiresAt.toISOString()
-    };
+    if (this.shouldExposePasswordResetToken()) {
+      return {
+        message: genericMessage,
+        debugResetToken: resetToken,
+        debugExpiresAt: expiresAt.toISOString()
+      };
+    }
+
+    return { message: genericMessage };
   }
 
   async resetPassword(payload: ResetPasswordDto): Promise<MessageResponse> {
@@ -212,6 +217,8 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException("Compte introuvable pour ce token de reinitialisation.");
     }
+
+    this.assertPasswordPolicy(payload.newPassword, user.username);
 
     const samePassword = await compare(payload.newPassword, user.passwordHash);
     if (samePassword) {
@@ -250,6 +257,8 @@ export class AuthService {
         "Le nouveau mot de passe doit etre different du mot de passe temporaire."
       );
     }
+
+    this.assertPasswordPolicy(payload.newPassword, user.username);
 
     await this.replaceUserPassword(user, payload.newPassword);
     await this.logAuthAudit(user.tenantId, user.id, "AUTH_FIRST_CONNECTION_COMPLETED", {
@@ -320,6 +329,26 @@ export class AuthService {
       "PASSWORD_RESET_SECRET",
       this.configService.get<string>("JWT_SECRET", "dev-only-secret-change-me")
     );
+  }
+
+  private shouldExposePasswordResetToken(): boolean {
+    const nodeEnv = this.configService.get<string>("NODE_ENV", "development").trim().toLowerCase();
+    if (nodeEnv === "production") {
+      return false;
+    }
+
+    const raw = this.configService
+      .get<string>("PASSWORD_RESET_DEV_EXPOSE_TOKEN", "false")
+      .trim()
+      .toLowerCase();
+    return raw === "1" || raw === "true" || raw === "yes";
+  }
+
+  private assertPasswordPolicy(password: string, username?: string): void {
+    const violation = findPasswordPolicyViolation(password, username);
+    if (violation) {
+      throw new BadRequestException(violation);
+    }
   }
 
   private async replaceUserPassword(
