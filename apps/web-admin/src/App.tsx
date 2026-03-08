@@ -1142,6 +1142,7 @@ export function App(): JSX.Element {
   const sessionRef = useRef<Session | null>(session);
   const rememberedLogin = useMemo(() => readRememberedLogin(), []);
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => readThemePreference());
+  const [mobileHeaderOpen, setMobileHeaderOpen] = useState(false);
 
   const [loginForm, setLoginForm] = useState({
     username: rememberedLogin?.username || "",
@@ -1606,6 +1607,10 @@ export function App(): JSX.Element {
     if (hasScreenAccess(currentRole, tab)) return;
     setTab(ROLE_HOME_SCREEN[currentRole] || "dashboard");
   }, [currentRole, tab]);
+
+  useEffect(() => {
+    setMobileHeaderOpen(false);
+  }, [session?.user.username, tab]);
 
   const clearData = useCallback(() => {
     setStudents([]);
@@ -8310,14 +8315,12 @@ export function App(): JSX.Element {
                     <img src="/logo.png" alt={`Logo ${SCHOOL_NAME}`} />
                   </span>
                   <div className="auth-visual-text">
-                    <p className="auth-visual-eyebrow">Portail scolaire securise</p>
-                    <h2>Bienvenue a {SCHOOL_NAME}</h2>
+                    <h2>{SCHOOL_NAME}</h2>
                     <p className="auth-visual-note">
-                      Acces centralise pour l'administration, les enseignants et les familles.
+                      Accès centralisé pour administrer les élèves, les enseignants et les parents d’élèves.
                     </p>
                   </div>
                 </div>
-                <span className="auth-visual-chip">Acces securise</span>
               </div>
               <div className="auth-visual-media">
                 <img
@@ -8531,42 +8534,57 @@ export function App(): JSX.Element {
               </div>
             </div>
 
-            <div className="top-search">
-              <input
-                id="module-search"
-                value={moduleQueryInput}
-                onChange={(event) => setModuleQueryInput(event.target.value)}
-                placeholder="Recherche rapide..."
-              />
-            </div>
+            <button
+              type="button"
+              className="mobile-header-toggle"
+              aria-expanded={mobileHeaderOpen}
+              aria-controls="mobile-header-panel"
+              onClick={() => setMobileHeaderOpen((prev) => !prev)}
+            >
+              {mobileHeaderOpen ? "Fermer le menu" : "Menu rapide"}
+            </button>
 
-            <div className="header-right">
-              <div className="header-shortcuts">
-                <button type="button" className="header-shortcut theme-toggle" onClick={toggleThemeMode}>
-                  {themeMode === "light" ? "Mode sombre" : "Mode clair"}
-                </button>
-                <button type="button" className="header-shortcut" onClick={() => void refresh()}>
-                  Actualiser
-                </button>
-                <button type="button" className="header-shortcut" onClick={() => void syncHeaderData()}>
-                  Synchroniser
-                </button>
-                <span className="sync-pill">
-                  <span className="sync-dot" />
-                  Maj: {lastSyncLabel}
-                </span>
+            <div
+              id="mobile-header-panel"
+              className={`app-header-tools ${mobileHeaderOpen ? "is-open" : ""}`.trim()}
+            >
+              <div className="top-search">
+                <input
+                  id="module-search"
+                  value={moduleQueryInput}
+                  onChange={(event) => setModuleQueryInput(event.target.value)}
+                  placeholder="Recherche rapide..."
+                />
               </div>
-              <div className="profile-pill">
-                <span className="avatar-badge">{profileInitial}</span>
-                <div className="profile-meta">
-                  <strong>{session.user.username}</strong>
-                  <small>
-                    {profileContextLabel} | Annee: {schoolYearLabel}
-                  </small>
+
+              <div className="header-right">
+                <div className="header-shortcuts">
+                  <button type="button" className="header-shortcut theme-toggle" onClick={toggleThemeMode}>
+                    {themeMode === "light" ? "Mode sombre" : "Mode clair"}
+                  </button>
+                  <button type="button" className="header-shortcut" onClick={() => void refresh()}>
+                    Actualiser
+                  </button>
+                  <button type="button" className="header-shortcut" onClick={() => void syncHeaderData()}>
+                    Synchroniser
+                  </button>
+                  <span className="sync-pill">
+                    <span className="sync-dot" />
+                    Maj: {lastSyncLabel}
+                  </span>
                 </div>
-                <button type="button" className="button-danger" onClick={() => void logout()}>
-                  Se deconnecter
-                </button>
+                <div className="profile-pill">
+                  <span className="avatar-badge">{profileInitial}</span>
+                  <div className="profile-meta">
+                    <strong>{session.user.username}</strong>
+                    <small>
+                      {profileContextLabel} | Annee: {schoolYearLabel}
+                    </small>
+                  </div>
+                  <button type="button" className="button-danger" onClick={() => void logout()}>
+                    Se deconnecter
+                  </button>
+                </div>
               </div>
             </div>
           </header>
