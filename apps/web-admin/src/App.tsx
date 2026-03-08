@@ -148,7 +148,7 @@ type FieldErrors = Record<string, string>;
 type ThemeMode = "light" | "dark";
 type RememberedLogin = {
   username: string;
-  tenantId: string;
+  tenantId?: string;
   remember: boolean;
 };
 type ForgotPasswordResponse = {
@@ -160,11 +160,20 @@ type AuthMessageResponse = {
 
 const hasFieldErrors = (errors: FieldErrors): boolean => Object.keys(errors).length > 0;
 
-const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/v1";
+const API = import.meta.env.DEV
+  ? "/api/v1"
+  : import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:3000/api/v1";
 const DEFAULT_TENANT = "00000000-0000-0000-0000-000000000001";
 const DEFAULT_CURRENCY = "CFA";
 const SCHOOL_NAME = "Al Manarat Islamiyat";
 const PLATFORM_NAME = "Gest-School";
+const CHANNEL_LABELS: Record<string, string> = {
+  CASH: "Especes",
+  MOBILE_MONEY: "Mobile money",
+  BANK: "Banque",
+  TRANSFER: "Virement",
+  OTHER: "Autre"
+};
 const STORAGE_KEY = "gestschool.web-admin.session";
 const THEME_STORAGE_KEY = "gestschool.web-admin.theme";
 const LOGIN_HINT_STORAGE_KEY = "gestschool.web-admin.login-hint";
@@ -185,6 +194,9 @@ const parseError = async (response: Response): Promise<string> => {
   } catch {
     // ignore
   }
+  if (response.status >= 500 && ["localhost", "127.0.0.1"].includes(window.location.hostname)) {
+    return "Erreur API locale. Verifie que `pnpm dev:api` tourne puis redemarre `pnpm dev:web` pour recharger le proxy.";
+  }
   return `Erreur HTTP ${response.status}`;
 };
 
@@ -202,10 +214,10 @@ const readRememberedLogin = (): RememberedLogin | null => {
   try {
     const parsed = JSON.parse(raw) as Partial<RememberedLogin>;
     if (!parsed.remember) return null;
-    if (typeof parsed.username !== "string" || typeof parsed.tenantId !== "string") return null;
+    if (typeof parsed.username !== "string") return null;
     return {
       username: parsed.username,
-      tenantId: parsed.tenantId,
+      tenantId: typeof parsed.tenantId === "string" ? parsed.tenantId : DEFAULT_TENANT,
       remember: true
     };
   } catch {
@@ -2646,10 +2658,6 @@ export function App(): JSX.Element {
       setError("Renseigner votre identifiant pour demander un token de reinitialisation.");
       return;
     }
-    if (!forgotPasswordForm.tenantId.trim()) {
-      setError("Tenant ID requis pour la demande de reinitialisation.");
-      return;
-    }
 
     setAuthAssistLoading(true);
     try {
@@ -2658,7 +2666,7 @@ export function App(): JSX.Element {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username: forgotPasswordForm.username.trim(),
-          tenantId: forgotPasswordForm.tenantId.trim()
+          tenantId: DEFAULT_TENANT
         })
       });
       if (!response.ok) {
@@ -2713,7 +2721,7 @@ export function App(): JSX.Element {
       setLoginForm((prev) => ({
         ...prev,
         username: forgotPasswordForm.username.trim() || prev.username,
-        tenantId: forgotPasswordForm.tenantId.trim() || prev.tenantId,
+        tenantId: DEFAULT_TENANT,
         password: ""
       }));
       setResetPasswordForm({ token: "", newPassword: "", confirmPassword: "" });
@@ -2732,10 +2740,6 @@ export function App(): JSX.Element {
 
     if (!firstConnectionForm.username.trim()) {
       setError("Identifiant requis.");
-      return;
-    }
-    if (!firstConnectionForm.tenantId.trim()) {
-      setError("Tenant ID requis.");
       return;
     }
     if (!firstConnectionForm.temporaryPassword || firstConnectionForm.temporaryPassword.length < 8) {
@@ -2758,7 +2762,7 @@ export function App(): JSX.Element {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username: firstConnectionForm.username.trim(),
-          tenantId: firstConnectionForm.tenantId.trim(),
+          tenantId: DEFAULT_TENANT,
           temporaryPassword: firstConnectionForm.temporaryPassword,
           newPassword: firstConnectionForm.newPassword
         })
@@ -2773,7 +2777,7 @@ export function App(): JSX.Element {
       setLoginForm((prev) => ({
         ...prev,
         username: firstConnectionForm.username.trim(),
-        tenantId: firstConnectionForm.tenantId.trim(),
+        tenantId: DEFAULT_TENANT,
         password: firstConnectionForm.newPassword
       }));
       setFirstConnectionForm((prev) => ({
@@ -2797,7 +2801,6 @@ export function App(): JSX.Element {
     const errors: FieldErrors = {};
     if (!loginForm.username.trim()) errors.username = "Nom utilisateur requis.";
     if (!loginForm.password || loginForm.password.length < 8) errors.password = "Minimum 8 caracteres.";
-    if (!loginForm.tenantId.trim()) errors.tenantId = "Tenant ID requis.";
     setLoginErrors(errors);
     if (hasFieldErrors(errors)) {
       focusFirstInlineErrorField();
@@ -2811,7 +2814,7 @@ export function App(): JSX.Element {
         body: JSON.stringify({
           username: loginForm.username.trim(),
           password: loginForm.password,
-          tenantId: loginForm.tenantId.trim()
+          tenantId: DEFAULT_TENANT
         })
       });
       if (!response.ok) {
@@ -2819,10 +2822,10 @@ export function App(): JSX.Element {
         return;
       }
       const payload = (await response.json()) as Omit<Session, "tenantId"> & { user: Session["user"] };
-      const nextSession = { ...payload, tenantId: loginForm.tenantId.trim() || payload.user.tenantId };
+      const nextSession = { ...payload, tenantId: payload.user.tenantId || DEFAULT_TENANT };
       const role = (nextSession.user.role as Role) || "ADMIN";
       const cleanUsername = loginForm.username.trim();
-      const cleanTenant = loginForm.tenantId.trim() || payload.user.tenantId;
+      const cleanTenant = payload.user.tenantId || DEFAULT_TENANT;
       setLoginErrors({});
       setSession(nextSession);
       setLastSyncAt(new Date().toISOString());
@@ -2842,9 +2845,7 @@ export function App(): JSX.Element {
       setNotice("Connexion reussie.");
       setTab(ROLE_HOME_SCREEN[role] || "dashboard");
     } catch {
-      setError(
-        "Connexion API impossible. Verifie VITE_API_BASE_URL et CORS_ORIGINS (sans slash final)."
-      );
+      setError("Connexion API impossible. En local, verifie que l'API Nest tourne sur le port 3000.");
     } finally {
       setLoadingAuth(false);
     }
@@ -3357,7 +3358,7 @@ export function App(): JSX.Element {
   };
 
   const deleteFeePlan = async (id: string): Promise<void> => {
-    if (!window.confirm("Delete fee plan?")) return;
+    if (!window.confirm("Supprimer ce plan de frais ?")) return;
     const response = await api(`/fee-plans/${id}`, { method: "DELETE" });
     if (!response.ok) {
       setError(await parseError(response));
@@ -3375,7 +3376,7 @@ export function App(): JSX.Element {
     if (!invoiceForm.studentId) errors.studentId = "Eleve requis.";
     if (!invoiceForm.schoolYearId) errors.schoolYearId = "Annee scolaire requise.";
     if (!invoiceForm.feePlanId && !invoiceForm.amountDue.trim()) {
-      errors.amountDue = "Saisir un montant ou choisir un fee plan.";
+      errors.amountDue = "Saisir un montant ou choisir un plan de frais.";
     }
 
     const payload: Record<string, unknown> = {
@@ -3655,6 +3656,10 @@ export function App(): JSX.Element {
     const normalized = (currency || DEFAULT_CURRENCY).trim().toUpperCase();
     return normalized === "XOF" || normalized === "CFA" ? "F CFA" : normalized;
   };
+  const formatChannelLabel = (value?: string): string => {
+    const normalized = (value || "").trim().toUpperCase();
+    return CHANNEL_LABELS[normalized] || value || "-";
+  };
   const formatMoney = (value: number, currency?: string): string =>
     `${formatAmount(value)} ${formatCurrencyLabel(currency)}`;
   const gradeFilterClass = classById.get(gradeFilters.classId);
@@ -3842,7 +3847,7 @@ export function App(): JSX.Element {
   const renderFinance = (): JSX.Element => {
     const financeSteps: WorkflowStepDef[] = [
       { id: "overview", title: "Pilotage", hint: "Suivre recouvrement et caisses.", done: !!recovery },
-      { id: "feePlans", title: "Fee plans", hint: "Definir les plans de frais.", done: feePlans.length > 0 },
+      { id: "feePlans", title: "Plans de frais", hint: "Definir les plans de frais.", done: feePlans.length > 0 },
       { id: "invoices", title: "Factures", hint: "Generer les factures eleves.", done: invoices.length > 0 },
       { id: "payments", title: "Paiements", hint: "Enregistrer les encaissements.", done: payments.length > 0 }
     ];
@@ -3909,7 +3914,7 @@ export function App(): JSX.Element {
         </section>
 
         <section id="finance-fee-plans" data-step-id="feePlans" className="panel editor-panel workflow-section module-modern">
-          <h2>Fee plans</h2>
+          <h2>Plans de frais</h2>
           <p className="section-lead">Definissez les frais par annee et niveau, puis reutilisez-les pour la facturation.</p>
           <form className="form-grid module-form" onSubmit={(event) => void submitFeePlan(event)}>
             <label>
@@ -3973,13 +3978,13 @@ export function App(): JSX.Element {
               />
               {fieldError(feePlanErrors, "currency")}
             </label>
-            <button type="submit">Creer fee plan</button>
+            <button type="submit">Creer le plan de frais</button>
           </form>
         </section>
 
         <section data-step-id="feePlans" className="panel table-panel workflow-section module-modern">
           <div className="table-header">
-            <h2>Liste fee plans</h2>
+            <h2>Liste des plans de frais</h2>
           </div>
           <div className="table-wrap">
             <table>
@@ -3996,7 +4001,7 @@ export function App(): JSX.Element {
                 {feePlans.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="empty-row">
-                      Aucun fee plan.
+                      Aucun plan de frais.
                     </td>
                   </tr>
                 ) : (
@@ -4058,7 +4063,7 @@ export function App(): JSX.Element {
               {fieldError(invoiceErrors, "schoolYearId")}
             </label>
             <label>
-              Fee plan (optionnel)
+              Plan de frais (optionnel)
               <select
                 value={invoiceForm.feePlanId}
                 onChange={(event) => setInvoiceForm((prev) => ({ ...prev, feePlanId: event.target.value }))}
@@ -4079,7 +4084,7 @@ export function App(): JSX.Element {
                 min={0}
                 value={invoiceForm.amountDue}
                 onChange={(event) => setInvoiceForm((prev) => ({ ...prev, amountDue: event.target.value }))}
-                placeholder="Requis si aucun fee plan"
+                placeholder="Requis si aucun plan de frais"
               />
               {fieldError(invoiceErrors, "amountDue")}
             </label>
@@ -4183,9 +4188,9 @@ export function App(): JSX.Element {
                   }))
                 }
               >
-                <option value="CASH">CASH</option>
-                <option value="MOBILE_MONEY">MOBILE_MONEY</option>
-                <option value="BANK">BANK</option>
+                <option value="CASH">{formatChannelLabel("CASH")}</option>
+                <option value="MOBILE_MONEY">{formatChannelLabel("MOBILE_MONEY")}</option>
+                <option value="BANK">{formatChannelLabel("BANK")}</option>
               </select>
               {fieldError(paymentErrors, "paymentMethod")}
             </label>
@@ -4231,7 +4236,7 @@ export function App(): JSX.Element {
                       <td>{item.invoiceNo || "-"}</td>
                       <td>{item.studentName || "-"}</td>
                       <td>{formatAmount(item.paidAmount)}</td>
-                      <td>{item.paymentMethod}</td>
+                      <td>{formatChannelLabel(item.paymentMethod)}</td>
                       <td>{new Date(item.paidAt).toLocaleString("fr-FR")}</td>
                       <td>
                         <button type="button" className="button-ghost" onClick={() => void openReceipt(item.id)}>
@@ -4590,11 +4595,11 @@ export function App(): JSX.Element {
               <label>
                 Canal
                 <select value={mosqueDonationForm.channel} onChange={(event) => setMosqueDonationForm((prev) => ({ ...prev, channel: event.target.value }))}>
-                  <option value="CASH">CASH</option>
-                  <option value="MOBILE_MONEY">MOBILE_MONEY</option>
-                  <option value="BANK">BANK</option>
-                  <option value="TRANSFER">TRANSFER</option>
-                  <option value="OTHER">OTHER</option>
+                  <option value="CASH">{formatChannelLabel("CASH")}</option>
+                  <option value="MOBILE_MONEY">{formatChannelLabel("MOBILE_MONEY")}</option>
+                  <option value="BANK">{formatChannelLabel("BANK")}</option>
+                  <option value="TRANSFER">{formatChannelLabel("TRANSFER")}</option>
+                  <option value="OTHER">{formatChannelLabel("OTHER")}</option>
                 </select>
                 {fieldError(mosqueDonationErrors, "channel")}
               </label>
@@ -4633,11 +4638,11 @@ export function App(): JSX.Element {
                 Canal
                 <select value={mosqueDonationFilters.channel} onChange={(event) => setMosqueDonationFilters((prev) => ({ ...prev, channel: event.target.value }))}>
                   <option value="">Tous</option>
-                  <option value="CASH">CASH</option>
-                  <option value="MOBILE_MONEY">MOBILE_MONEY</option>
-                  <option value="BANK">BANK</option>
-                  <option value="TRANSFER">TRANSFER</option>
-                  <option value="OTHER">OTHER</option>
+                  <option value="CASH">{formatChannelLabel("CASH")}</option>
+                  <option value="MOBILE_MONEY">{formatChannelLabel("MOBILE_MONEY")}</option>
+                  <option value="BANK">{formatChannelLabel("BANK")}</option>
+                  <option value="TRANSFER">{formatChannelLabel("TRANSFER")}</option>
+                  <option value="OTHER">{formatChannelLabel("OTHER")}</option>
                 </select>
               </label>
               <label>
@@ -4688,7 +4693,7 @@ export function App(): JSX.Element {
                       <tr key={item.id}>
                         <td>{new Date(item.donatedAt).toLocaleString("fr-FR")}</td>
                         <td>{item.memberName || item.memberCode || "-"}</td>
-                        <td>{item.channel}</td>
+                        <td>{formatChannelLabel(item.channel)}</td>
                         <td>{formatMoney(item.amount, item.currency)}</td>
                         <td>{item.referenceNo || "-"}</td>
                         <td>
@@ -4755,7 +4760,7 @@ export function App(): JSX.Element {
                   {mosqueDashboard?.donationsByChannel?.length ? (
                     mosqueDashboard.donationsByChannel.map((item) => (
                       <tr key={item.channel}>
-                        <td>{item.channel}</td>
+                        <td>{formatChannelLabel(item.channel)}</td>
                         <td>{item.count}</td>
                         <td>{formatMoney(item.totalAmount)}</td>
                       </tr>
@@ -7902,19 +7907,6 @@ export function App(): JSX.Element {
                 </button>
               </div>
 
-              <details className="auth-tech">
-                <summary>Parametres techniques</summary>
-                <label className="auth-field auth-tenant-field">
-                  <span>Tenant ID</span>
-                  <input
-                    value={loginForm.tenantId}
-                    onChange={(event) => setLoginForm((prev) => ({ ...prev, tenantId: event.target.value }))}
-                    required
-                  />
-                  {fieldError(loginErrors, "tenantId")}
-                </label>
-              </details>
-
               <button type="submit" className="auth-submit" disabled={loadingAuth}>
                 {loadingAuth ? "Connexion..." : "Se Connecter"}
               </button>
@@ -7941,23 +7933,13 @@ export function App(): JSX.Element {
                       required
                     />
                   </label>
-                  <label>
-                    Tenant ID
-                    <input
-                      value={forgotPasswordForm.tenantId}
-                      onChange={(event) =>
-                        setForgotPasswordForm((prev) => ({ ...prev, tenantId: event.target.value }))
-                      }
-                      required
-                    />
-                  </label>
                   <button type="submit" disabled={authAssistLoading}>
-                    {authAssistLoading ? "Generation..." : "Generer un token"}
+                    {authAssistLoading ? "Envoi..." : "Envoyer les instructions"}
                   </button>
                 </form>
                 <form className="auth-assist-grid" onSubmit={(event) => void submitResetPassword(event)}>
                   <label>
-                    Token de reset
+                    Code de reinitialisation
                     <input
                       value={resetPasswordForm.token}
                       onChange={(event) =>
@@ -8015,16 +7997,6 @@ export function App(): JSX.Element {
                     />
                   </label>
                   <label>
-                    Tenant ID
-                    <input
-                      value={firstConnectionForm.tenantId}
-                      onChange={(event) =>
-                        setFirstConnectionForm((prev) => ({ ...prev, tenantId: event.target.value }))
-                      }
-                      required
-                    />
-                  </label>
-                  <label>
                     Mot de passe temporaire
                     <input
                       type="password"
@@ -8035,7 +8007,7 @@ export function App(): JSX.Element {
                           temporaryPassword: event.target.value
                         }))
                       }
-                      minLength={12}
+                      minLength={8}
                       required
                     />
                   </label>
@@ -8062,7 +8034,7 @@ export function App(): JSX.Element {
                           confirmPassword: event.target.value
                         }))
                       }
-                      minLength={8}
+                      minLength={12}
                       required
                     />
                   </label>
@@ -8081,22 +8053,20 @@ export function App(): JSX.Element {
               <span className="brand-logo">
                 <img src="/logo.png" alt={`Logo ${SCHOOL_NAME}`} className="brand-logo-image" />
               </span>
-              <div>
+              <div className="brand-copy">
                 <p className="brand-name">{SCHOOL_NAME}</p>
                 <h1>{activeScreen.label}</h1>
-                <p className="header-tagline">{PLATFORM_NAME} | Gestion scolaire, vie educative et finances.</p>
               </div>
             </div>
 
-            <label className="top-search" htmlFor="module-search">
-              <span>Rechercher un module</span>
+            <div className="top-search">
               <input
                 id="module-search"
                 value={moduleQueryInput}
                 onChange={(event) => setModuleQueryInput(event.target.value)}
-                placeholder="ex: absences, inscriptions, finance..."
+                placeholder="Recherche rapide..."
               />
-            </label>
+            </div>
 
             <div className="header-right">
               <div className="header-shortcuts">

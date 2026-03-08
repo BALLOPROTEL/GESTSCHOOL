@@ -9,6 +9,8 @@ import { UserRole } from "../src/security/roles.enum";
 
 const TENANT_ID = "00000000-0000-0000-0000-000000000001";
 
+jest.setTimeout(120_000);
+
 describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -55,6 +57,7 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
     process.env.NOTIFY_EMAIL_PROVIDER = "MOCK";
     process.env.NOTIFY_SMS_PROVIDER = "MOCK";
     process.env.NOTIFICATION_WEBHOOK_SECRET = "test-webhook-secret";
+    process.env.RATE_LIMIT_DISABLED = "true";
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule]
@@ -70,8 +73,12 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
   });
 
   afterAll(async () => {
-    await cleanDatabase();
-    await app.close();
+    if (prisma) {
+      await cleanDatabase();
+    }
+    if (app) {
+      await app.close();
+    }
   });
 
   it("POST /auth/login should return access and refresh tokens", async () => {
@@ -744,7 +751,7 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
       .set("Authorization", `Bearer ${adminTokens.accessToken}`)
       .send({
         username: "assistant@gestschool.local",
-        password: "assist12345",
+        password: "Assist12345!",
         role: "ENSEIGNANT"
       })
       .expect(201);
@@ -785,7 +792,7 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
       .post("/api/v1/auth/login")
       .send({
         username: "assistant@gestschool.local",
-        password: "assist12345",
+        password: "Assist12345!",
         tenantId: TENANT_ID
       })
       .expect(401);

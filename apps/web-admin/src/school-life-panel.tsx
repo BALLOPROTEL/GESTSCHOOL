@@ -154,6 +154,53 @@ const dayLabels = new Map<number, string>([
   [7, "Dimanche"]
 ]);
 
+const attendanceStatusLabels: Record<string, string> = {
+  PRESENT: "Present",
+  ABSENT: "Absent",
+  LATE: "Retard",
+  EXCUSED: "Excuse"
+};
+
+const validationStatusLabels: Record<string, string> = {
+  PENDING: "En attente",
+  APPROVED: "Validee",
+  REJECTED: "Rejetee"
+};
+
+const notificationStatusLabels: Record<string, string> = {
+  PENDING: "En attente",
+  SCHEDULED: "Planifiee",
+  SENT: "Envoyee",
+  FAILED: "Echec"
+};
+
+const notificationDeliveryLabels: Record<string, string> = {
+  QUEUED: "En file",
+  SENT_TO_PROVIDER: "Transmise",
+  DELIVERED: "Livree",
+  RETRYING: "Nouvelle tentative",
+  FAILED: "Echec",
+  UNDELIVERABLE: "Non distribuable"
+};
+
+const notificationChannelLabels: Record<string, string> = {
+  IN_APP: "Application",
+  EMAIL: "E-mail",
+  SMS: "SMS"
+};
+
+const notificationAudienceLabels: Record<string, string> = {
+  PARENT: "Parents",
+  ENSEIGNANT: "Enseignants",
+  SCOLARITE: "Scolarite",
+  COMPTABLE: "Comptabilite"
+};
+
+const labelFromMap = (map: Record<string, string>, value?: string): string => {
+  const normalized = (value || "").trim().toUpperCase();
+  return map[normalized] || value || "-";
+};
+
 export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
   const {
     api,
@@ -799,21 +846,21 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
   const selectedAttendance = attendanceRecords.find((item) => item.id === selectedAttendanceId) || null;
   return (
     <div className={`school-life-root focus-${focusSection}${readOnly ? " read-only" : ""}`}>
-      <section className="panel table-panel">
+      <section className="panel table-panel workflow-section module-modern">
         <div className="headline-row">
           <h2>Pilotage vie scolaire</h2>
         </div>
         <div className="metrics-grid">
           <div className="metric-card"><span>Total pointages</span><strong>{attendanceMetrics.total}</strong></div>
-          <div className="metric-card"><span>Presents</span><strong>{attendanceMetrics.present}</strong></div>
-          <div className="metric-card"><span>Absents</span><strong>{attendanceMetrics.absent}</strong></div>
+          <div className="metric-card"><span>Presences</span><strong>{attendanceMetrics.present}</strong></div>
+          <div className="metric-card"><span>Absences</span><strong>{attendanceMetrics.absent}</strong></div>
           <div className="metric-card"><span>Retards</span><strong>{attendanceMetrics.late}</strong></div>
           <div className="metric-card"><span>Excuses</span><strong>{attendanceMetrics.excused}</strong></div>
           <div className="metric-card"><span>Taux absence+retard</span><strong>{attendanceMetrics.rate}%</strong></div>
         </div>
         <div className="mini-list">
           {topAbsentees.length === 0 ? (
-            <div className="mini-item"><span>Aucun eleve recurrent en absence sur la periode.</span></div>
+            <div className="mini-item"><span>Aucun cumul d'absences notable sur la periode.</span></div>
           ) : (
             topAbsentees.map((item) => (
               <div key={item.studentId} className="mini-item">
@@ -824,9 +871,10 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
           )}
         </div>
       </section>
-      <section className="panel editor-panel">
+      <section className="panel editor-panel workflow-section module-modern">
         <h2>Absences</h2>
-        <form className="form-grid" onSubmit={(event) => void submitAttendance(event)}>
+        <p className="section-lead">Saisissez un pointage individuel clair, lisible et rapidement exploitable.</p>
+        <form className="form-grid module-form" onSubmit={(event) => void submitAttendance(event)}>
           <label>
             Eleve
             <select value={attendanceForm.studentId} onChange={(event) => setAttendanceForm((prev) => ({ ...prev, studentId: event.target.value }))} required>
@@ -852,10 +900,10 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
           <label>
             Statut
             <select value={attendanceForm.status} onChange={(event) => setAttendanceForm((prev) => ({ ...prev, status: event.target.value }))}>
-              <option value="PRESENT">PRESENT</option>
-              <option value="ABSENT">ABSENT</option>
-              <option value="LATE">LATE</option>
-              <option value="EXCUSED">EXCUSED</option>
+              <option value="PRESENT">{labelFromMap(attendanceStatusLabels, "PRESENT")}</option>
+              <option value="ABSENT">{labelFromMap(attendanceStatusLabels, "ABSENT")}</option>
+              <option value="LATE">{labelFromMap(attendanceStatusLabels, "LATE")}</option>
+              <option value="EXCUSED">{labelFromMap(attendanceStatusLabels, "EXCUSED")}</option>
             </select>
           </label>
           <label>
@@ -866,13 +914,14 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
         </form>
       </section>
 
-      <section className="panel editor-panel">
+      <section className="panel editor-panel workflow-section module-modern">
         <h2>Absences - saisie de masse</h2>
-        <form className="form-grid" onSubmit={(event) => void submitBulkAttendance(event)}>
+        <p className="section-lead">Traitez une classe complete sans perdre la lisibilite du journal des absences.</p>
+        <form className="form-grid module-form" onSubmit={(event) => void submitBulkAttendance(event)}>
           <div className="split-grid">
             <label>Classe<select value={bulkAttendanceForm.classId} onChange={(event) => setBulkAttendanceForm((prev) => ({ ...prev, classId: event.target.value }))} required><option value="">Choisir...</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.code} - {item.label}</option>)}</select></label>
             <label>Date<input type="date" value={bulkAttendanceForm.attendanceDate} onChange={(event) => setBulkAttendanceForm((prev) => ({ ...prev, attendanceDate: event.target.value }))} required /></label>
-            <label>Statut<select value={bulkAttendanceForm.defaultStatus} onChange={(event) => setBulkAttendanceForm((prev) => ({ ...prev, defaultStatus: event.target.value }))}><option value="PRESENT">PRESENT</option><option value="ABSENT">ABSENT</option><option value="LATE">LATE</option><option value="EXCUSED">EXCUSED</option></select></label>
+            <label>Statut<select value={bulkAttendanceForm.defaultStatus} onChange={(event) => setBulkAttendanceForm((prev) => ({ ...prev, defaultStatus: event.target.value }))}><option value="PRESENT">{labelFromMap(attendanceStatusLabels, "PRESENT")}</option><option value="ABSENT">{labelFromMap(attendanceStatusLabels, "ABSENT")}</option><option value="LATE">{labelFromMap(attendanceStatusLabels, "LATE")}</option><option value="EXCUSED">{labelFromMap(attendanceStatusLabels, "EXCUSED")}</option></select></label>
             <label>Motif global<input value={bulkAttendanceForm.reason} onChange={(event) => setBulkAttendanceForm((prev) => ({ ...prev, reason: event.target.value }))} /></label>
           </div>
           <label>
@@ -896,15 +945,15 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
           <button type="submit">Enregistrer en masse</button>
         </form>
       </section>
-      <section className="panel table-panel">
+      <section className="panel table-panel workflow-section module-modern">
         <div className="table-header">
           <h2>Journal des absences</h2>
           <span className="subtle">Filtre rapide, puis actions sur chaque ligne.</span>
         </div>
-        <form className="filter-grid" onSubmit={(event) => void applyAttendanceFilters(event)}>
+        <form className="filter-grid module-filter" onSubmit={(event) => void applyAttendanceFilters(event)}>
           <label>Classe<select value={attendanceFilters.classId} onChange={(event) => setAttendanceFilters((prev) => ({ ...prev, classId: event.target.value }))}><option value="">Toutes</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.code}</option>)}</select></label>
           <label>Eleve<select value={attendanceFilters.studentId} onChange={(event) => setAttendanceFilters((prev) => ({ ...prev, studentId: event.target.value }))}><option value="">Tous</option>{students.map((item) => <option key={item.id} value={item.id}>{item.matricule}</option>)}</select></label>
-          <label>Statut<select value={attendanceFilters.status} onChange={(event) => setAttendanceFilters((prev) => ({ ...prev, status: event.target.value }))}><option value="">Tous</option><option value="PRESENT">PRESENT</option><option value="ABSENT">ABSENT</option><option value="LATE">LATE</option><option value="EXCUSED">EXCUSED</option></select></label>
+          <label>Statut<select value={attendanceFilters.status} onChange={(event) => setAttendanceFilters((prev) => ({ ...prev, status: event.target.value }))}><option value="">Tous</option><option value="PRESENT">{labelFromMap(attendanceStatusLabels, "PRESENT")}</option><option value="ABSENT">{labelFromMap(attendanceStatusLabels, "ABSENT")}</option><option value="LATE">{labelFromMap(attendanceStatusLabels, "LATE")}</option><option value="EXCUSED">{labelFromMap(attendanceStatusLabels, "EXCUSED")}</option></select></label>
           <label>Du<input type="date" value={attendanceFilters.fromDate} onChange={(event) => setAttendanceFilters((prev) => ({ ...prev, fromDate: event.target.value }))} /></label>
           <label>Au<input type="date" value={attendanceFilters.toDate} onChange={(event) => setAttendanceFilters((prev) => ({ ...prev, toDate: event.target.value }))} /></label>
           <div className="actions"><button type="submit">Filtrer</button><button type="button" className="button-ghost" onClick={() => void resetAttendanceFilters()}>Reinitialiser</button></div>
@@ -923,8 +972,8 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
                     <td>{item.attendanceDate}</td>
                     <td>{item.studentName || "-"}</td>
                     <td>{item.classLabel || "-"}</td>
-                    <td>{item.status}</td>
-                    <td>{item.justificationStatus}</td>
+                    <td>{labelFromMap(attendanceStatusLabels, item.status)}</td>
+                    <td>{labelFromMap(validationStatusLabels, item.justificationStatus)}</td>
                     <td>
                       {item.validatedAt
                         ? `${new Date(item.validatedAt).toLocaleString("fr-FR")}${item.validationComment ? ` | ${item.validationComment}` : ""}`
@@ -941,11 +990,11 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
         </div>
       </section>
 
-      <section className="panel editor-panel">
+      <section className="panel editor-panel workflow-section module-modern">
         <h2>Justificatifs & validation</h2>
-        <p className="subtle">Selectionne une absence, valide le statut puis rattache les pieces justificatives.</p>
+        <p className="section-lead">Centralisez validation et pieces justificatives sans ouvrir plusieurs ecrans.</p>
         <h3>Validation</h3>
-        <form className="form-grid" onSubmit={(event) => void submitAttendanceValidation(event)}>
+        <form className="form-grid module-form" onSubmit={(event) => void submitAttendanceValidation(event)}>
           <div className="split-grid">
             <label>
               Pointage cible
@@ -970,9 +1019,9 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
                 }
                 disabled={!selectedAttendanceId}
               >
-                <option value="PENDING">PENDING</option>
-                <option value="APPROVED">APPROVED</option>
-                <option value="REJECTED">REJECTED</option>
+                <option value="PENDING">{labelFromMap(validationStatusLabels, "PENDING")}</option>
+                <option value="APPROVED">{labelFromMap(validationStatusLabels, "APPROVED")}</option>
+                <option value="REJECTED">{labelFromMap(validationStatusLabels, "REJECTED")}</option>
               </select>
             </label>
             <label>
@@ -992,7 +1041,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
         </form>
 
         <h3>Ajout de justificatif</h3>
-        <form className="form-grid" onSubmit={(event) => void submitAttendanceAttachment(event)}>
+        <form className="form-grid module-form" onSubmit={(event) => void submitAttendanceAttachment(event)}>
           <div className="split-grid">
             <label>
               Nom du fichier
@@ -1056,13 +1105,14 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
         </div>
 
         {selectedAttendance ? (
-          <p className="subtle">Selection: {selectedAttendance.studentName || selectedAttendance.studentId} - {selectedAttendance.attendanceDate}</p>
+          <p className="subtle">Selection active: {selectedAttendance.studentName || selectedAttendance.studentId} - {selectedAttendance.attendanceDate}</p>
         ) : null}
       </section>
 
-      <section className="panel editor-panel">
+      <section className="panel editor-panel workflow-section module-modern">
         <h2>Emploi du temps</h2>
-        <form className="form-grid" onSubmit={(event) => void submitTimetableSlot(event)}>
+        <p className="section-lead">Composez des creneaux lisibles puis controlez la semaine complete en un seul coup d'oeil.</p>
+        <form className="form-grid module-form" onSubmit={(event) => void submitTimetableSlot(event)}>
           <label>Classe<select value={timetableForm.classId} onChange={(event) => setTimetableForm((prev) => ({ ...prev, classId: event.target.value }))} required>{classes.map((item) => <option key={item.id} value={item.id}>{item.code} - {item.label}</option>)}</select></label>
           <label>Matiere<select value={timetableForm.subjectId} onChange={(event) => setTimetableForm((prev) => ({ ...prev, subjectId: event.target.value }))} required>{subjects.map((item) => <option key={item.id} value={item.id}>{item.code} - {item.label}</option>)}</select></label>
           <label>Jour<select value={timetableForm.dayOfWeek} onChange={(event) => setTimetableForm((prev) => ({ ...prev, dayOfWeek: event.target.value }))}>{[1,2,3,4,5,6,7].map((day) => <option key={day} value={String(day)}>{dayLabels.get(day)}</option>)}</select></label>
@@ -1074,12 +1124,12 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
         </form>
       </section>
 
-      <section className="panel table-panel">
+      <section className="panel table-panel workflow-section module-modern">
         <div className="table-header">
           <h2>Grille d'emploi du temps</h2>
           <span className="subtle">Recherche par classe et par jour.</span>
         </div>
-        <form className="filter-grid" onSubmit={(event) => void applyTimetableFilters(event)}>
+        <form className="filter-grid module-filter" onSubmit={(event) => void applyTimetableFilters(event)}>
           <label>Classe<select value={timetableFilters.classId} onChange={(event) => setTimetableFilters((prev) => ({ ...prev, classId: event.target.value }))}><option value="">Toutes</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.code}</option>)}</select></label>
           <label>Jour<select value={timetableFilters.dayOfWeek} onChange={(event) => setTimetableFilters((prev) => ({ ...prev, dayOfWeek: event.target.value }))}><option value="">Tous</option>{[1,2,3,4,5,6,7].map((day) => <option key={day} value={String(day)}>{dayLabels.get(day)}</option>)}</select></label>
           <div className="actions"><button type="submit">Filtrer</button><button type="button" className="button-ghost" onClick={() => void resetTimetableFilters()}>Reinitialiser</button></div>
@@ -1132,7 +1182,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
         </div>
       </section>
 
-      <section className="panel editor-panel">
+      <section className="panel editor-panel workflow-section module-modern">
         <div className="headline-row">
           <h2>Notifications</h2>
           <div className="inline-actions">
@@ -1141,33 +1191,34 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
             </button>
           </div>
         </div>
-        <form className="form-grid" onSubmit={(event) => void submitNotification(event)}>
+        <p className="section-lead">Programmez les messages importants avec un flux plus propre pour les equipes.</p>
+        <form className="form-grid module-form" onSubmit={(event) => void submitNotification(event)}>
           <label>Titre<input value={notificationForm.title} onChange={(event) => setNotificationForm((prev) => ({ ...prev, title: event.target.value }))} required /></label>
           <label>Message<input value={notificationForm.message} onChange={(event) => setNotificationForm((prev) => ({ ...prev, message: event.target.value }))} required /></label>
-          <label>Audience<select value={notificationForm.audienceRole} onChange={(event) => setNotificationForm((prev) => ({ ...prev, audienceRole: event.target.value }))}><option value="">Aucun</option><option value="PARENT">PARENT</option><option value="ENSEIGNANT">ENSEIGNANT</option><option value="SCOLARITE">SCOLARITE</option><option value="COMPTABLE">COMPTABLE</option></select></label>
+          <label>Audience<select value={notificationForm.audienceRole} onChange={(event) => setNotificationForm((prev) => ({ ...prev, audienceRole: event.target.value }))}><option value="">Aucun</option><option value="PARENT">{labelFromMap(notificationAudienceLabels, "PARENT")}</option><option value="ENSEIGNANT">{labelFromMap(notificationAudienceLabels, "ENSEIGNANT")}</option><option value="SCOLARITE">{labelFromMap(notificationAudienceLabels, "SCOLARITE")}</option><option value="COMPTABLE">{labelFromMap(notificationAudienceLabels, "COMPTABLE")}</option></select></label>
           <label>Eleve<select value={notificationForm.studentId} onChange={(event) => setNotificationForm((prev) => ({ ...prev, studentId: event.target.value }))}><option value="">Aucun</option>{students.map((item) => <option key={item.id} value={item.id}>{item.matricule} - {item.firstName} {item.lastName}</option>)}</select></label>
-          <label>Canal<select value={notificationForm.channel} onChange={(event) => setNotificationForm((prev) => ({ ...prev, channel: event.target.value }))}><option value="IN_APP">IN_APP</option><option value="EMAIL">EMAIL</option><option value="SMS">SMS</option></select></label>
+          <label>Canal<select value={notificationForm.channel} onChange={(event) => setNotificationForm((prev) => ({ ...prev, channel: event.target.value }))}><option value="IN_APP">{labelFromMap(notificationChannelLabels, "IN_APP")}</option><option value="EMAIL">{labelFromMap(notificationChannelLabels, "EMAIL")}</option><option value="SMS">{labelFromMap(notificationChannelLabels, "SMS")}</option></select></label>
           <label>Cible explicite<input value={notificationForm.targetAddress} onChange={(event) => setNotificationForm((prev) => ({ ...prev, targetAddress: event.target.value }))} placeholder="email@exemple.com ou +2250707070707" /></label>
           <label>Planifiee<input type="datetime-local" value={notificationForm.scheduledAt} onChange={(event) => setNotificationForm((prev) => ({ ...prev, scheduledAt: event.target.value }))} /></label>
-          <button type="submit">Creer</button>
+          <button type="submit">Programmer l'envoi</button>
         </form>
       </section>
 
-      <section className="panel table-panel">
+      <section className="panel table-panel workflow-section module-modern">
         <div className="table-header">
           <h2>Historique notifications</h2>
           <span className="subtle">Suivi des envois, statuts et relances.</span>
         </div>
-        <form className="filter-grid" onSubmit={(event) => void applyNotificationFilters(event)}>
-          <label>Statut<select value={notificationFilters.status} onChange={(event) => setNotificationFilters((prev) => ({ ...prev, status: event.target.value }))}><option value="">Tous</option><option value="PENDING">PENDING</option><option value="SCHEDULED">SCHEDULED</option><option value="SENT">SENT</option><option value="FAILED">FAILED</option></select></label>
-          <label>Canal<select value={notificationFilters.channel} onChange={(event) => setNotificationFilters((prev) => ({ ...prev, channel: event.target.value }))}><option value="">Tous</option><option value="IN_APP">IN_APP</option><option value="EMAIL">EMAIL</option><option value="SMS">SMS</option></select></label>
-          <label>Delivery<select value={notificationFilters.deliveryStatus} onChange={(event) => setNotificationFilters((prev) => ({ ...prev, deliveryStatus: event.target.value }))}><option value="">Tous</option><option value="QUEUED">QUEUED</option><option value="SENT_TO_PROVIDER">SENT_TO_PROVIDER</option><option value="DELIVERED">DELIVERED</option><option value="RETRYING">RETRYING</option><option value="FAILED">FAILED</option><option value="UNDELIVERABLE">UNDELIVERABLE</option></select></label>
+        <form className="filter-grid module-filter" onSubmit={(event) => void applyNotificationFilters(event)}>
+          <label>Statut<select value={notificationFilters.status} onChange={(event) => setNotificationFilters((prev) => ({ ...prev, status: event.target.value }))}><option value="">Tous</option><option value="PENDING">{labelFromMap(notificationStatusLabels, "PENDING")}</option><option value="SCHEDULED">{labelFromMap(notificationStatusLabels, "SCHEDULED")}</option><option value="SENT">{labelFromMap(notificationStatusLabels, "SENT")}</option><option value="FAILED">{labelFromMap(notificationStatusLabels, "FAILED")}</option></select></label>
+          <label>Canal<select value={notificationFilters.channel} onChange={(event) => setNotificationFilters((prev) => ({ ...prev, channel: event.target.value }))}><option value="">Tous</option><option value="IN_APP">{labelFromMap(notificationChannelLabels, "IN_APP")}</option><option value="EMAIL">{labelFromMap(notificationChannelLabels, "EMAIL")}</option><option value="SMS">{labelFromMap(notificationChannelLabels, "SMS")}</option></select></label>
+          <label>Distribution<select value={notificationFilters.deliveryStatus} onChange={(event) => setNotificationFilters((prev) => ({ ...prev, deliveryStatus: event.target.value }))}><option value="">Toutes</option><option value="QUEUED">{labelFromMap(notificationDeliveryLabels, "QUEUED")}</option><option value="SENT_TO_PROVIDER">{labelFromMap(notificationDeliveryLabels, "SENT_TO_PROVIDER")}</option><option value="DELIVERED">{labelFromMap(notificationDeliveryLabels, "DELIVERED")}</option><option value="RETRYING">{labelFromMap(notificationDeliveryLabels, "RETRYING")}</option><option value="FAILED">{labelFromMap(notificationDeliveryLabels, "FAILED")}</option><option value="UNDELIVERABLE">{labelFromMap(notificationDeliveryLabels, "UNDELIVERABLE")}</option></select></label>
           <div className="actions"><button type="submit">Filtrer</button><button type="button" className="button-ghost" onClick={() => void resetNotificationFilters()}>Reinitialiser</button></div>
         </form>
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>Titre</th><th>Canal</th><th>Statut</th><th>Delivery</th><th>Cible</th><th>Provider</th><th>Tentatives</th><th>Planifiee</th><th>Envoyee</th><th>Action</th></tr>
+              <tr><th>Titre</th><th>Canal</th><th>Statut</th><th>Distribution</th><th>Cible</th><th>Fournisseur</th><th>Tentatives</th><th>Planifiee</th><th>Envoyee</th><th>Action</th></tr>
             </thead>
             <tbody>
               {notifications.length === 0 ? (
@@ -1176,15 +1227,15 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
                 notifications.map((item) => (
                   <tr key={item.id}>
                     <td>{item.title}</td>
-                    <td>{item.channel}</td>
-                    <td>{item.status}</td>
-                    <td>{item.deliveryStatus}</td>
-                    <td>{item.targetAddress || item.studentName || item.audienceRole || "-"}</td>
+                    <td>{labelFromMap(notificationChannelLabels, item.channel)}</td>
+                    <td>{labelFromMap(notificationStatusLabels, item.status)}</td>
+                    <td>{labelFromMap(notificationDeliveryLabels, item.deliveryStatus)}</td>
+                    <td>{item.targetAddress || item.studentName || labelFromMap(notificationAudienceLabels, item.audienceRole) || "-"}</td>
                     <td>{item.provider || "-"}</td>
                     <td>{item.attempts}</td>
                     <td>{item.scheduledAt ? new Date(item.scheduledAt).toLocaleString("fr-FR") : "-"}</td>
-                    <td>{item.sentAt ? new Date(item.sentAt).toLocaleString("fr-FR") : item.nextAttemptAt ? `Retry ${new Date(item.nextAttemptAt).toLocaleString("fr-FR")}` : "-"}</td>
-                    <td>{item.status !== "SENT" ? <button type="button" className="button-ghost" onClick={() => void markNotificationAsSent(item.id)}>Marquer envoyee</button> : null}</td>
+                    <td>{item.sentAt ? new Date(item.sentAt).toLocaleString("fr-FR") : item.nextAttemptAt ? `Nouvelle tentative ${new Date(item.nextAttemptAt).toLocaleString("fr-FR")}` : "-"}</td>
+                    <td>{item.status !== "SENT" ? <button type="button" className="button-ghost" onClick={() => void markNotificationAsSent(item.id)}>Marquer comme envoyee</button> : null}</td>
                   </tr>
                 ))
               )}

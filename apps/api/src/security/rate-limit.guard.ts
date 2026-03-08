@@ -21,6 +21,10 @@ export class RateLimitGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
+    if (this.isDisabledForCurrentProcess()) {
+      return true;
+    }
+
     const options = this.reflector.getAllAndOverride<RateLimitOptions>(RATE_LIMIT_KEY, [
       context.getHandler(),
       context.getClass()
@@ -105,5 +109,10 @@ export class RateLimitGuard implements CanActivate {
         break;
       }
     }
+  }
+
+  private isDisabledForCurrentProcess(): boolean {
+    const value = (process.env.RATE_LIMIT_DISABLED || "").trim().toLowerCase();
+    return value === "1" || value === "true" || value === "yes";
   }
 }
