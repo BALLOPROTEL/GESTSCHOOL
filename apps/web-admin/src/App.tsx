@@ -166,7 +166,6 @@ const API = import.meta.env.DEV
 const DEFAULT_TENANT = "00000000-0000-0000-0000-000000000001";
 const DEFAULT_CURRENCY = "CFA";
 const SCHOOL_NAME = "Al Manarat Islamiyat";
-const PLATFORM_NAME = "Gest-School";
 const CHANNEL_LABELS: Record<string, string> = {
   CASH: "Especes",
   MOBILE_MONEY: "Mobile money",
@@ -8305,17 +8304,29 @@ export function App(): JSX.Element {
         <section className="auth-layout fade-up">
           <article className="panel auth-visual">
             <div className="auth-visual-surface">
-              <span className="auth-float auth-float-1">{"\u{1F393}"}</span>
-              <span className="auth-float auth-float-2">{"\u{1F4DA}"}</span>
-              <span className="auth-float auth-float-3">{"\u{1F9E0}"}</span>
-              <span className="auth-float auth-float-4">{"\u{1F4DD}"}</span>
-              <h2>Bienvenue a {SCHOOL_NAME}</h2>
-              <img
-                className="auth-illustration-photo"
-                src="/loginPage.png"
-                alt={`Apercu reel de l'interface ${PLATFORM_NAME}`}
-                loading="lazy"
-              />
+              <div className="auth-visual-copy">
+                <div className="auth-visual-brand">
+                  <span className="auth-visual-badge">
+                    <img src="/logo.png" alt={`Logo ${SCHOOL_NAME}`} />
+                  </span>
+                  <div className="auth-visual-text">
+                    <p className="auth-visual-eyebrow">Portail scolaire securise</p>
+                    <h2>Bienvenue a {SCHOOL_NAME}</h2>
+                    <p className="auth-visual-note">
+                      Acces centralise pour l'administration, les enseignants et les familles.
+                    </p>
+                  </div>
+                </div>
+                <span className="auth-visual-chip">Acces securise</span>
+              </div>
+              <div className="auth-visual-media">
+                <img
+                  className="auth-illustration-photo"
+                  src="/loginPage.png"
+                  alt={`Identite visuelle de ${SCHOOL_NAME}`}
+                  loading="lazy"
+                />
+              </div>
             </div>
           </article>
 

@@ -7,6 +7,7 @@ import { AnalyticsController } from "./analytics/analytics.controller";
 import { AnalyticsService } from "./analytics/analytics.service";
 import { AuthController } from "./auth/auth.controller";
 import { AuthService } from "./auth/auth.service";
+import { DevBootstrapUsersService } from "./database/dev-bootstrap-users.service";
 import { DatabaseModule } from "./database/database.module";
 import { EnrollmentsController } from "./enrollments/enrollments.controller";
 import { EnrollmentsService } from "./enrollments/enrollments.service";
@@ -85,6 +86,7 @@ import { UsersService } from "./users/users.service";
     StorageService,
     UsersService,
     MosqueService,
+    DevBootstrapUsersService,
     {
       provide: APP_GUARD,
       useClass: RateLimitGuard

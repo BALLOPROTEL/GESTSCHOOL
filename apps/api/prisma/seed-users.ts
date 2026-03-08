@@ -2,39 +2,15 @@ import { hash } from "bcryptjs";
 
 import { PrismaClient } from "@prisma/client";
 
+import { getDefaultDevUsers } from "../src/database/dev-default-users";
+
 const prisma = new PrismaClient();
 
 async function main(): Promise<void> {
   const tenantId =
     process.env.DEFAULT_TENANT_ID || "00000000-0000-0000-0000-000000000001";
 
-  const users = [
-    {
-      username: process.env.ADMIN_USERNAME || "admin@gestschool.local",
-      password: process.env.ADMIN_PASSWORD || "admin12345",
-      role: "ADMIN"
-    },
-    {
-      username: process.env.SCOLARITE_USERNAME || "scolarite@gestschool.local",
-      password: process.env.SCOLARITE_PASSWORD || "scolarite123",
-      role: "SCOLARITE"
-    },
-    {
-      username: process.env.COMPTABLE_USERNAME || "comptable@gestschool.local",
-      password: process.env.COMPTABLE_PASSWORD || "comptable123",
-      role: "COMPTABLE"
-    },
-    {
-      username: process.env.ENSEIGNANT_USERNAME || "enseignant@gestschool.local",
-      password: process.env.ENSEIGNANT_PASSWORD || "teacher1234",
-      role: "ENSEIGNANT"
-    },
-    {
-      username: process.env.PARENT_USERNAME || "parent@gestschool.local",
-      password: process.env.PARENT_PASSWORD || "parent1234",
-      role: "PARENT"
-    }
-  ] as const;
+  const users = getDefaultDevUsers();
 
   for (const user of users) {
     const passwordHash = await hash(user.password, 10);
