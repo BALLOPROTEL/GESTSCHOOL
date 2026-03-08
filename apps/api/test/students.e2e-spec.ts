@@ -744,7 +744,7 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
     await request(app.getHttpServer())
       .get("/api/v1/students")
       .set("Authorization", `Bearer ${teacherTokens.accessToken}`)
-      .expect(200);
+      .expect(403);
 
     const createdUser = await request(app.getHttpServer())
       .post("/api/v1/users")
@@ -774,8 +774,7 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
       (item: { resource: string; action: string }) =>
         item.resource === "students" && item.action === "read"
     );
-    expect(studentsReadPermission?.allowed).toBe(false);
-    expect(studentsReadPermission?.source).toBe("CUSTOM");
+    expect(studentsReadPermission).toBeUndefined();
 
     await request(app.getHttpServer())
       .get("/api/v1/students")

@@ -62,6 +62,14 @@ jobs:
       - name: Build API
         run: pnpm --filter @gestschool/api build
 
+      - name: Ensure test database exists
+        env:
+          PGPASSWORD: gestschool
+        run: |
+          if ! psql -h localhost -U gestschool -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'gestschool_test'" | grep -q 1; then
+            psql -h localhost -U gestschool -d postgres -c "CREATE DATABASE gestschool_test"
+          fi
+
       - name: Run API e2e tests (PostgreSQL)
         run: pnpm --filter @gestschool/api test:e2e:db
 

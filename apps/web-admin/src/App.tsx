@@ -247,6 +247,67 @@ const readRememberedLogin = (): RememberedLogin | null => {
   }
 };
 
+const isStoredSession = (value: unknown): value is Session => {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<Session> & { user?: Partial<Session["user"]> };
+  return (
+    typeof candidate.accessToken === "string" &&
+    typeof candidate.refreshToken === "string" &&
+    typeof candidate.tenantId === "string" &&
+    typeof candidate.user?.username === "string" &&
+    typeof candidate.user?.role === "string" &&
+    typeof candidate.user?.tenantId === "string"
+  );
+};
+
+const readStoredSession = (): Session | null => {
+  if (typeof window === "undefined") return null;
+
+  const storages = [window.sessionStorage, window.localStorage];
+  for (const storage of storages) {
+    const raw = storage.getItem(STORAGE_KEY);
+    if (!raw) continue;
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (!isStoredSession(parsed)) {
+        storage.removeItem(STORAGE_KEY);
+        continue;
+      }
+      const normalized: Session = {
+        accessToken: parsed.accessToken,
+        refreshToken: parsed.refreshToken,
+        tenantId: parsed.tenantId,
+        user: {
+          username: parsed.user.username,
+          role: parsed.user.role,
+          tenantId: parsed.user.tenantId
+        }
+      };
+      window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+      if (storage !== window.sessionStorage) {
+        storage.removeItem(STORAGE_KEY);
+      }
+      return normalized;
+    } catch {
+      storage.removeItem(STORAGE_KEY);
+    }
+  }
+
+  return null;
+};
+
+const persistSession = (session: Session): void => {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+  window.localStorage.removeItem(STORAGE_KEY);
+};
+
+const clearStoredSession = (): void => {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(STORAGE_KEY);
+  window.localStorage.removeItem(STORAGE_KEY);
+};
+
 const readThemePreference = (): ThemeMode => {
   const saved = localStorage.getItem(THEME_STORAGE_KEY);
   if (saved === "light" || saved === "dark") return saved;
@@ -1078,7 +1139,7 @@ function WorkflowGuide(props: {
 
 export function App(): JSX.Element {
   const [tab, setTab] = useState<ScreenId>("dashboard");
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<Session | null>(() => readStoredSession());
   const sessionRef = useRef<Session | null>(session);
   const rememberedLogin = useMemo(() => readRememberedLogin(), []);
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => readThemePreference());
@@ -1505,10 +1566,6 @@ export function App(): JSX.Element {
   }, [session]);
 
   useEffect(() => {
-    localStorage.removeItem(STORAGE_KEY);
-  }, []);
-
-  useEffect(() => {
     if (!notice) {
       return undefined;
     }
@@ -1612,6 +1669,7 @@ export function App(): JSX.Element {
         body: JSON.stringify({ refreshToken: current.refreshToken })
       });
       if (!response.ok) {
+        clearStoredSession();
         setSession(null);
         clearData();
         setError("Session expiree.");
@@ -1619,11 +1677,13 @@ export function App(): JSX.Element {
       }
       const payload = (await response.json()) as Omit<Session, "tenantId"> & { user: Session["user"] };
       const next: Session = { ...payload, tenantId: current.tenantId || payload.user.tenantId };
+      persistSession(next);
       setSession(next);
       setLastSyncAt(new Date().toISOString());
       setNotice("Session actualisee.");
       return next;
     } catch {
+      clearStoredSession();
       setSession(null);
       clearData();
       setError("API indisponible ou CORS refuse. Verifie CORS_ORIGINS sur Render.");
@@ -2967,6 +3027,7 @@ export function App(): JSX.Element {
       const cleanUsername = loginForm.username.trim();
       const cleanTenant = payload.user.tenantId || DEFAULT_TENANT;
       setLoginErrors({});
+      persistSession(nextSession);
       setSession(nextSession);
       setLastSyncAt(new Date().toISOString());
       setAuthAssistMode("none");
@@ -3000,6 +3061,7 @@ export function App(): JSX.Element {
         body: JSON.stringify({ refreshToken: current.refreshToken })
       }).catch(() => undefined);
     }
+    clearStoredSession();
     setSession(null);
     setAuthAssistMode("none");
     setResetPasswordForm({ token: "", newPassword: "", confirmPassword: "" });
