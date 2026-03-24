@@ -1,0 +1,7 @@
+export enum UserRole {
+  ADMIN = "ADMIN",
+  SCOLARITE = "SCOLARITE",
+  ENSEIGNANT = "ENSEIGNANT",
+  COMPTABLE = "COMPTABLE",
+  PARENT = "PARENT"
+}

@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gestschool-api
+  labels:
+    app: gestschool-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: gestschool-api
+  template:
+    metadata:
+      labels:
+        app: gestschool-api
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/gestschool/api:latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: gestschool-api-secrets
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health/ready
+              port: 3000
+            initialDelaySeconds: 8
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health/live
+              port: 3000
+            initialDelaySeconds: 12
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "768Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gestschool-api
+  labels:
+    app: gestschool-api
+spec:
+  type: ClusterIP
+  selector:
+    app: gestschool-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
