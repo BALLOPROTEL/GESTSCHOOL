@@ -185,16 +185,12 @@ a:hover {
 .header-shortcuts {
   display: inline-flex;
   align-items: center;
-<<<<<<< HEAD
   justify-content: flex-end;
   flex-wrap: wrap;
-=======
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
   gap: 0.55rem;
 }
 
 .header-shortcut {
-<<<<<<< HEAD
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -203,12 +199,6 @@ a:hover {
   color: var(--ink-700);
   min-height: 2.85rem;
   min-width: 2.85rem;
-=======
-  border: 1px solid var(--line);
-  background: #fff;
-  color: var(--ink-700);
-  min-height: 2.55rem;
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
   padding: 0.38rem 0.8rem;
   border-radius: 999px;
   font-weight: 700;
@@ -218,11 +208,8 @@ a:hover {
 .sync-pill {
   display: inline-flex;
   align-items: center;
-<<<<<<< HEAD
   justify-content: center;
   min-height: 2.85rem;
-=======
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
   padding: 0.4rem 0.78rem;
   border-radius: 999px;
   border: 1px dashed var(--line-strong);
@@ -232,7 +219,6 @@ a:hover {
   background: rgba(255, 255, 255, 0.8);
 }
 
-<<<<<<< HEAD
 .icon-shortcut {
   padding: 0;
   width: 3rem;
@@ -293,8 +279,6 @@ a:hover {
   border-radius: 999px;
 }
 
-=======
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
 .profile-pill {
   display: inline-flex;
   align-items: center;
@@ -306,7 +290,6 @@ a:hover {
   max-width: 100%;
 }
 
-<<<<<<< HEAD
 .profile-logout-button {
   display: inline-flex;
   align-items: center;
@@ -328,8 +311,6 @@ a:hover {
   user-select: none;
 }
 
-=======
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
 .avatar-badge {
   width: 2.65rem;
   height: 2.65rem;
@@ -2104,11 +2085,7 @@ code {
     width: 100%;
     border-radius: 0.8rem;
     display: grid;
-<<<<<<< HEAD
     grid-template-columns: auto minmax(0, 1fr) auto;
-=======
-    grid-template-columns: auto minmax(0, 1fr);
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
     justify-content: stretch;
     align-items: center;
   }
@@ -2117,17 +2094,11 @@ code {
     min-width: 0;
   }
 
-<<<<<<< HEAD
   .profile-pill .profile-logout-button {
     grid-column: 3;
     grid-row: 1;
     width: 3rem;
     justify-self: end;
-=======
-  .profile-pill .button-danger {
-    grid-column: 1 / -1;
-    width: 100%;
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
   }
 
   .table-header input,
@@ -2507,25 +2478,19 @@ label,
   font-weight: 700;
 }
 
-<<<<<<< HEAD
 .language-toggle {
   border-color: color-mix(in srgb, #0f766e 28%, var(--line));
   background: color-mix(in srgb, #ccfbf1 56%, var(--panel));
   color: #0f766e;
 }
 
-=======
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
 .sync-pill {
   border: 1px dashed color-mix(in srgb, var(--primary) 32%, var(--line));
   color: var(--ink-700);
   gap: 0.45rem;
   background: color-mix(in srgb, var(--topbar-accent) 36%, var(--panel));
   white-space: nowrap;
-<<<<<<< HEAD
   flex: 1 1 11rem;
-=======
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
 }
 
 .sync-dot {
@@ -2549,15 +2514,12 @@ label,
   }
 }
 
-<<<<<<< HEAD
 @media (prefers-reduced-motion: reduce) {
   .flip-icon-card {
     transition-duration: 1ms;
   }
 }
 
-=======
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
 .profile-pill {
   background: var(--panel);
   border-color: var(--line);
@@ -2573,15 +2535,12 @@ label,
   border-radius: 0.72rem;
 }
 
-<<<<<<< HEAD
 .profile-pill .profile-logout-button {
   min-height: 3rem;
   padding: 0;
   border-radius: 1rem;
 }
 
-=======
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
 .avatar-badge {
   background: var(--topbar-accent);
   color: var(--primary-900);
@@ -3068,7 +3027,6 @@ code {
   gap: 0.85rem;
 }
 
-<<<<<<< HEAD
 .auth-card-controls {
   display: inline-flex;
   align-items: center;
@@ -3077,8 +3035,6 @@ code {
   gap: 0.6rem;
 }
 
-=======
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
 .auth-card h2 {
   color: var(--ink-900);
   margin: 0;
@@ -3086,7 +3042,6 @@ code {
 }
 
 .auth-theme-toggle {
-<<<<<<< HEAD
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3095,11 +3050,6 @@ code {
   min-width: 3rem;
   padding: 0;
   border-radius: 1rem;
-=======
-  min-height: 2.4rem;
-  padding: 0.46rem 0.8rem;
-  border-radius: 999px;
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
   background: var(--panel-soft);
   border: 1px solid var(--line);
   color: var(--ink-700);
@@ -3231,7 +3181,6 @@ code {
   background: #0f172a;
 }
 
-<<<<<<< HEAD
 :root[data-theme="dark"] .theme-toggle {
   border-color: color-mix(in srgb, #60a5fa 34%, #334155);
   background: color-mix(in srgb, #2563eb 20%, #0f172a);
@@ -3244,8 +3193,6 @@ code {
   color: #ccfbf1;
 }
 
-=======
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
 :root[data-theme="dark"] .sync-pill {
   color: #e2e8f0;
   border-color: #475569;
@@ -3418,14 +3365,11 @@ code {
     align-items: flex-start;
   }
 
-<<<<<<< HEAD
   .auth-card-controls {
     width: 100%;
     justify-content: flex-start;
   }
 
-=======
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
   .auth-illustration-photo {
     max-height: 20rem;
   }
@@ -3444,10 +3388,6 @@ code {
     width: 100%;
   }
 
-<<<<<<< HEAD
-=======
-  .header-shortcut,
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
   .sync-pill {
     width: 100%;
     justify-content: center;
@@ -3537,10 +3477,6 @@ code {
     justify-content: flex-start;
   }
 
-<<<<<<< HEAD
-=======
-  .header-shortcut,
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
   .sync-pill {
     flex: 1 1 12rem;
     justify-content: center;
@@ -3549,26 +3485,16 @@ code {
   .profile-pill {
     width: 100%;
     display: grid;
-<<<<<<< HEAD
     grid-template-columns: auto minmax(0, 1fr) auto;
-=======
-    grid-template-columns: auto minmax(0, 1fr);
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
     gap: 0.7rem;
     justify-items: start;
   }
 
-<<<<<<< HEAD
   .profile-pill .profile-logout-button {
     grid-column: 3;
     grid-row: 1;
     width: 3rem;
     justify-self: end;
-=======
-  .profile-pill .button-danger {
-    grid-column: 1 / -1;
-    width: 100%;
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
   }
 
   .dashboard-main-grid {
@@ -3695,20 +3621,11 @@ code {
   }
 
   .header-shortcuts {
-<<<<<<< HEAD
     display: flex;
     flex-wrap: wrap;
     width: 100%;
   }
 
-=======
-    display: grid;
-    grid-template-columns: 1fr;
-    width: 100%;
-  }
-
-  .header-shortcut,
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
   .sync-pill {
     width: 100%;
   }
@@ -3973,20 +3890,11 @@ code {
   }
 
   .app-header-tools .header-shortcuts {
-<<<<<<< HEAD
     display: flex;
     flex-wrap: wrap;
     width: 100%;
   }
 
-=======
-    display: grid;
-    grid-template-columns: 1fr;
-    width: 100%;
-  }
-
-  .app-header-tools .header-shortcut,
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
   .app-header-tools .sync-pill {
     width: 100%;
     justify-content: center;

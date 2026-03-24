@@ -1,9 +1,6 @@
 import { Children, FormEvent, ReactNode, cloneElement, isValidElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-<<<<<<< HEAD
 import { UI_LANGUAGE_META, UI_LANGUAGE_ORDER, UiLanguage, useDomTranslation } from "./i18n";
-=======
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
 import { SchoolLifePanel } from "./school-life-panel";
 
 type Session = {
@@ -179,13 +176,9 @@ const CHANNEL_LABELS: Record<string, string> = {
 };
 const STORAGE_KEY = "gestschool.web-admin.session";
 const THEME_STORAGE_KEY = "gestschool.web-admin.theme";
-<<<<<<< HEAD
 const LANGUAGE_STORAGE_KEY = "gestschool.web-admin.language";
 const LOGIN_HINT_STORAGE_KEY = "gestschool.web-admin.login-hint";
 const ICON_TOGGLE_ANIMATION_MS = 460;
-=======
-const LOGIN_HINT_STORAGE_KEY = "gestschool.web-admin.login-hint";
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
 const STRONG_PASSWORD_REGEX =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s])\S{12,128}$/;
 const STRONG_PASSWORD_HINT =
@@ -193,7 +186,6 @@ const STRONG_PASSWORD_HINT =
 
 const today = (): string => new Date().toISOString().slice(0, 10);
 const isStrongPassword = (value: string): boolean => STRONG_PASSWORD_REGEX.test(value);
-<<<<<<< HEAD
 const getNextThemeMode = (mode: ThemeMode): ThemeMode => (mode === "light" ? "dark" : "light");
 const getNextUiLanguage = (language: UiLanguage): UiLanguage => {
   const currentIndex = UI_LANGUAGE_ORDER.indexOf(language);
@@ -201,8 +193,6 @@ const getNextUiLanguage = (language: UiLanguage): UiLanguage => {
 };
 const getIconToggleAnimationDuration = (): number =>
   window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? 0 : ICON_TOGGLE_ANIMATION_MS;
-=======
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
 const formatLookupLabel = (map: Record<string, string>, value?: string): string => {
   const normalized = (value || "").trim().toUpperCase();
   return map[normalized] || value || "-";
@@ -334,7 +324,6 @@ const readThemePreference = (): ThemeMode => {
   return "light";
 };
 
-<<<<<<< HEAD
 const readLanguagePreference = (): UiLanguage => {
   const saved = localStorage.getItem(LANGUAGE_STORAGE_KEY);
   if (saved === "fr" || saved === "en" || saved === "ar") return saved;
@@ -380,8 +369,6 @@ function FlipIconButton({
   );
 }
 
-=======
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
 type Role = "ADMIN" | "SCOLARITE" | "ENSEIGNANT" | "COMPTABLE" | "PARENT";
 
 type UserAccount = {
@@ -1207,7 +1194,6 @@ function WorkflowGuide(props: {
 export function App(): JSX.Element {
   const [tab, setTab] = useState<ScreenId>("dashboard");
   const [session, setSession] = useState<Session | null>(() => readStoredSession());
-<<<<<<< HEAD
   const appRootRef = useRef<HTMLElement | null>(null);
   const sessionRef = useRef<Session | null>(session);
   const rememberedLogin = useMemo(() => readRememberedLogin(), []);
@@ -1216,23 +1202,15 @@ export function App(): JSX.Element {
   const [themeFlipTarget, setThemeFlipTarget] = useState<ThemeMode | null>(null);
   const [languageFlipTarget, setLanguageFlipTarget] = useState<UiLanguage | null>(null);
   const currentLanguageMeta = UI_LANGUAGE_META[uiLanguage];
-=======
-  const sessionRef = useRef<Session | null>(session);
-  const rememberedLogin = useMemo(() => readRememberedLogin(), []);
-  const [themeMode, setThemeMode] = useState<ThemeMode>(() => readThemePreference());
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
   const [mobileHeaderOpen, setMobileHeaderOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [mobilePrincipalOpen, setMobilePrincipalOpen] = useState(true);
   const [mobileVieOpen, setMobileVieOpen] = useState(false);
   const [mobileTasksOpen, setMobileTasksOpen] = useState(false);
-<<<<<<< HEAD
   const themeFlipTimeoutRef = useRef<number | null>(null);
   const languageFlipTimeoutRef = useRef<number | null>(null);
 
   useDomTranslation(appRootRef, uiLanguage);
-=======
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
 
   const [loginForm, setLoginForm] = useState({
     username: rememberedLogin?.username || "",
@@ -1674,7 +1652,6 @@ export function App(): JSX.Element {
   }, [error]);
 
   useEffect(() => {
-<<<<<<< HEAD
     return () => {
       if (themeFlipTimeoutRef.current !== null) {
         window.clearTimeout(themeFlipTimeoutRef.current);
@@ -1686,22 +1663,17 @@ export function App(): JSX.Element {
   }, []);
 
   useEffect(() => {
-=======
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
     document.documentElement.setAttribute("data-theme", themeMode);
     localStorage.setItem(THEME_STORAGE_KEY, themeMode);
   }, [themeMode]);
 
   useEffect(() => {
-<<<<<<< HEAD
     document.documentElement.lang = uiLanguage;
     document.documentElement.dir = currentLanguageMeta.dir;
     localStorage.setItem(LANGUAGE_STORAGE_KEY, uiLanguage);
   }, [currentLanguageMeta.dir, uiLanguage]);
 
   useEffect(() => {
-=======
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
     analyticsFiltersRef.current = analyticsFilters;
   }, [analyticsFilters]);
 
@@ -2245,76 +2217,6 @@ export function App(): JSX.Element {
     setReportCards((await response.json()) as ReportCard[]);
   }, [api]);
 
-<<<<<<< HEAD
-=======
-  const syncHeaderData = useCallback(async (): Promise<void> => {
-    if (!currentRole) return;
-
-    setError(null);
-    setNotice(null);
-
-    await refresh();
-
-    if (hasScreenAccess(currentRole, "students")) {
-      await loadStudents();
-    }
-    if (hasScreenAccess(currentRole, "iam")) {
-      await loadUsers();
-      await loadRolePermissions(rolePermissionTarget);
-      await loadTeacherAssignments();
-      await loadParentLinks();
-    }
-    if (hasScreenAccess(currentRole, "reference")) {
-      await loadReference();
-    }
-    if (hasScreenAccess(currentRole, "enrollments")) {
-      await loadEnrollments();
-    }
-    if (hasScreenAccess(currentRole, "finance")) {
-      await loadFinance();
-    }
-    if (hasScreenAccess(currentRole, "reports")) {
-      await loadAnalytics(analyticsFiltersRef.current);
-      await loadAuditLogs(auditFiltersRef.current);
-    }
-    if (hasScreenAccess(currentRole, "mosque")) {
-      await loadMosqueData();
-    }
-    if (hasScreenAccess(currentRole, "grades")) {
-      await loadGrades();
-      await loadReportCards();
-    }
-    if (hasScreenAccess(currentRole, "teacherPortal")) {
-      await loadTeacherPortalData();
-    }
-    if (hasScreenAccess(currentRole, "parentPortal")) {
-      await loadParentPortalData();
-    }
-
-    setLastSyncAt(new Date().toISOString());
-    setNotice("Synchronisation terminee.");
-  }, [
-    currentRole,
-    loadAnalytics,
-    loadAuditLogs,
-    loadEnrollments,
-    loadFinance,
-    loadMosqueData,
-    loadGrades,
-    loadReference,
-    loadReportCards,
-    loadTeacherAssignments,
-    loadParentLinks,
-    loadTeacherPortalData,
-    loadParentPortalData,
-    loadRolePermissions,
-    loadStudents,
-    loadUsers,
-    refresh,
-    rolePermissionTarget
-  ]);
-
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
   useEffect(() => {
     if (!session || !currentRole) {
       clearData();
@@ -2956,7 +2858,6 @@ export function App(): JSX.Element {
   };
 
   const toggleThemeMode = (): void => {
-<<<<<<< HEAD
     if (themeFlipTarget) return;
 
     const nextThemeMode = getNextThemeMode(themeMode);
@@ -2998,9 +2899,6 @@ export function App(): JSX.Element {
       setLanguageFlipTarget(null);
       languageFlipTimeoutRef.current = null;
     }, animationDuration);
-=======
-    setThemeMode((prev) => (prev === "light" ? "dark" : "light"));
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
   };
 
   const toggleForgotPasswordPanel = (): void => {
@@ -4019,12 +3917,8 @@ export function App(): JSX.Element {
   const classById = new Map(classes.map((item) => [item.id, item]));
   const studentById = new Map(students.map((item) => [item.id, item]));
   const levelById = new Map(levels.map((item) => [item.id, item]));
-<<<<<<< HEAD
   const formatAmount = (value: number): string =>
     new Intl.NumberFormat(currentLanguageMeta.locale, { maximumFractionDigits: 0 }).format(value);
-=======
-  const formatAmount = (value: number): string => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(value);
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
   const formatCurrencyLabel = (currency?: string): string => {
     const normalized = (currency || DEFAULT_CURRENCY).trim().toUpperCase();
     return normalized === "XOF" || normalized === "CFA" ? "F CFA" : normalized;
@@ -4610,11 +4504,7 @@ export function App(): JSX.Element {
                       <td>{item.studentName || "-"}</td>
                       <td>{formatAmount(item.paidAmount)}</td>
                       <td>{formatChannelLabel(item.paymentMethod)}</td>
-<<<<<<< HEAD
                       <td>{new Date(item.paidAt).toLocaleString(currentLanguageMeta.locale)}</td>
-=======
-                      <td>{new Date(item.paidAt).toLocaleString("fr-FR")}</td>
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
                       <td>
                         <button type="button" className="button-ghost" onClick={() => void openReceipt(item.id)}>
                           Recu en PDF
@@ -5068,11 +4958,7 @@ export function App(): JSX.Element {
                   ) : (
                     mosqueDonations.map((item) => (
                       <tr key={item.id}>
-<<<<<<< HEAD
                         <td>{new Date(item.donatedAt).toLocaleString(currentLanguageMeta.locale)}</td>
-=======
-                        <td>{new Date(item.donatedAt).toLocaleString("fr-FR")}</td>
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
                         <td>{item.memberName || item.memberCode || "-"}</td>
                         <td>{formatChannelLabel(item.channel)}</td>
                         <td>{formatMoney(item.amount, item.currency)}</td>
@@ -5648,11 +5534,7 @@ export function App(): JSX.Element {
                   <strong>
                     {unit === "amount"
                       ? formatMoney(point.value)
-<<<<<<< HEAD
                       : point.value.toLocaleString(currentLanguageMeta.locale)}
-=======
-                      : point.value.toLocaleString("fr-FR")}
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
                   </strong>
                 </div>
               ))
@@ -5675,11 +5557,7 @@ export function App(): JSX.Element {
             <span className="subtle">
               Derniere generation:{" "}
               {analyticsOverview?.generatedAt
-<<<<<<< HEAD
                 ? new Date(analyticsOverview.generatedAt).toLocaleString(currentLanguageMeta.locale)
-=======
-                ? new Date(analyticsOverview.generatedAt).toLocaleString("fr-FR")
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
                 : "-"}
             </span>
           </div>
@@ -5944,11 +5822,7 @@ export function App(): JSX.Element {
                 ) : (
                   auditLogs.items.map((item) => (
                     <tr key={item.id}>
-<<<<<<< HEAD
                       <td>{new Date(item.createdAt).toLocaleString(currentLanguageMeta.locale)}</td>
-=======
-                      <td>{new Date(item.createdAt).toLocaleString("fr-FR")}</td>
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
                       <td>{item.username || "-"}</td>
                       <td>{item.action}</td>
                       <td>{item.resource}</td>
@@ -6940,11 +6814,7 @@ export function App(): JSX.Element {
                   ) : (
                     teacherNotifications.map((item) => (
                       <tr key={item.id}>
-<<<<<<< HEAD
                         <td>{new Date(item.createdAt).toLocaleString(currentLanguageMeta.locale)}</td>
-=======
-                        <td>{new Date(item.createdAt).toLocaleString("fr-FR")}</td>
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
                         <td>{item.title}</td>
                         <td>{item.studentName || formatAudienceRoleLabel(item.audienceRole) || "-"}</td>
                         <td>{formatPortalNotificationStatusLabel(item.status)}</td>
@@ -7089,11 +6959,7 @@ export function App(): JSX.Element {
                         <td>{item.username}</td>
                         <td>{formatRoleLabel(item.role)}</td>
                         <td>{item.isActive ? "ACTIF" : "INACTIF"}</td>
-<<<<<<< HEAD
                         <td>{new Date(item.updatedAt).toLocaleString(currentLanguageMeta.locale)}</td>
-=======
-                        <td>{new Date(item.updatedAt).toLocaleString("fr-FR")}</td>
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
                         <td>
                           <div className="inline-actions">
                             <button type="button" className="button-ghost" onClick={() => startEditUser(item)}>
@@ -7646,11 +7512,7 @@ export function App(): JSX.Element {
                   ) : (
                     parentPayments.map((item) => (
                       <tr key={item.id}>
-<<<<<<< HEAD
                         <td>{new Date(item.paidAt).toLocaleString(currentLanguageMeta.locale)}</td>
-=======
-                        <td>{new Date(item.paidAt).toLocaleString("fr-FR")}</td>
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
                         <td>{item.studentName || "-"}</td>
                         <td>{item.invoiceNo || "-"}</td>
                         <td>{item.receiptNo}</td>
@@ -7719,11 +7581,7 @@ export function App(): JSX.Element {
                 ) : (
                   parentNotifications.map((item) => (
                     <tr key={item.id}>
-<<<<<<< HEAD
                       <td>{new Date(item.createdAt).toLocaleString(currentLanguageMeta.locale)}</td>
-=======
-                      <td>{new Date(item.createdAt).toLocaleString("fr-FR")}</td>
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
                       <td>{item.title}</td>
                       <td>{item.message}</td>
                       <td>{item.studentName || formatAudienceRoleLabel(item.audienceRole) || "-"}</td>
@@ -8448,10 +8306,7 @@ export function App(): JSX.Element {
           students={students}
           classes={classes}
           subjects={subjects}
-<<<<<<< HEAD
           locale={currentLanguageMeta.locale}
-=======
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
           onError={setError}
           onNotice={setNotice}
           focusSection="overview"
@@ -8465,10 +8320,7 @@ export function App(): JSX.Element {
           students={students}
           classes={classes}
           subjects={subjects}
-<<<<<<< HEAD
           locale={currentLanguageMeta.locale}
-=======
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
           onError={setError}
           onNotice={setNotice}
           focusSection="attendance"
@@ -8483,10 +8335,7 @@ export function App(): JSX.Element {
           students={students}
           classes={classes}
           subjects={subjects}
-<<<<<<< HEAD
           locale={currentLanguageMeta.locale}
-=======
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
           onError={setError}
           onNotice={setNotice}
           focusSection="timetable"
@@ -8501,10 +8350,7 @@ export function App(): JSX.Element {
           students={students}
           classes={classes}
           subjects={subjects}
-<<<<<<< HEAD
           locale={currentLanguageMeta.locale}
-=======
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
           onError={setError}
           onNotice={setNotice}
           focusSection="notifications"
@@ -8535,7 +8381,6 @@ export function App(): JSX.Element {
       ),
     [navPortail, navPrincipal]
   );
-<<<<<<< HEAD
   const nextLanguage = languageFlipTarget || getNextUiLanguage(uiLanguage);
   const nextLanguageMeta = UI_LANGUAGE_META[nextLanguage];
   const nextThemeMode = themeFlipTarget || getNextThemeMode(themeMode);
@@ -8551,14 +8396,6 @@ export function App(): JSX.Element {
       data-lang={uiLanguage}
       dir={currentLanguageMeta.dir}
     >
-=======
-  const lastSyncLabel = lastSyncAt
-    ? new Date(lastSyncAt).toLocaleString("fr-FR")
-    : "Non synchronise";
-
-  return (
-    <main className={`page ${!session ? "page-auth" : ""}`.trim()} data-theme={themeMode}>
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
       <div className="aurora aurora-left" />
       <div className="aurora aurora-right" />
 
@@ -8593,7 +8430,6 @@ export function App(): JSX.Element {
           <section className="panel auth-panel auth-card">
             <div className="auth-card-head">
               <h2>Connexion</h2>
-<<<<<<< HEAD
               <div className="auth-card-controls">
                 <FlipIconButton
                   buttonClassName="auth-theme-toggle theme-toggle"
@@ -8620,11 +8456,6 @@ export function App(): JSX.Element {
                   onClick={cycleLanguage}
                 />
               </div>
-=======
-              <button type="button" className="auth-theme-toggle" onClick={toggleThemeMode}>
-                {themeMode === "light" ? "Mode sombre" : "Mode clair"}
-              </button>
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
             </div>
             <form className="form-grid auth-form-grid" onSubmit={(event) => void login(event)}>
               <label className="auth-field">
@@ -8848,7 +8679,6 @@ export function App(): JSX.Element {
 
               <div className="header-right">
                 <div className="header-shortcuts">
-<<<<<<< HEAD
                   <FlipIconButton
                     buttonClassName="header-shortcut icon-shortcut theme-toggle"
                     currentIconSrc={themeMode === "light" ? "/mode-clair.png" : "/mode-sombre.png"}
@@ -8873,21 +8703,6 @@ export function App(): JSX.Element {
                     isFlipping={Boolean(languageFlipTarget)}
                     onClick={cycleLanguage}
                   />
-=======
-                  <button type="button" className="header-shortcut theme-toggle" onClick={toggleThemeMode}>
-                    {themeMode === "light" ? "Mode sombre" : "Mode clair"}
-                  </button>
-                  <button type="button" className="header-shortcut" onClick={() => void refresh()}>
-                    Actualiser
-                  </button>
-                  <button type="button" className="header-shortcut" onClick={() => void syncHeaderData()}>
-                    Synchroniser
-                  </button>
-                  <span className="sync-pill">
-                    <span className="sync-dot" />
-                    Maj: {lastSyncLabel}
-                  </span>
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
                 </div>
                 <div className="profile-pill">
                   <span className="avatar-badge">{profileInitial}</span>
@@ -8897,7 +8712,6 @@ export function App(): JSX.Element {
                       {profileContextLabel} | Annee: {schoolYearLabel}
                     </small>
                   </div>
-<<<<<<< HEAD
                   <button
                     type="button"
                     className="button-danger profile-logout-button"
@@ -8907,10 +8721,6 @@ export function App(): JSX.Element {
                   >
                     <img src="/deconnexion.png" alt="" aria-hidden="true" />
                     <span className="visually-hidden">Se deconnecter</span>
-=======
-                  <button type="button" className="button-danger" onClick={() => void logout()}>
-                    Se deconnecter
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
                   </button>
                 </div>
               </div>
@@ -9124,7 +8934,3 @@ export function App(): JSX.Element {
     </main>
   );
 }
-<<<<<<< HEAD
-=======
-
->>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
