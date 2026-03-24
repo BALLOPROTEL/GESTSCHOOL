@@ -126,7 +126,10 @@ type SchoolLifePanelProps = {
   students: StudentRef[];
   classes: ClassRef[];
   subjects: SubjectRef[];
+<<<<<<< HEAD
   locale: string;
+=======
+>>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
   onError: (message: string | null) => void;
   onNotice: (message: string | null) => void;
   focusSection?: SchoolLifeFocus;
@@ -208,7 +211,10 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     students,
     classes,
     subjects,
+<<<<<<< HEAD
     locale,
+=======
+>>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
     onError,
     onNotice,
     focusSection = "all",
@@ -978,7 +984,11 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
                     <td>{labelFromMap(validationStatusLabels, item.justificationStatus)}</td>
                     <td>
                       {item.validatedAt
+<<<<<<< HEAD
                         ? `${new Date(item.validatedAt).toLocaleString(locale)}${item.validationComment ? ` | ${item.validationComment}` : ""}`
+=======
+                        ? `${new Date(item.validatedAt).toLocaleString("fr-FR")}${item.validationComment ? ` | ${item.validationComment}` : ""}`
+>>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
                         : item.validationComment || "-"}
                     </td>
                     <td>{item.attachments?.length ?? 0}</td>
@@ -1097,7 +1107,11 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
                   <tr key={item.id}>
                     <td><a href={item.fileUrl} target="_blank" rel="noreferrer">{item.fileName}</a></td>
                     <td>{item.mimeType || "-"}</td>
+<<<<<<< HEAD
                     <td>{new Date(item.createdAt).toLocaleString(locale)}</td>
+=======
+                    <td>{new Date(item.createdAt).toLocaleString("fr-FR")}</td>
+>>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
                     <td><button type="button" className="button-danger" onClick={() => void removeAttendanceAttachment(item.id)}>Supprimer</button></td>
                   </tr>
                 ))
@@ -1235,8 +1249,13 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
                     <td>{item.targetAddress || item.studentName || labelFromMap(notificationAudienceLabels, item.audienceRole) || "-"}</td>
                     <td>{item.provider || "-"}</td>
                     <td>{item.attempts}</td>
+<<<<<<< HEAD
                     <td>{item.scheduledAt ? new Date(item.scheduledAt).toLocaleString(locale) : "-"}</td>
                     <td>{item.sentAt ? new Date(item.sentAt).toLocaleString(locale) : item.nextAttemptAt ? `Nouvelle tentative ${new Date(item.nextAttemptAt).toLocaleString(locale)}` : "-"}</td>
+=======
+                    <td>{item.scheduledAt ? new Date(item.scheduledAt).toLocaleString("fr-FR") : "-"}</td>
+                    <td>{item.sentAt ? new Date(item.sentAt).toLocaleString("fr-FR") : item.nextAttemptAt ? `Nouvelle tentative ${new Date(item.nextAttemptAt).toLocaleString("fr-FR")}` : "-"}</td>
+>>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
                     <td>{item.status !== "SENT" ? <button type="button" className="button-ghost" onClick={() => void markNotificationAsSent(item.id)}>Marquer comme envoyee</button> : null}</td>
                   </tr>
                 ))
@@ -1248,3 +1267,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     </div>
   );
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> 0eca837cd2b208e3605b080c96e0f35358694801
