@@ -1,5 +1,12 @@
 import { Children, FormEvent, ReactNode, cloneElement, isValidElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { ConstructionPageMosquee } from "./construction-page-mosquee";
+import {
+  HeaderNavigation,
+  type HeaderNavigationAction,
+  type HeaderNavigationGroup,
+  type HeaderPreferenceAction
+} from "./header-navigation";
 import { UI_LANGUAGE_META, UI_LANGUAGE_ORDER, UiLanguage, useDomTranslation } from "./i18n";
 import { SchoolLifePanel } from "./school-life-panel";
 
@@ -1202,11 +1209,8 @@ export function App(): JSX.Element {
   const [themeFlipTarget, setThemeFlipTarget] = useState<ThemeMode | null>(null);
   const [languageFlipTarget, setLanguageFlipTarget] = useState<UiLanguage | null>(null);
   const currentLanguageMeta = UI_LANGUAGE_META[uiLanguage];
-  const [mobileHeaderOpen, setMobileHeaderOpen] = useState(false);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [mobilePrincipalOpen, setMobilePrincipalOpen] = useState(true);
-  const [mobileVieOpen, setMobileVieOpen] = useState(false);
   const [mobileTasksOpen, setMobileTasksOpen] = useState(false);
+  const [headerNotificationCount, setHeaderNotificationCount] = useState(0);
   const themeFlipTimeoutRef = useRef<number | null>(null);
   const languageFlipTimeoutRef = useRef<number | null>(null);
 
@@ -1694,8 +1698,6 @@ export function App(): JSX.Element {
   }, [currentRole, tab]);
 
   useEffect(() => {
-    setMobileHeaderOpen(false);
-    setMobileSidebarOpen(false);
     setMobileTasksOpen(false);
   }, [session?.user.username, tab]);
 
@@ -1745,6 +1747,7 @@ export function App(): JSX.Element {
     setAuditLogs(null);
     setAuditExportFormat("PDF");
     setReportWorkflowStep("overview");
+    setHeaderNotificationCount(0);
     setLastSyncAt(null);
     setModuleQueryInput("");
     setModuleQuery("");
@@ -2217,6 +2220,59 @@ export function App(): JSX.Element {
     setReportCards((await response.json()) as ReportCard[]);
   }, [api]);
 
+  const loadHeaderNotificationCount = useCallback(async () => {
+    if (!sessionRef.current || !currentRole) {
+      setHeaderNotificationCount(0);
+      return;
+    }
+
+    if (currentRole === "ENSEIGNANT") {
+      setHeaderNotificationCount(teacherOverview?.notificationsCount ?? teacherNotifications.length);
+      return;
+    }
+
+    if (currentRole === "PARENT") {
+      setHeaderNotificationCount(parentOverview?.notificationsCount ?? parentNotifications.length);
+      return;
+    }
+
+    if (!hasScreenAccess(currentRole, "schoolLifeNotifications")) {
+      setHeaderNotificationCount(0);
+      return;
+    }
+
+    const response = await api("/notifications", {}, false);
+    if (!response.ok) {
+      setHeaderNotificationCount(0);
+      return;
+    }
+
+    const rows = (await response.json()) as Array<{
+      deliveryStatus?: string;
+      status?: string;
+    }>;
+
+    const liveItems = rows.filter((item) => {
+      const status = (item.status || "").toUpperCase();
+      const deliveryStatus = (item.deliveryStatus || "").toUpperCase();
+      return (
+        status === "PENDING" ||
+        status === "SCHEDULED" ||
+        deliveryStatus === "QUEUED" ||
+        deliveryStatus === "RETRYING"
+      );
+    });
+
+    setHeaderNotificationCount(liveItems.length || rows.length);
+  }, [
+    api,
+    currentRole,
+    parentNotifications.length,
+    parentOverview?.notificationsCount,
+    teacherNotifications.length,
+    teacherOverview?.notificationsCount
+  ]);
+
   useEffect(() => {
     if (!session || !currentRole) {
       clearData();
@@ -2244,7 +2300,6 @@ export function App(): JSX.Element {
       void loadAnalytics(analyticsFiltersRef.current);
       void loadAuditLogs(auditFiltersRef.current);
     }
-    if (hasScreenAccess(currentRole, "mosque")) void loadMosqueData();
     if (hasScreenAccess(currentRole, "grades")) {
       void loadGrades();
       void loadReportCards();
@@ -2262,7 +2317,6 @@ export function App(): JSX.Element {
     loadAuditLogs,
     loadEnrollments,
     loadFinance,
-    loadMosqueData,
     loadGrades,
     loadReference,
     loadReportCards,
@@ -2276,6 +2330,29 @@ export function App(): JSX.Element {
     rolePermissionTarget,
     session
   ]);
+
+  useEffect(() => {
+    if (!session || !currentRole) {
+      setHeaderNotificationCount(0);
+      return;
+    }
+
+    let isCancelled = false;
+    const syncHeaderNotifications = async (): Promise<void> => {
+      await loadHeaderNotificationCount();
+      if (isCancelled) return;
+    };
+
+    void syncHeaderNotifications();
+    const timer = window.setInterval(() => {
+      void syncHeaderNotifications();
+    }, 45_000);
+
+    return () => {
+      isCancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [currentRole, loadHeaderNotificationCount, session]);
 
   useEffect(() => {
     if (!levelForm.cycleId && cycles[0]) setLevelForm((prev) => ({ ...prev, cycleId: cycles[0].id }));
@@ -4522,6 +4599,8 @@ export function App(): JSX.Element {
   };
 
   const renderMosque = (): JSX.Element => {
+    return <ConstructionPageMosquee />;
+
     const mosqueSteps: WorkflowStepDef[] = [
       { id: "members", title: "Membres", hint: "Gerer le registre des fideles.", done: mosqueMembers.length > 0 },
       { id: "activities", title: "Activites", hint: "Planifier les activites de la mosquee.", done: mosqueActivities.length > 0 },
@@ -5024,8 +5103,8 @@ export function App(): JSX.Element {
                   </tr>
                 </thead>
                 <tbody>
-                  {mosqueDashboard?.donationsByChannel?.length ? (
-                    mosqueDashboard.donationsByChannel.map((item) => (
+                  {(mosqueDashboard?.donationsByChannel ?? []).length ? (
+                    (mosqueDashboard?.donationsByChannel ?? []).map((item) => (
                       <tr key={item.channel}>
                         <td>{formatChannelLabel(item.channel)}</td>
                         <td>{item.count}</td>
@@ -8368,25 +8447,97 @@ export function App(): JSX.Element {
   const profileInitial = session?.user.username?.charAt(0)?.toUpperCase() || "U";
   const profileContextLabel = currentRole ? ROLE_CONTEXT_LABELS[currentRole] : "Session";
   const quickLinks = homeTiles.filter((tile) => tile.screen !== tab).slice(0, 4);
-  const visibleScreens = currentRole
-    ? SCREEN_DEFS.filter((entry) => entry.roles.includes(currentRole))
-    : [];
-  const navPrincipal = visibleScreens.filter((entry) => entry.group === "principal");
-  const navVieScolaire = visibleScreens.filter((entry) => entry.group === "vie");
-  const navPortail = visibleScreens.filter((entry) => entry.group === "portail");
-  const mobilePrimaryScreens = useMemo(
-    () =>
-      [...navPrincipal, ...navPortail].filter(
-        (entry, index, array) => array.findIndex((candidate) => candidate.id === entry.id) === index
-      ),
-    [navPortail, navPrincipal]
-  );
   const nextLanguage = languageFlipTarget || getNextUiLanguage(uiLanguage);
   const nextLanguageMeta = UI_LANGUAGE_META[nextLanguage];
   const nextThemeMode = themeFlipTarget || getNextThemeMode(themeMode);
   const lastSyncLabel = lastSyncAt
     ? new Date(lastSyncAt).toLocaleString(currentLanguageMeta.locale)
     : "Non synchronise";
+  const dashboardTarget =
+    currentRole && hasScreenAccess(currentRole, "dashboard")
+      ? "dashboard"
+      : currentRole
+        ? ROLE_HOME_SCREEN[currentRole] || "dashboard"
+        : "dashboard";
+  const buildHeaderAction = (screen: ScreenId, label: string): HeaderNavigationAction => {
+    const allowed = currentRole ? hasScreenAccess(currentRole, screen) : false;
+    return {
+      id: screen,
+      label,
+      active: tab === screen,
+      disabled: !allowed,
+      helperText: allowed ? undefined : "Acces restreint",
+      onSelect: () => {
+        if (!allowed) return;
+        setTab(screen);
+      }
+    };
+  };
+  const dashboardAction: HeaderNavigationAction = {
+    id: dashboardTarget,
+    label: "Tableau de bord",
+    active: tab === dashboardTarget,
+    disabled: !currentRole,
+    onSelect: () => setTab(dashboardTarget)
+  };
+  const scolariteActions: HeaderNavigationAction[] = [
+    buildHeaderAction("enrollments", "Inscriptions"),
+    buildHeaderAction("iam", "Utilisateurs & droits"),
+    buildHeaderAction("students", "Eleves"),
+    buildHeaderAction("finance", "Comptabilite")
+  ];
+  const schoolLifeActions: HeaderNavigationAction[] = [
+    buildHeaderAction("grades", "Notes & bulletins"),
+    buildHeaderAction("schoolLifeOverview", "Pilotage"),
+    buildHeaderAction("schoolLifeAttendance", "Absences"),
+    buildHeaderAction("schoolLifeTimetable", "Emploi du temps"),
+    buildHeaderAction("schoolLifeNotifications", "Notifications")
+  ];
+  const settingsActions: HeaderNavigationAction[] = [
+    buildHeaderAction("reference", "Referentiel"),
+    buildHeaderAction("reports", "Rapports & conformite")
+  ];
+  const settingsGroups: HeaderNavigationGroup[] = [
+    {
+      id: "mosque-management",
+      label: "Gestion mosquee",
+      items: [buildHeaderAction("mosque", "Mosquee")]
+    }
+  ];
+  const preferenceActions: HeaderPreferenceAction[] = [
+    {
+      id: "language",
+      label: "Changer la langue",
+      helperText: `${currentLanguageMeta.label} -> ${nextLanguageMeta.label}`,
+      iconSrc: currentLanguageMeta.iconSrc,
+      onSelect: cycleLanguage
+    },
+    {
+      id: "theme",
+      label: "Changer le mode",
+      helperText: themeMode === "dark" ? "Activer le mode clair" : "Activer le mode sombre",
+      iconSrc: themeMode === "light" ? "/mode-clair.png" : "/mode-sombre.png",
+      onSelect: toggleThemeMode
+    }
+  ];
+  const notificationTarget: ScreenId =
+    currentRole === "ENSEIGNANT"
+      ? "teacherPortal"
+      : currentRole === "PARENT"
+        ? "parentPortal"
+        : currentRole && hasScreenAccess(currentRole, "schoolLifeNotifications")
+          ? "schoolLifeNotifications"
+          : dashboardTarget;
+  const notificationActive =
+    notificationTarget === "schoolLifeNotifications"
+      ? tab === "schoolLifeNotifications"
+      : tab === notificationTarget;
+  const headerSearchSubmit = (): void => {
+    if (!moduleQueryInput.trim()) return;
+    if (currentRole && hasScreenAccess(currentRole, "dashboard")) {
+      setTab("dashboard");
+    }
+  };
 
   return (
     <main
@@ -8640,230 +8791,38 @@ export function App(): JSX.Element {
         </section>
       ) : (
         <section className="workspace fade-up">
-          <header className="panel app-header app-header-v2 app-shell-header">
-            <div className="brand-block">
-              <span className="brand-logo">
-                <img src="/logo.png" alt={`Logo ${SCHOOL_NAME}`} className="brand-logo-image" />
-              </span>
-              <div className="brand-copy">
-                <p className="brand-name">{SCHOOL_NAME}</p>
-                <h1>{activeScreen.label}</h1>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              className="mobile-header-toggle"
-              aria-expanded={mobileHeaderOpen}
-              aria-controls="mobile-header-panel"
-              onClick={() => {
-                setMobileSidebarOpen(false);
-                setMobileHeaderOpen((prev) => !prev);
-              }}
-            >
-              {mobileHeaderOpen ? "Fermer le menu" : "Menu rapide"}
-            </button>
-
-            <div
-              id="mobile-header-panel"
-              className={`app-header-tools ${mobileHeaderOpen ? "is-open" : ""}`.trim()}
-            >
-              <div className="top-search">
-                <input
-                  id="module-search"
-                  value={moduleQueryInput}
-                  onChange={(event) => setModuleQueryInput(event.target.value)}
-                  placeholder="Recherche rapide..."
-                />
-              </div>
-
-              <div className="header-right">
-                <div className="header-shortcuts">
-                  <FlipIconButton
-                    buttonClassName="header-shortcut icon-shortcut theme-toggle"
-                    currentIconSrc={themeMode === "light" ? "/mode-clair.png" : "/mode-sombre.png"}
-                    nextIconSrc={nextThemeMode === "light" ? "/mode-clair.png" : "/mode-sombre.png"}
-                    label={
-                      themeFlipTarget
-                        ? "Changement de theme en cours"
-                        : `Passer en ${nextThemeMode === "dark" ? "mode sombre" : "mode clair"}`
-                    }
-                    isFlipping={Boolean(themeFlipTarget)}
-                    onClick={toggleThemeMode}
-                  />
-                  <FlipIconButton
-                    buttonClassName="header-shortcut icon-shortcut language-toggle"
-                    currentIconSrc={currentLanguageMeta.iconSrc}
-                    nextIconSrc={nextLanguageMeta.iconSrc}
-                    label={
-                      languageFlipTarget
-                        ? "Changement de langue en cours"
-                        : `Passer de ${currentLanguageMeta.label} a ${nextLanguageMeta.label}`
-                    }
-                    isFlipping={Boolean(languageFlipTarget)}
-                    onClick={cycleLanguage}
-                  />
-                </div>
-                <div className="profile-pill">
-                  <span className="avatar-badge">{profileInitial}</span>
-                  <div className="profile-meta">
-                    <strong>{session.user.username}</strong>
-                    <small>
-                      {profileContextLabel} | Annee: {schoolYearLabel}
-                    </small>
-                  </div>
-                  <button
-                    type="button"
-                    className="button-danger profile-logout-button"
-                    onClick={() => void logout()}
-                    aria-label="Se deconnecter"
-                    title="Se deconnecter"
-                  >
-                    <img src="/deconnexion.png" alt="" aria-hidden="true" />
-                    <span className="visually-hidden">Se deconnecter</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </header>
-
-          <div className="mobile-sidebar-entry">
-            <button
-              type="button"
-              className={`mobile-nav-toggle ${mobileSidebarOpen ? "is-open" : ""}`.trim()}
-              aria-expanded={mobileSidebarOpen}
-              aria-controls="mobile-sidebar-panel"
-              onClick={() => {
-                setMobileHeaderOpen(false);
-                setMobileSidebarOpen((prev) => !prev);
-              }}
-            >
-              <span className="mobile-nav-icon" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-              </span>
-              <span className="mobile-nav-label">MENU</span>
-            </button>
-
-            <div
-              id="mobile-sidebar-panel"
-              className={`panel mobile-sidebar-panel ${mobileSidebarOpen ? "is-open" : ""}`.trim()}
-            >
-              <div className="mobile-sidebar-group">
-                <button
-                  type="button"
-                  className="mobile-sidebar-group-toggle"
-                  aria-expanded={mobilePrincipalOpen}
-                  onClick={() => setMobilePrincipalOpen((prev) => !prev)}
-                >
-                  <span>Principal</span>
-                  <span className={`mobile-sidebar-chevron ${mobilePrincipalOpen ? "is-open" : ""}`.trim()}>v</span>
-                </button>
-                <div
-                  className={`mobile-sidebar-links ${mobilePrincipalOpen ? "is-open" : ""}`.trim()}
-                >
-                  {mobilePrimaryScreens.map((screen) => (
-                    <button
-                      key={screen.id}
-                      type="button"
-                      className={`mobile-sidebar-link ${tab === screen.id ? "is-active" : ""}`.trim()}
-                      onClick={() => {
-                        setTab(screen.id);
-                        setMobileSidebarOpen(false);
-                      }}
-                    >
-                      {screen.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {navVieScolaire.length > 0 ? (
-                <div className="mobile-sidebar-group">
-                  <button
-                    type="button"
-                    className="mobile-sidebar-group-toggle"
-                    aria-expanded={mobileVieOpen}
-                    onClick={() => setMobileVieOpen((prev) => !prev)}
-                  >
-                    <span>Vie scolaire</span>
-                    <span className={`mobile-sidebar-chevron ${mobileVieOpen ? "is-open" : ""}`.trim()}>v</span>
-                  </button>
-                  <div className={`mobile-sidebar-links ${mobileVieOpen ? "is-open" : ""}`.trim()}>
-                    {navVieScolaire.map((screen) => (
-                      <button
-                        key={screen.id}
-                        type="button"
-                        className={`mobile-sidebar-link ${tab === screen.id ? "is-active" : ""}`.trim()}
-                        onClick={() => {
-                          setTab(screen.id);
-                          setMobileSidebarOpen(false);
-                        }}
-                      >
-                        {screen.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          </div>
+          <HeaderNavigation
+            brandName={SCHOOL_NAME}
+            logoAlt={`Logo ${SCHOOL_NAME}`}
+            logoSrc="/logo.png"
+            searchPlaceholder="Rechercher un module, un ecran, une action..."
+            searchValue={moduleQueryInput}
+            onSearchChange={setModuleQueryInput}
+            onSearchSubmit={headerSearchSubmit}
+            dashboard={dashboardAction}
+            scolarite={scolariteActions}
+            schoolLife={schoolLifeActions}
+            settings={settingsActions}
+            settingsGroups={settingsGroups}
+            preferences={preferenceActions}
+            notifications={{
+              active: notificationActive,
+              count: headerNotificationCount,
+              iconSrc: "/notification.png",
+              label: "Notifications en temps reel",
+              onSelect: () => setTab(notificationTarget)
+            }}
+            user={{
+              avatar: profileInitial,
+              contextLabel: profileContextLabel,
+              roleLabel: currentRoleLabel,
+              secondaryLabel: `Annee: ${schoolYearLabel}`,
+              username: session.user.username,
+              onLogout: () => void logout()
+            }}
+          />
 
           <div className="app-shell">
-            <aside className="panel app-sidebar">
-              <div className="sidebar-head">
-                <p className="eyebrow">Navigation</p>
-                <strong>Modules</strong>
-              </div>
-
-              <div className="sidebar-group">
-                <p className="sidebar-title">Principal</p>
-                {navPrincipal.map((screen) => (
-                  <button
-                    key={screen.id}
-                    type="button"
-                    className={`sidebar-link ${tab === screen.id ? "is-active" : ""}`}
-                    onClick={() => setTab(screen.id)}
-                  >
-                    {screen.label}
-                  </button>
-                ))}
-              </div>
-
-              {navVieScolaire.length > 0 ? (
-                <div className="sidebar-group">
-                  <p className="sidebar-title">Vie scolaire</p>
-                  {navVieScolaire.map((screen) => (
-                    <button
-                      key={screen.id}
-                      type="button"
-                      className={`sidebar-link ${tab === screen.id ? "is-active" : ""}`}
-                      onClick={() => setTab(screen.id)}
-                    >
-                      {screen.label}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-
-              {navPortail.length > 0 ? (
-                <div className="sidebar-group">
-                  <p className="sidebar-title">Portails</p>
-                  {navPortail.map((screen) => (
-                    <button
-                      key={screen.id}
-                      type="button"
-                      className={`sidebar-link ${tab === screen.id ? "is-active" : ""}`}
-                      onClick={() => setTab(screen.id)}
-                    >
-                      {screen.label}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </aside>
-
             <div className="app-shell-main">
               {tab !== "dashboard" ? (
                 <section className="panel context-bar">

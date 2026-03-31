@@ -22,6 +22,9 @@ spec:
           envFrom:
             - secretRef:
                 name: gestschool-api-secrets
+          env:
+            - name: NOTIFICATIONS_WORKER_ENABLED
+              value: "false"
           readinessProbe:
             httpGet:
               path: /api/v1/health/ready

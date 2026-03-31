@@ -1,9 +1,11 @@
 import { type INestApplication } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { hash } from "bcryptjs";
 import * as request from "supertest";
 
 import { AppModule } from "../src/app.module";
+import { BackgroundTasksService } from "../src/background/background-tasks.service";
 import { PrismaService } from "../src/database/prisma.service";
 import { UserRole } from "../src/security/roles.enum";
 
@@ -13,7 +15,9 @@ jest.setTimeout(120_000);
 
 describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
   let app: INestApplication;
+  let backgroundTasks: BackgroundTasksService;
   let prisma: PrismaService;
+  let jwtService: JwtService;
 
   let studentOneId: string;
   let studentTwoId: string;
@@ -50,9 +54,12 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
     }
 
     process.env.JWT_SECRET = process.env.JWT_SECRET || "test-secret";
+    process.env.JWT_ISSUER = process.env.JWT_ISSUER || "gestschool-test";
+    process.env.JWT_AUDIENCE = process.env.JWT_AUDIENCE || "gestschool-test-clients";
     process.env.JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "1h";
     process.env.REFRESH_TOKEN_TTL_DAYS = process.env.REFRESH_TOKEN_TTL_DAYS || "30";
     process.env.DEFAULT_TENANT_ID = process.env.DEFAULT_TENANT_ID || TENANT_ID;
+    process.env.REDIS_URL = "";
     process.env.NOTIFICATIONS_WORKER_ENABLED = "false";
     process.env.NOTIFY_EMAIL_PROVIDER = "MOCK";
     process.env.NOTIFY_SMS_PROVIDER = "MOCK";
@@ -68,6 +75,8 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
     await app.init();
 
     prisma = app.get(PrismaService);
+    jwtService = app.get(JwtService);
+    backgroundTasks = app.get(BackgroundTasksService);
     await cleanDatabase();
     await seedUsers();
   });
@@ -98,6 +107,28 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
 
   it("GET /students should reject missing token", async () => {
     await request(app.getHttpServer()).get("/api/v1/students").expect(401);
+  });
+
+  it("GET /students should reject token with invalid audience", async () => {
+    const invalidAudienceToken = await jwtService.signAsync(
+      {
+        sub: "invalid-user",
+        username: "admin@gestschool.local",
+        role: UserRole.ADMIN,
+        tenantId: TENANT_ID
+      },
+      {
+        secret: process.env.JWT_SECRET,
+        issuer: process.env.JWT_ISSUER,
+        audience: "wrong-audience",
+        expiresIn: 3600
+      }
+    );
+
+    await request(app.getHttpServer())
+      .get("/api/v1/students")
+      .set("Authorization", `Bearer ${invalidAudienceToken}`)
+      .expect(401);
   });
 
   it("GET /students should reject role not authorized", async () => {
@@ -327,6 +358,42 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
     expect(invoices.body).toHaveLength(1);
     expect(invoices.body[0].amountPaid).toBe(120000);
     expect(invoices.body[0].status).toBe("PARTIAL");
+
+    const financeOutboxEvents = await prisma.outboxEvent.findMany({
+      where: {
+        tenantId: TENANT_ID,
+        eventType: "notification.requested",
+        dedupeKey: `notification-request:finance:payment:${paymentId}`,
+        status: "PENDING"
+      }
+    });
+    expect(financeOutboxEvents).toHaveLength(1);
+    const financePayload = financeOutboxEvents[0].payload as Record<string, any>;
+    const financeMetadata = financeOutboxEvents[0].metadata as Record<string, any>;
+    expect(financePayload.kind).toBe("PAYMENT_RECEIVED");
+    expect(financePayload.source.domain).toBe("finance");
+    expect(financePayload.recipient.studentId).toBe(studentOneId);
+    expect(financeMetadata.schemaVersion).toBe("v1");
+    expect(financeMetadata.tenantId).toBe(TENANT_ID);
+    expect(financeMetadata.eventId).toBeDefined();
+    expect(financeMetadata.correlationId).toBe(paymentId);
+
+    const flushed = await flushBackgroundTasks();
+    expect(flushed.notificationRequests.processedCount).toBeGreaterThanOrEqual(1);
+
+    const adminTokens = await login("admin@gestschool.local", "admin12345");
+    const notifications = await request(app.getHttpServer())
+      .get("/api/v1/notifications")
+      .query({ studentId: studentOneId, audienceRole: "PARENT" })
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .expect(200);
+
+    expect(
+      notifications.body.some(
+        (item: { message: string; title: string }) =>
+          item.title === "Paiement recu" && item.message.includes(payment.body.receiptNo)
+      )
+    ).toBe(true);
   });
 
   it("GET /payments/:id/receipt and /finance/recovery should return receipt + dashboard", async () => {
@@ -569,6 +636,38 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
 
     const adminTokens = await login("admin@gestschool.local", "admin12345");
 
+    const pendingOutboxEvents = await prisma.outboxEvent.findMany({
+      where: {
+        tenantId: TENANT_ID,
+        eventType: "notification.requested",
+        dedupeKey: {
+          contains: "notification-request:school-life:attendance:"
+        },
+        status: "PENDING"
+      }
+    });
+    expect(pendingOutboxEvents.length).toBeGreaterThanOrEqual(2);
+    const attendancePayload = pendingOutboxEvents[0].payload as Record<string, any>;
+    const attendanceMetadata = pendingOutboxEvents[0].metadata as Record<string, any>;
+    expect(attendancePayload.kind).toBe("ATTENDANCE_ALERT");
+    expect(attendancePayload.source.domain).toBe("school-life");
+    expect(attendanceMetadata.schemaVersion).toBe("v1");
+    expect(attendanceMetadata.tenantId).toBe(TENANT_ID);
+    expect(attendanceMetadata.eventId).toBeDefined();
+
+    const beforeProcessing = await request(app.getHttpServer())
+      .get("/api/v1/notifications")
+      .query({ studentId: studentOneId, audienceRole: "PARENT" })
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .expect(200);
+
+    expect(
+      beforeProcessing.body.some((item: { title: string }) => item.title.includes("Alerte"))
+    ).toBe(false);
+
+    const processedEvents = await flushBackgroundTasks();
+    expect(processedEvents.notificationRequests.processedCount).toBeGreaterThanOrEqual(2);
+
     const autoNotifications = await request(app.getHttpServer())
       .get("/api/v1/notifications")
       .query({ studentId: studentOneId, audienceRole: "PARENT" })
@@ -578,6 +677,9 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
     expect(
       autoNotifications.body.some((item: { title: string }) => item.title.includes("Alerte"))
     ).toBe(true);
+
+    const processedAgain = await flushBackgroundTasks();
+    expect(processedAgain.notificationRequests.processedCount).toBe(0);
 
     await request(app.getHttpServer())
       .post("/api/v1/timetable-slots")
@@ -707,6 +809,14 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
   });
 
   it("POST /auth/refresh should rotate refresh token", async () => {
+    await flushBackgroundTasks();
+    const beforeRefreshAuditCount = await prisma.iamAuditLog.count({
+      where: {
+        tenantId: TENANT_ID,
+        action: "AUTH_REFRESH_SUCCESS"
+      }
+    });
+
     const adminTokens = await login("admin@gestschool.local", "admin12345");
 
     const firstRefresh = await request(app.getHttpServer())
@@ -721,6 +831,26 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
       .post("/api/v1/auth/refresh")
       .send({ refreshToken: adminTokens.refreshToken })
       .expect(401);
+
+    const pendingAuditEvents = await prisma.outboxEvent.count({
+      where: {
+        tenantId: TENANT_ID,
+        eventType: "iam.audit-log.requested",
+        status: "PENDING"
+      }
+    });
+    expect(pendingAuditEvents).toBeGreaterThanOrEqual(1);
+
+    const flushed = await flushBackgroundTasks();
+    expect(flushed.audit.processedCount).toBeGreaterThanOrEqual(1);
+
+    const afterRefreshAuditCount = await prisma.iamAuditLog.count({
+      where: {
+        tenantId: TENANT_ID,
+        action: "AUTH_REFRESH_SUCCESS"
+      }
+    });
+    expect(afterRefreshAuditCount).toBe(beforeRefreshAuditCount + 1);
   });
 
   it("POST /auth/logout should revoke refresh token", async () => {
@@ -801,9 +931,29 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
       .set("Authorization", `Bearer ${adminTokens.accessToken}`)
       .expect(204);
 
+    const pendingAuditOutbox = await prisma.outboxEvent.count({
+      where: {
+        tenantId: TENANT_ID,
+        eventType: "iam.audit-log.requested",
+        status: "PENDING"
+      }
+    });
+    expect(pendingAuditOutbox).toBeGreaterThanOrEqual(1);
+
+    const flushed = await flushBackgroundTasks();
+    expect(flushed.audit.processedCount).toBeGreaterThanOrEqual(1);
+
     const auditRows = await prisma.iamAuditLog.findMany({
       where: {
-        tenantId: TENANT_ID
+        tenantId: TENANT_ID,
+        action: {
+          in: [
+            "USER_CREATED",
+            "USER_UPDATED",
+            "USER_DELETED",
+            "ROLE_PERMISSIONS_UPDATED"
+          ]
+        }
       }
     });
     expect(auditRows.length).toBeGreaterThan(0);
@@ -1087,6 +1237,82 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
     expect(callback.body.status).toBe("SENT");
     expect(callback.body.deliveryStatus).toBe("DELIVERED");
     expect(callback.body.deliveredAt).toBeDefined();
+
+    const duplicateCallback = await request(app.getHttpServer())
+      .post("/api/v1/notifications/delivery-events")
+      .set("x-notification-webhook-secret", "test-webhook-secret")
+      .send({
+        providerMessageId: current.providerMessageId,
+        provider: current.provider,
+        status: "DELIVERED"
+      })
+      .expect(201);
+
+    expect(duplicateCallback.body.id).toBe(callback.body.id);
+
+    const callbackRows = await prisma.notificationProviderCallback.count({
+      where: {
+        notificationId: created.body.id,
+        provider: current.provider,
+        providerMessageId: current.providerMessageId,
+        eventStatus: "DELIVERED"
+      }
+    });
+    expect(callbackRows).toBe(1);
+  });
+
+  it("Sprint 9.1 should persist retries and partial notification failures", async () => {
+    const adminTokens = await login("admin@gestschool.local", "admin12345");
+
+    const created = await request(app.getHttpServer())
+      .post("/api/v1/notifications")
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .send({
+        title: "SMS sans cible",
+        message: "Test de retry worker.",
+        audienceRole: "ADMIN",
+        channel: "SMS"
+      })
+      .expect(201);
+
+    let current: { deliveryStatus: string; id: string; status: string } | undefined;
+    for (let index = 0; index < 4; index += 1) {
+      await prisma.notification.update({
+        where: { id: created.body.id },
+        data: {
+          nextAttemptAt: new Date(Date.now() - 1_000),
+          updatedAt: new Date()
+        }
+      });
+
+      const dispatched = await request(app.getHttpServer())
+        .post("/api/v1/notifications/dispatch-pending")
+        .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+        .send({ limit: 50 })
+        .expect(201);
+
+      const candidate = dispatched.body.notifications.find(
+        (item: { id: string }) => item.id === created.body.id
+      );
+      if (candidate) {
+        current = candidate;
+      }
+    }
+
+    expect(current).toBeDefined();
+    expect(current?.status).toBe("FAILED");
+    expect(current?.deliveryStatus).toBe("FAILED");
+
+    const attempts = await prisma.notificationDeliveryAttempt.findMany({
+      where: {
+        notificationId: created.body.id
+      },
+      orderBy: [{ attemptNo: "asc" }]
+    });
+
+    expect(attempts.length).toBeGreaterThanOrEqual(4);
+    expect(attempts[0].status).toBe("RETRYING");
+    expect(attempts[attempts.length - 1].status).toBe("FAILED");
   });
 
   it("Sprint 10 should expose readiness, metrics and storage descriptor endpoints", async () => {
@@ -1106,6 +1332,13 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
       .get("/api/v1/monitoring/metrics")
       .expect(200);
     expect(metrics.text).toContain("gestschool_process_uptime_seconds");
+    expect(metrics.text).toContain("gestschool_notification_delivery_attempts_total");
+    expect(metrics.text).toContain("gestschool_notification_provider_callbacks_total");
+    expect(metrics.text).toContain(
+      'gestschool_notification_provider_callbacks_total{event_status="DELIVERED"}'
+    );
+    expect(metrics.text).toContain('gestschool_notification_requests_outbox_total{status="PENDING"}');
+    expect(metrics.text).toContain("gestschool_notification_requests_outbox_lag_seconds_max");
 
     const descriptor = await request(app.getHttpServer())
       .post("/api/v1/storage/upload-descriptor")
@@ -1124,6 +1357,7 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
   });
 
   it("Sprint 11 should expose analytics overview and compliance audit exports", async () => {
+    await flushBackgroundTasks();
     const adminTokens = await login("admin@gestschool.local", "admin12345");
 
     const overview = await request(app.getHttpServer())
@@ -1138,7 +1372,7 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
       .get("/api/v1/analytics/compliance/audit-logs?page=1&pageSize=20")
       .set("Authorization", `Bearer ${adminTokens.accessToken}`)
       .expect(200);
-    expect(auditPage.body.total).toBeGreaterThanOrEqual(0);
+    expect(auditPage.body.total).toBeGreaterThan(0);
     expect(Array.isArray(auditPage.body.items)).toBe(true);
 
     const auditExport = await request(app.getHttpServer())
@@ -1170,9 +1404,14 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
     };
   }
 
+  async function flushBackgroundTasks() {
+    return backgroundTasks.runOnce();
+  }
+
   async function cleanDatabase(): Promise<void> {
     await prisma.refreshToken.deleteMany({});
     await prisma.iamAuditLog.deleteMany({});
+    await prisma.outboxEvent.deleteMany({});
     await prisma.teacherClassAssignment.deleteMany({});
     await prisma.parentStudentLink.deleteMany({});
     await prisma.rolePermission.deleteMany({});
@@ -1241,4 +1480,3 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
     }
   }
 });
-

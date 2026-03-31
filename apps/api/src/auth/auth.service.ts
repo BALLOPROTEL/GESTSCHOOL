@@ -6,6 +6,7 @@ import { JwtService } from "@nestjs/jwt";
 import { Prisma, type User } from "@prisma/client";
 import { compare, hash } from "bcryptjs";
 
+import { AuditService } from "../audit/audit.service";
 import { findPasswordPolicyViolation } from "../common/password-policy";
 import { PrismaService } from "../database/prisma.service";
 import { UserRole } from "../security/roles.enum";
@@ -40,6 +41,7 @@ export type MessageResponse = {
 @Injectable()
 export class AuthService {
   constructor(
+    private readonly auditService: AuditService,
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService
@@ -163,7 +165,9 @@ export class AuthService {
       },
       {
         secret: this.getPasswordResetSecret(),
-        expiresIn: expiresInSeconds
+        expiresIn: expiresInSeconds,
+        issuer: this.getJwtIssuer(),
+        audience: this.getPasswordResetAudience()
       }
     );
 
@@ -194,7 +198,9 @@ export class AuthService {
     let tokenPayload: ResetTokenPayload;
     try {
       tokenPayload = await this.jwtService.verifyAsync<ResetTokenPayload>(payload.token, {
-        secret: this.getPasswordResetSecret()
+        secret: this.getPasswordResetSecret(),
+        issuer: this.getJwtIssuer(),
+        audience: this.getPasswordResetAudience()
       });
     } catch {
       throw new UnauthorizedException("Token de reinitialisation invalide ou expire.");
@@ -287,7 +293,11 @@ export class AuthService {
         role: user.role,
         tenantId: user.tenantId
       },
-      { expiresIn: expiresInSeconds }
+      {
+        expiresIn: expiresInSeconds,
+        issuer: this.getJwtIssuer(),
+        audience: this.getJwtAudience()
+      }
     );
 
     const rawRefreshToken = randomBytes(48).toString("base64url");
@@ -328,6 +338,21 @@ export class AuthService {
     return this.configService.get<string>(
       "PASSWORD_RESET_SECRET",
       this.configService.get<string>("JWT_SECRET", "dev-only-secret-change-me")
+    );
+  }
+
+  private getJwtIssuer(): string {
+    return this.configService.get<string>("JWT_ISSUER", "gestschool");
+  }
+
+  private getJwtAudience(): string {
+    return this.configService.get<string>("JWT_AUDIENCE", "gestschool-clients");
+  }
+
+  private getPasswordResetAudience(): string {
+    return this.configService.get<string>(
+      "PASSWORD_RESET_AUDIENCE",
+      `${this.getJwtAudience()}-password-reset`
     );
   }
 
@@ -412,14 +437,12 @@ export class AuthService {
     payload?: Prisma.InputJsonValue
   ): Promise<void> {
     try {
-      await this.prisma.iamAuditLog.create({
-        data: {
-          tenantId,
-          userId,
-          action,
-          resource: "auth",
-          payload
-        }
+      await this.auditService.enqueueLog({
+        tenantId,
+        userId,
+        action,
+        resource: "auth",
+        payload
       });
     } catch {
       // Never block auth flow because of audit logging issues.

@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 
+import { RedisService } from "../infrastructure/redis/redis.service";
 import { RATE_LIMIT_KEY, type RateLimitOptions } from "./rate-limit.decorator";
 
 type RateLimitEntry = {
@@ -18,9 +19,12 @@ type RateLimitEntry = {
 export class RateLimitGuard implements CanActivate {
   private readonly store = new Map<string, RateLimitEntry>();
 
-  constructor(private readonly reflector: Reflector) {}
+  constructor(
+    private readonly reflector: Reflector,
+    private readonly redisService: RedisService
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     if (this.isDisabledForCurrentProcess()) {
       return true;
     }
@@ -39,8 +43,24 @@ export class RateLimitGuard implements CanActivate {
       headers?: Record<string, string | string[] | undefined>;
       socket?: { remoteAddress?: string };
     }>();
+    const response = context.switchToHttp().getResponse<{
+      setHeader(name: string, value: number | string): void;
+    }>();
     const now = Date.now();
     const key = `${options.bucket}:${this.resolveClientKey(request)}`;
+
+    const distributedCount = await this.redisService.incrementWithExpiry(key, options.windowMs);
+    if (distributedCount !== null) {
+      this.applyHeaders(response, options, distributedCount);
+      if (distributedCount > options.max) {
+        throw new HttpException(
+          "Too many requests. Please retry later.",
+          HttpStatus.TOO_MANY_REQUESTS
+        );
+      }
+      return true;
+    }
+
     const current = this.store.get(key);
 
     if (!current || current.resetAt <= now) {
@@ -49,15 +69,18 @@ export class RateLimitGuard implements CanActivate {
         resetAt: now + options.windowMs
       });
       this.compact(now);
+      this.applyHeaders(response, options, 1);
       return true;
     }
 
     if (current.count >= options.max) {
+      this.applyHeaders(response, options, current.count);
       throw new HttpException("Too many requests. Please retry later.", HttpStatus.TOO_MANY_REQUESTS);
     }
 
     current.count += 1;
     this.store.set(key, current);
+    this.applyHeaders(response, options, current.count);
     return true;
   }
 
@@ -114,5 +137,15 @@ export class RateLimitGuard implements CanActivate {
   private isDisabledForCurrentProcess(): boolean {
     const value = (process.env.RATE_LIMIT_DISABLED || "").trim().toLowerCase();
     return value === "1" || value === "true" || value === "yes";
+  }
+
+  private applyHeaders(
+    response: { setHeader(name: string, value: number | string): void },
+    options: RateLimitOptions,
+    count: number
+  ): void {
+    response.setHeader("x-ratelimit-limit", options.max);
+    response.setHeader("x-ratelimit-remaining", Math.max(0, options.max - count));
+    response.setHeader("x-ratelimit-window-ms", options.windowMs);
   }
 }

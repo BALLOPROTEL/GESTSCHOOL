@@ -373,33 +373,90 @@ model TimetableSlot {
 }
 
 model Notification {
-  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId     String    @map("tenant_id") @db.Uuid
-  studentId    String?   @map("student_id") @db.Uuid
-  audienceRole String?   @map("audience_role") @db.VarChar(30)
-  title        String    @db.VarChar(160)
-  message      String
-  channel      String    @default("IN_APP") @db.VarChar(20)
-  status       String    @default("PENDING") @db.VarChar(20)
-  targetAddress String?  @map("target_address") @db.VarChar(190)
-  provider     String?   @db.VarChar(40)
-  providerMessageId String? @map("provider_message_id") @db.VarChar(160)
-  deliveryStatus String  @default("QUEUED") @map("delivery_status") @db.VarChar(30)
-  attempts     Int       @default(0)
-  lastError    String?   @map("last_error")
-  nextAttemptAt DateTime? @map("next_attempt_at") @db.Timestamptz(6)
-  deliveredAt  DateTime? @map("delivered_at") @db.Timestamptz(6)
-  scheduledAt  DateTime? @map("scheduled_at") @db.Timestamptz(6)
-  sentAt       DateTime? @map("sent_at") @db.Timestamptz(6)
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
-  student      Student?  @relation(fields: [studentId], references: [id])
+  id                  String                         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId            String                         @map("tenant_id") @db.Uuid
+  studentId           String?                        @map("student_id") @db.Uuid
+  audienceRole        String?                        @map("audience_role") @db.VarChar(30)
+  title               String                         @db.VarChar(160)
+  message             String
+  channel             String                         @default("IN_APP") @db.VarChar(20)
+  status              String                         @default("PENDING") @db.VarChar(20)
+  targetAddress       String?                        @map("target_address") @db.VarChar(190)
+  provider            String?                        @db.VarChar(40)
+  providerMessageId   String?                        @map("provider_message_id") @db.VarChar(160)
+  deliveryStatus      String                         @default("QUEUED") @map("delivery_status") @db.VarChar(30)
+  attempts            Int                            @default(0)
+  lastError           String?                        @map("last_error")
+  nextAttemptAt       DateTime?                      @map("next_attempt_at") @db.Timestamptz(6)
+  deliveredAt         DateTime?                      @map("delivered_at") @db.Timestamptz(6)
+  scheduledAt         DateTime?                      @map("scheduled_at") @db.Timestamptz(6)
+  sentAt              DateTime?                      @map("sent_at") @db.Timestamptz(6)
+  requestId           String?                        @map("request_id") @db.VarChar(80)
+  correlationId       String?                        @map("correlation_id") @db.VarChar(120)
+  idempotencyKey      String?                        @map("idempotency_key") @db.VarChar(200)
+  schemaVersion       String?                        @map("schema_version") @db.VarChar(20)
+  sourceDomain        String?                        @map("source_domain") @db.VarChar(60)
+  sourceAction        String?                        @map("source_action") @db.VarChar(80)
+  sourceReferenceType String?                        @map("source_reference_type") @db.VarChar(80)
+  sourceReferenceId   String?                        @map("source_reference_id") @db.VarChar(120)
+  templateKey         String?                        @map("template_key") @db.VarChar(80)
+  requestPayload      Json?                          @map("request_payload")
+  createdAt           DateTime                       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime                       @default(now()) @map("updated_at") @db.Timestamptz(6)
+  student             Student?                       @relation(fields: [studentId], references: [id])
+  deliveryAttempts    NotificationDeliveryAttempt[]
+  providerCallbacks   NotificationProviderCallback[]
 
   @@index([tenantId, status, channel], map: "idx_notif_tenant_status_channel")
   @@index([tenantId, status, nextAttemptAt], map: "idx_notif_tenant_status_next_attempt")
   @@index([tenantId, studentId], map: "idx_notif_tenant_student")
   @@index([tenantId, providerMessageId], map: "idx_notif_tenant_provider_message")
+  @@unique([tenantId, requestId], map: "uq_notifications_tenant_request")
+  @@unique([tenantId, idempotencyKey], map: "uq_notifications_tenant_idempotency")
   @@map("notifications")
+}
+
+model NotificationDeliveryAttempt {
+  id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String       @map("tenant_id") @db.Uuid
+  notificationId    String       @map("notification_id") @db.Uuid
+  attemptNo         Int          @map("attempt_no")
+  channel           String       @db.VarChar(20)
+  provider          String?      @db.VarChar(40)
+  providerMessageId String?      @map("provider_message_id") @db.VarChar(160)
+  targetAddress     String?      @map("target_address") @db.VarChar(190)
+  status            String       @db.VarChar(30)
+  errorMessage      String?      @map("error_message")
+  startedAt         DateTime     @map("started_at") @db.Timestamptz(6)
+  finishedAt        DateTime?    @map("finished_at") @db.Timestamptz(6)
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime     @default(now()) @map("updated_at") @db.Timestamptz(6)
+  notification      Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, attemptNo], map: "uq_notification_delivery_attempt_no")
+  @@index([tenantId, notificationId], map: "idx_notif_attempts_tenant_notification")
+  @@index([tenantId, status, createdAt], map: "idx_notif_attempts_tenant_status_created")
+  @@map("notification_delivery_attempts")
+}
+
+model NotificationProviderCallback {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String        @map("tenant_id") @db.Uuid
+  notificationId    String?       @map("notification_id") @db.Uuid
+  provider          String        @db.VarChar(40)
+  providerMessageId String        @map("provider_message_id") @db.VarChar(160)
+  eventStatus       String        @map("event_status") @db.VarChar(30)
+  dedupeKey         String        @unique(map: "notification_provider_callbacks_dedupe_key_key") @map("dedupe_key") @db.VarChar(240)
+  occurredAt        DateTime      @map("occurred_at") @db.Timestamptz(6)
+  errorMessage      String?       @map("error_message")
+  payload           Json?
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime      @default(now()) @map("updated_at") @db.Timestamptz(6)
+  notification      Notification? @relation(fields: [notificationId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, provider, providerMessageId], map: "idx_notif_callbacks_tenant_provider_message")
+  @@index([tenantId, occurredAt], map: "idx_notif_callbacks_tenant_occurred")
+  @@map("notification_provider_callbacks")
 }
 
 model TeacherClassAssignment {
@@ -527,4 +584,30 @@ model IamAuditLog {
   @@index([tenantId, createdAt], map: "idx_iam_audit_logs_tenant_created")
   @@index([tenantId, userId], map: "idx_iam_audit_logs_tenant_user")
   @@map("iam_audit_logs")
+}
+
+model OutboxEvent {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String?   @map("tenant_id") @db.Uuid
+  aggregateType String    @map("aggregate_type") @db.VarChar(80)
+  aggregateId   String    @map("aggregate_id") @db.VarChar(100)
+  eventType     String    @map("event_type") @db.VarChar(120)
+  status        String    @default("PENDING") @db.VarChar(20)
+  payload       Json
+  metadata      Json?
+  dedupeKey     String?   @map("dedupe_key") @db.VarChar(200)
+  attempts      Int       @default(0)
+  availableAt   DateTime  @default(now()) @map("available_at") @db.Timestamptz(6)
+  claimedAt     DateTime? @map("claimed_at") @db.Timestamptz(6)
+  claimedBy     String?   @map("claimed_by") @db.VarChar(120)
+  processedAt   DateTime? @map("processed_at") @db.Timestamptz(6)
+  lastError     String?   @map("last_error")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([dedupeKey], map: "outbox_events_dedupe_key_key")
+  @@index([status, availableAt], map: "idx_outbox_events_status_available_at")
+  @@index([status, claimedAt], map: "idx_outbox_events_status_claimed_at")
+  @@index([tenantId, createdAt], map: "idx_outbox_events_tenant_created_at")
+  @@map("outbox_events")
 }

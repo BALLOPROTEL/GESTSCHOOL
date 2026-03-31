@@ -7,6 +7,8 @@ import { ConfigService } from "@nestjs/config";
 import { Prisma, type AttendanceAttachment } from "@prisma/client";
 
 import { PrismaService } from "../database/prisma.service";
+import { NotificationRequestBusService } from "../notifications/notification-request-bus.service";
+import { NotificationsService } from "../notifications/notifications.service";
 import { ReferenceService } from "../reference/reference.service";
 import {
   BulkAttendanceDto,
@@ -143,6 +145,16 @@ type NotificationView = {
   studentName?: string;
 };
 
+type PaymentReceivedNotificationInput = {
+  tenantId: string;
+  invoiceNo: string;
+  paidAmount: number;
+  paidAt: string;
+  receiptNo: string;
+  studentId?: string;
+  studentName?: string;
+};
+
 type NotificationWithStudent = Prisma.NotificationGetPayload<{
   include: {
     student: true;
@@ -163,9 +175,11 @@ const DAY_LABELS = new Map<number, string>([
 export class SchoolLifeService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+    private readonly notificationRequestBus: NotificationRequestBusService,
     private readonly referenceService: ReferenceService,
     private readonly notificationGateway: NotificationGatewayService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
   ) {}
 
   async getAttendanceSummary(
@@ -308,32 +322,36 @@ export class SchoolLifeService {
     const requiresJustification = this.requiresAttendanceJustification(status);
 
     try {
-      const created = await this.prisma.attendance.create({
-        data: {
-          tenantId,
-          studentId: student.id,
-          classId: classroom.id,
-          schoolYearId: classroom.schoolYearId,
-          attendanceDate: new Date(payload.attendanceDate),
-          status,
-          reason: payload.reason?.trim(),
-          justificationStatus: requiresJustification ? "PENDING" : "APPROVED",
-          validationComment: null,
-          validatedByUserId: null,
-          validatedAt: null,
-          updatedAt: new Date()
-        },
-        include: {
-          student: true,
-          classroom: true,
-          schoolYear: true,
-          attachments: {
-            orderBy: [{ createdAt: "desc" }]
+      const created = await this.prisma.$transaction(async (transaction) => {
+        const createdAttendance = await transaction.attendance.create({
+          data: {
+            tenantId,
+            studentId: student.id,
+            classId: classroom.id,
+            schoolYearId: classroom.schoolYearId,
+            attendanceDate: new Date(payload.attendanceDate),
+            status,
+            reason: payload.reason?.trim(),
+            justificationStatus: requiresJustification ? "PENDING" : "APPROVED",
+            validationComment: null,
+            validatedByUserId: null,
+            validatedAt: null,
+            updatedAt: new Date()
+          },
+          include: {
+            student: true,
+            classroom: true,
+            schoolYear: true,
+            attachments: {
+              orderBy: [{ createdAt: "desc" }]
+            }
           }
-        }
+        });
+
+        await this.enqueueAttendanceAlertRequested(transaction, createdAttendance);
+        return createdAttendance;
       });
 
-      await this.maybeCreateAttendanceNotification(created);
       return this.attendanceView(created);
     } catch (error: unknown) {
       if (
@@ -393,56 +411,60 @@ export class SchoolLifeService {
         });
 
         if (existing) {
-          const updated = await this.prisma.attendance.update({
-            where: { id: existing.id },
-            data: {
-              status,
-              reason: entry.reason?.trim(),
-              justificationStatus: requiresJustification ? "PENDING" : "APPROVED",
-              validationComment: null,
-              validatedByUserId: null,
-              validatedAt: null,
-              updatedAt: new Date()
-            },
-            include: {
-          student: true,
-          classroom: true,
-          schoolYear: true,
-          attachments: {
-            orderBy: [{ createdAt: "desc" }]
-          }
-        }
-          });
+          await this.prisma.$transaction(async (transaction) => {
+            const updatedAttendance = await transaction.attendance.update({
+              where: { id: existing.id },
+              data: {
+                status,
+                reason: entry.reason?.trim(),
+                justificationStatus: requiresJustification ? "PENDING" : "APPROVED",
+                validationComment: null,
+                validatedByUserId: null,
+                validatedAt: null,
+                updatedAt: new Date()
+              },
+              include: {
+                student: true,
+                classroom: true,
+                schoolYear: true,
+                attachments: {
+                  orderBy: [{ createdAt: "desc" }]
+                }
+              }
+            });
 
-          await this.maybeCreateAttendanceNotification(updated);
+            await this.enqueueAttendanceAlertRequested(transaction, updatedAttendance);
+          });
           updatedCount += 1;
         } else {
-          const created = await this.prisma.attendance.create({
-            data: {
-              tenantId,
-              studentId: entry.studentId,
-              classId: classroom.id,
-              schoolYearId: classroom.schoolYearId,
-              attendanceDate,
-              status,
-              reason: entry.reason?.trim(),
-              justificationStatus: requiresJustification ? "PENDING" : "APPROVED",
-              validationComment: null,
-              validatedByUserId: null,
-              validatedAt: null,
-              updatedAt: new Date()
-            },
-            include: {
-          student: true,
-          classroom: true,
-          schoolYear: true,
-          attachments: {
-            orderBy: [{ createdAt: "desc" }]
-          }
-        }
-          });
+          await this.prisma.$transaction(async (transaction) => {
+            const createdAttendance = await transaction.attendance.create({
+              data: {
+                tenantId,
+                studentId: entry.studentId,
+                classId: classroom.id,
+                schoolYearId: classroom.schoolYearId,
+                attendanceDate,
+                status,
+                reason: entry.reason?.trim(),
+                justificationStatus: requiresJustification ? "PENDING" : "APPROVED",
+                validationComment: null,
+                validatedByUserId: null,
+                validatedAt: null,
+                updatedAt: new Date()
+              },
+              include: {
+                student: true,
+                classroom: true,
+                schoolYear: true,
+                attachments: {
+                  orderBy: [{ createdAt: "desc" }]
+                }
+              }
+            });
 
-          await this.maybeCreateAttendanceNotification(created);
+            await this.enqueueAttendanceAlertRequested(transaction, createdAttendance);
+          });
           createdCount += 1;
         }
       } catch (error: unknown) {
@@ -497,31 +519,35 @@ export class SchoolLifeService {
       : {};
 
     try {
-      const updated = await this.prisma.attendance.update({
-        where: { id: existing.id },
-        data: {
-          studentId,
-          classId: classroom.id,
-          schoolYearId: classroom.schoolYearId,
-          attendanceDate: payload.attendanceDate
-            ? new Date(payload.attendanceDate)
-            : undefined,
-          status: payload.status ? nextStatus : undefined,
-          reason: payload.reason,
-          ...validationReset,
-          updatedAt: new Date()
-        },
-        include: {
-          student: true,
-          classroom: true,
-          schoolYear: true,
-          attachments: {
-            orderBy: [{ createdAt: "desc" }]
+      const updated = await this.prisma.$transaction(async (transaction) => {
+        const updatedAttendance = await transaction.attendance.update({
+          where: { id: existing.id },
+          data: {
+            studentId,
+            classId: classroom.id,
+            schoolYearId: classroom.schoolYearId,
+            attendanceDate: payload.attendanceDate
+              ? new Date(payload.attendanceDate)
+              : undefined,
+            status: payload.status ? nextStatus : undefined,
+            reason: payload.reason,
+            ...validationReset,
+            updatedAt: new Date()
+          },
+          include: {
+            student: true,
+            classroom: true,
+            schoolYear: true,
+            attachments: {
+              orderBy: [{ createdAt: "desc" }]
+            }
           }
-        }
+        });
+
+        await this.enqueueAttendanceAlertRequested(transaction, updatedAttendance);
+        return updatedAttendance;
       });
 
-      await this.maybeCreateAttendanceNotification(updated);
       return this.attendanceView(updated);
     } catch (error: unknown) {
       if (
@@ -831,123 +857,109 @@ export class SchoolLifeService {
       provider?: string;
     }
   ): Promise<NotificationView[]> {
-    const rows = await this.prisma.notification.findMany({
-      where: {
-        tenantId,
-        status: filters.status,
-        channel: filters.channel,
-        audienceRole: filters.audienceRole,
-        studentId: filters.studentId,
-        deliveryStatus: filters.deliveryStatus,
-        provider: filters.provider
-      },
-      include: {
-        student: true
-      },
-      orderBy: [{ createdAt: "desc" }]
-    });
-
-    return rows.map((row) => this.notificationView(row));
+    return this.notificationsService.listNotifications(tenantId, filters);
   }
 
   async createNotification(
     tenantId: string,
     payload: CreateNotificationDto
   ): Promise<NotificationView> {
-    if (payload.studentId) {
-      await this.requireStudent(tenantId, payload.studentId);
-    }
-
-    const channel = payload.channel || "IN_APP";
-    const targetAddress = payload.targetAddress?.trim() || null;
-    const status = payload.scheduledAt ? "SCHEDULED" : "PENDING";
-    const now = new Date();
-
-    const created = await this.prisma.notification.create({
-      data: {
-        tenantId,
-        studentId: payload.studentId,
-        audienceRole: payload.audienceRole,
-        title: payload.title.trim(),
-        message: payload.message.trim(),
-        channel,
-        status,
-        targetAddress,
-        provider: channel === "IN_APP" ? "IN_APP" : null,
-        providerMessageId: null,
-        deliveryStatus: "QUEUED",
-        attempts: 0,
-        lastError: null,
-        nextAttemptAt: null,
-        deliveredAt: null,
-        scheduledAt: payload.scheduledAt ? new Date(payload.scheduledAt) : null,
-        updatedAt: now
-      },
-      include: {
-        student: true
-      }
-    });
-
-    return this.notificationView(created);
+    return this.notificationsService.createNotification(tenantId, payload);
   }
 
   async dispatchPendingNotifications(
     tenantId: string,
     limit?: number
   ): Promise<{ dispatchedCount: number; notifications: NotificationView[] }> {
-    return this.dispatchNotifications({ tenantId }, limit);
+    return this.notificationsService.dispatchPendingNotifications(tenantId, limit);
   }
 
   async dispatchPendingNotificationsGlobal(
     limit?: number
   ): Promise<{ dispatchedCount: number; notifications: NotificationView[] }> {
-    return this.dispatchNotifications({}, limit);
+    return this.notificationsService.dispatchPendingNotificationsGlobal(limit);
   }
 
   async recordDeliveryEvent(payload: NotificationDeliveryEventDto): Promise<NotificationView> {
-    const where: Prisma.NotificationWhereInput = {
-      providerMessageId: payload.providerMessageId.trim(),
-      provider: payload.provider?.trim() || undefined
-    };
+    return this.notificationsService.recordDeliveryEvent(payload);
+  }
 
-    const existing = await this.prisma.notification.findFirst({
-      where,
-      include: {
-        student: true
-      }
-    });
-
-    if (!existing) {
-      throw new NotFoundException("Notification not found for provider event.");
+  async ensureAttendanceAlertNotification(
+    tenantId: string,
+    attendanceId: string
+  ): Promise<void> {
+    if (!tenantId) {
+      return;
     }
 
-    const eventTime = payload.occurredAt ? new Date(payload.occurredAt) : new Date();
-    const status = payload.status.trim().toUpperCase();
-    const normalizedStatus = this.normalizeDeliveryStatus(status);
-
-    const updated = await this.prisma.notification.update({
-      where: { id: existing.id },
-      data: {
-        status:
-          normalizedStatus === "FAILED" || normalizedStatus === "UNDELIVERABLE"
-            ? "FAILED"
-            : "SENT",
-        deliveryStatus: normalizedStatus,
-        sentAt: existing.sentAt || eventTime,
-        deliveredAt: normalizedStatus === "DELIVERED" ? eventTime : existing.deliveredAt,
-        lastError:
-          normalizedStatus === "FAILED" || normalizedStatus === "UNDELIVERABLE"
-            ? payload.errorMessage?.trim() || existing.lastError
-            : null,
-        nextAttemptAt: null,
-        updatedAt: eventTime
+    const attendance = await this.prisma.attendance.findFirst({
+      where: {
+        id: attendanceId,
+        tenantId
       },
       include: {
-        student: true
+        student: true,
+        classroom: true,
+        schoolYear: true
       }
     });
 
-    return this.notificationView(updated);
+    if (!attendance || !this.isAttendanceAlertStatus(attendance.status)) {
+      return;
+    }
+
+    await this.maybeCreateAttendanceNotification(attendance);
+  }
+
+  async ensurePaymentReceivedNotification(
+    input: PaymentReceivedNotificationInput
+  ): Promise<void> {
+    if (!input.tenantId || !input.studentId) {
+      return;
+    }
+
+    const title = "Paiement recu";
+    const studentLabel = input.studentName?.trim() || "Votre enfant";
+    const paidDate = input.paidAt.slice(0, 10);
+    const amountLabel = input.paidAmount.toFixed(2);
+    const message =
+      `${studentLabel}: paiement ${input.receiptNo} de ${amountLabel} ` +
+      `enregistre pour la facture ${input.invoiceNo} le ${paidDate}.`;
+
+    const existing = await this.prisma.notification.findFirst({
+      where: {
+        tenantId: input.tenantId,
+        studentId: input.studentId,
+        audienceRole: "PARENT",
+        channel: "IN_APP",
+        title,
+        message
+      }
+    });
+
+    if (existing) {
+      return;
+    }
+
+    await this.prisma.notification.create({
+      data: {
+        tenantId: input.tenantId,
+        studentId: input.studentId,
+        audienceRole: "PARENT",
+        title,
+        message,
+        channel: "IN_APP",
+        status: "PENDING",
+        provider: "IN_APP",
+        providerMessageId: null,
+        deliveryStatus: "QUEUED",
+        attempts: 0,
+        lastError: null,
+        nextAttemptAt: null,
+        deliveredAt: null,
+        updatedAt: new Date()
+      }
+    });
   }
 
   async updateNotificationStatus(
@@ -955,41 +967,7 @@ export class SchoolLifeService {
     id: string,
     payload: UpdateNotificationStatusDto
   ): Promise<NotificationView> {
-    const existing = await this.requireNotification(tenantId, id);
-
-    const sentAt = payload.status === "SENT"
-      ? payload.sentAt
-        ? new Date(payload.sentAt)
-        : new Date()
-      : payload.status === "PENDING" || payload.status === "SCHEDULED"
-        ? null
-        : payload.sentAt
-          ? new Date(payload.sentAt)
-          : existing.sentAt;
-
-    const normalizedDeliveryStatus = payload.status === "SENT"
-      ? "DELIVERED"
-      : payload.status === "FAILED"
-        ? "FAILED"
-        : "QUEUED";
-
-    const updated = await this.prisma.notification.update({
-      where: { id: existing.id },
-      data: {
-        status: payload.status,
-        deliveryStatus: normalizedDeliveryStatus,
-        deliveredAt: payload.status === "SENT" ? sentAt : null,
-        nextAttemptAt: null,
-        lastError: payload.status === "FAILED" ? existing.lastError : null,
-        sentAt,
-        updatedAt: new Date()
-      },
-      include: {
-        student: true
-      }
-    });
-
-    return this.notificationView(updated);
+    return this.notificationsService.updateNotificationStatus(tenantId, id, payload);
   }
 
   private async maybeCreateAttendanceNotification(
@@ -1048,6 +1026,59 @@ export class SchoolLifeService {
         updatedAt: new Date()
       }
     });
+  }
+
+  private async enqueueAttendanceAlertRequested(
+    transaction: Prisma.TransactionClient,
+    attendance: Pick<
+      AttendanceWithRelations,
+      "attendanceDate" | "classroom" | "id" | "status" | "student" | "studentId" | "tenantId"
+    >
+  ): Promise<void> {
+    if (!this.isAttendanceAlertStatus(attendance.status)) {
+      return;
+    }
+
+    const normalizedStatus = this.normalizeAttendanceStatus(attendance.status);
+    const studentName = `${attendance.student.firstName} ${attendance.student.lastName}`.trim();
+    const dateLabel = attendance.attendanceDate.toISOString().slice(0, 10);
+    const isLate = normalizedStatus === "LATE";
+
+    await this.notificationRequestBus.publish(
+      {
+        tenantId: attendance.tenantId,
+        kind: "ATTENDANCE_ALERT",
+        channel: "IN_APP",
+        recipient: {
+          audienceRole: "PARENT",
+          studentId: attendance.studentId
+        },
+        content: {
+          templateKey: "attendance-alert",
+          title: isLate ? "Alerte retard" : "Alerte absence",
+          message: isLate
+            ? `${studentName} est en retard le ${dateLabel} (${attendance.classroom.label}).`
+            : `${studentName} est absent le ${dateLabel} (${attendance.classroom.label}).`,
+          variables: {
+            attendanceId: attendance.id,
+            attendanceDate: dateLabel,
+            classLabel: attendance.classroom.label,
+            status: normalizedStatus,
+            studentId: attendance.studentId,
+            studentName
+          }
+        },
+        source: {
+          domain: "school-life",
+          action: "attendance.alert.requested",
+          referenceType: "attendance",
+          referenceId: attendance.id
+        },
+        correlationId: attendance.id,
+        idempotencyKey: `notification-request:school-life:attendance:${attendance.id}:${normalizedStatus}`
+      },
+      transaction
+    );
   }
 
   private async dispatchNotifications(

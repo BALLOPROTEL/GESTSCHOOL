@@ -2,6 +2,7 @@ import { compare, hash } from "bcryptjs";
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma, type User } from "@prisma/client";
 
+import { AuditService } from "../audit/audit.service";
 import { findPasswordPolicyViolation } from "../common/password-policy";
 import { PrismaService } from "../database/prisma.service";
 import {
@@ -86,7 +87,10 @@ export type ParentLinkView = {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly auditService: AuditService,
+    private readonly prisma: PrismaService
+  ) {}
 
   async list(tenantId: string): Promise<UserView[]> {
     const rows = await this.prisma.user.findMany({
@@ -223,8 +227,8 @@ export class UsersService {
         }
       });
 
-      await transaction.iamAuditLog.create({
-        data: {
+      await this.auditService.enqueueLog(
+        {
           tenantId,
           userId: actorUserId,
           action: "USER_DELETED",
@@ -233,8 +237,9 @@ export class UsersService {
           payload: {
             username: existing.username
           }
-        }
-      });
+        },
+        transaction
+      );
     });
   }
 
@@ -342,8 +347,8 @@ export class UsersService {
         where: { id: existing.id }
       });
 
-      await transaction.iamAuditLog.create({
-        data: {
+      await this.auditService.enqueueLog(
+        {
           tenantId,
           userId: actorUserId,
           action: "TEACHER_ASSIGNMENT_DELETED",
@@ -354,8 +359,9 @@ export class UsersService {
             classId: existing.classId,
             schoolYearId: existing.schoolYearId
           }
-        }
-      });
+        },
+        transaction
+      );
     });
   }
 
@@ -422,8 +428,8 @@ export class UsersService {
           }
         });
 
-        await transaction.iamAuditLog.create({
-          data: {
+        await this.auditService.enqueueLog(
+          {
             tenantId,
             userId: actorUserId,
             action: "PARENT_LINK_CREATED",
@@ -435,8 +441,9 @@ export class UsersService {
               relationship: row.relationship,
               isPrimary: row.isPrimary
             }
-          }
-        });
+          },
+          transaction
+        );
 
         return row;
       });
@@ -466,8 +473,8 @@ export class UsersService {
         where: { id: existing.id }
       });
 
-      await transaction.iamAuditLog.create({
-        data: {
+      await this.auditService.enqueueLog(
+        {
           tenantId,
           userId: actorUserId,
           action: "PARENT_LINK_DELETED",
@@ -477,8 +484,9 @@ export class UsersService {
             parentUserId: existing.parentUserId,
             studentId: existing.studentId
           }
-        }
-      });
+        },
+        transaction
+      );
     });
   }
 
@@ -578,8 +586,8 @@ export class UsersService {
         });
       }
 
-      await transaction.iamAuditLog.create({
-        data: {
+      await this.auditService.enqueueLog(
+        {
           tenantId,
           userId: actorUserId,
           action: "ROLE_PERMISSIONS_UPDATED",
@@ -588,8 +596,9 @@ export class UsersService {
             role,
             updatedPermissions: [...normalized.values()]
           } as unknown as Prisma.InputJsonValue
-        }
-      });
+        },
+        transaction
+      );
     });
 
     return this.listRolePermissions(tenantId, role);
@@ -695,15 +704,13 @@ export class UsersService {
     resourceId: string,
     payload?: Prisma.InputJsonValue
   ): Promise<void> {
-    await this.prisma.iamAuditLog.create({
-      data: {
-        tenantId,
-        userId: actorUserId,
-        action,
-        resource,
-        resourceId,
-        payload
-      }
+    await this.auditService.enqueueLog({
+      tenantId,
+      userId: actorUserId,
+      action,
+      resource,
+      resourceId,
+      payload
     });
   }
 

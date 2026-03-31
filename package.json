@@ -4,6 +4,7 @@
   "packageManager": "pnpm@10.24.0",
   "scripts": {
     "dev:api": "pnpm --filter @gestschool/api start:dev",
+    "dev:worker": "pnpm --filter @gestschool/api start:worker:dev",
     "dev:web": "pnpm --filter @gestschool/web-admin dev",
     "build:api": "pnpm --filter @gestschool/api build",
     "build:web": "pnpm --filter @gestschool/web-admin build",

@@ -4,6 +4,7 @@ import {
   Injectable,
   UnauthorizedException
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { Reflector } from "@nestjs/core";
 
@@ -14,7 +15,8 @@ import { type AuthenticatedUser } from "./authenticated-user.interface";
 export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    private readonly jwtService: JwtService
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -39,7 +41,11 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     try {
-      const payload = await this.jwtService.verifyAsync<AuthenticatedUser>(token);
+      const payload = await this.jwtService.verifyAsync<AuthenticatedUser>(token, {
+        secret: this.configService.get<string>("JWT_SECRET", "dev-only-secret-change-me"),
+        issuer: this.configService.get<string>("JWT_ISSUER", "gestschool"),
+        audience: this.configService.get<string>("JWT_AUDIENCE", "gestschool-clients")
+      });
       request.user = payload;
       return true;
     } catch {

@@ -6,7 +6,12 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    bufferLogs: true
+  });
+  app.flushLogs();
+  app.enableShutdownHooks();
+
   const configService = app.get(ConfigService);
   const nodeEnv = configService.get<string>("NODE_ENV", "development").trim().toLowerCase();
   const corsOriginsRaw = configService.get<string>("CORS_ORIGINS", "").trim();
@@ -28,9 +33,11 @@ async function bootstrap(): Promise<void> {
       "Content-Type",
       "Authorization",
       "x-tenant-id",
+      "x-request-id",
       "x-notification-webhook-secret",
       "x-metrics-token"
-    ]
+    ],
+    exposedHeaders: ["x-request-id"]
   });
 
   app.setGlobalPrefix("api/v1");

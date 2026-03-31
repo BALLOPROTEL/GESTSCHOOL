@@ -8,6 +8,7 @@ import {
 import { Prisma, type FeePlan, type Invoice, type Payment, type Student } from "@prisma/client";
 
 import { PrismaService } from "../database/prisma.service";
+import { NotificationRequestBusService } from "../notifications/notification-request-bus.service";
 import { ReferenceService } from "../reference/reference.service";
 import {
   CreateFeePlanDto,
@@ -84,6 +85,7 @@ type RecoveryDashboardView = {
 @Injectable()
 export class FinanceService {
   constructor(
+    private readonly notificationRequestBus: NotificationRequestBusService,
     private readonly prisma: PrismaService,
     private readonly referenceService: ReferenceService
   ) {}
@@ -380,6 +382,51 @@ export class FinanceService {
           updatedAt: new Date()
         }
       });
+
+      const studentName = createdPayment.invoice.student
+        ? `${createdPayment.invoice.student.firstName} ${createdPayment.invoice.student.lastName}`.trim()
+        : "Votre enfant";
+      const amountLabel = this.decimalToNumber(createdPayment.paidAmount).toFixed(2);
+      const paidDate = createdPayment.paidAt.toISOString().slice(0, 10);
+
+      await this.notificationRequestBus.publish(
+        {
+          tenantId,
+          kind: "PAYMENT_RECEIVED",
+          channel: "IN_APP",
+          recipient: {
+            audienceRole: "PARENT",
+            studentId: createdPayment.invoice.studentId
+          },
+          content: {
+            templateKey: "payment-received",
+            title: "Paiement recu",
+            message:
+              `${studentName}: paiement ${createdPayment.receiptNo} de ${amountLabel} ` +
+              `enregistre pour la facture ${createdPayment.invoice.invoiceNo} le ${paidDate}.`,
+            variables: {
+              invoiceId: createdPayment.invoiceId,
+              invoiceNo: createdPayment.invoice.invoiceNo,
+              paidAmount: this.decimalToNumber(createdPayment.paidAmount),
+              paidAt: createdPayment.paidAt.toISOString(),
+              paymentId: createdPayment.id,
+              paymentMethod: createdPayment.paymentMethod,
+              receiptNo: createdPayment.receiptNo,
+              studentId: createdPayment.invoice.studentId,
+              studentName
+            }
+          },
+          source: {
+            domain: "finance",
+            action: "payment.recorded",
+            referenceType: "payment",
+            referenceId: createdPayment.id
+          },
+          correlationId: createdPayment.id,
+          idempotencyKey: `notification-request:finance:payment:${createdPayment.id}`
+        },
+        transaction
+      );
 
       return createdPayment;
     });

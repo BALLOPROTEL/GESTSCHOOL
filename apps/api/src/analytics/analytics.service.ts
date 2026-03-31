@@ -4,6 +4,7 @@ import { Prisma, type IamAuditLog, type User } from "@prisma/client";
 
 import { buildExcelXml, buildTablePdf, toDataUrl } from "../common/export.util";
 import { PrismaService } from "../database/prisma.service";
+import { RedisService } from "../infrastructure/redis/redis.service";
 import {
   type AnalyticsOverviewQueryDto,
   type AuditLogExportQueryDto,
@@ -107,7 +108,8 @@ export class AnalyticsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly redisService: RedisService
   ) {}
 
   async getOverview(
@@ -116,6 +118,17 @@ export class AnalyticsService {
   ): Promise<AnalyticsOverviewView> {
     const range = this.resolveRange(query.from, query.to);
     const cacheKey = [tenantId, query.schoolYearId || "all", range.from, range.to].join("|");
+    const redisCacheKey = `analytics:overview:${cacheKey}`;
+    const distributed = await this.redisService.getJson<AnalyticsOverviewView>(redisCacheKey);
+    if (distributed) {
+      this.overviewCache.set(cacheKey, {
+        value: distributed,
+        expiresAt: Date.now() + this.analyticsCacheTtlMs()
+      });
+      this.compactCache(this.overviewCache);
+      return distributed;
+    }
+
     const cached = this.overviewCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
       return cached.value;
@@ -402,6 +415,7 @@ export class AnalyticsService {
       expiresAt: Date.now() + this.analyticsCacheTtlMs()
     });
     this.compactCache(this.overviewCache);
+    await this.redisService.setJson(redisCacheKey, payload, this.analyticsCacheTtlMs());
     return payload;
   }
 

@@ -9,7 +9,7 @@ services:
       API_PORT: 3000
       DATABASE_URL: postgresql://gestschool:${POSTGRES_PASSWORD}@postgres:5432/gestschool
       REDIS_URL: redis://redis:6379
-      NOTIFICATIONS_WORKER_ENABLED: "true"
+      NOTIFICATIONS_WORKER_ENABLED: "false"
     ports:
       - "3000:3000"
     depends_on:
@@ -26,6 +26,23 @@ services:
       update_config:
         parallelism: 1
         order: start-first
+
+  worker:
+    image: ghcr.io/gestschool/api:latest
+    restart: unless-stopped
+    command: ["node", "dist/worker.js"]
+    env_file:
+      - ../../.env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://gestschool:${POSTGRES_PASSWORD}@postgres:5432/gestschool
+      REDIS_URL: redis://redis:6379
+      NOTIFICATIONS_WORKER_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   postgres:
     image: postgres:16

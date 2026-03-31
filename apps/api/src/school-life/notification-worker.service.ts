@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
-import { SchoolLifeService } from "./school-life.service";
+import { BackgroundTasksService } from "../background/background-tasks.service";
 
 @Injectable()
 export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy {
@@ -10,7 +10,7 @@ export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy 
   private isRunning = false;
 
   constructor(
-    private readonly schoolLifeService: SchoolLifeService,
+    private readonly backgroundTasks: BackgroundTasksService,
     private readonly configService: ConfigService
   ) {}
 
@@ -53,13 +53,26 @@ export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy 
 
     this.isRunning = true;
     try {
-      const batchRaw = Number(
-        this.configService.get<string>("NOTIFICATIONS_WORKER_BATCH_SIZE", "80")
-      );
-      const batchSize = Number.isFinite(batchRaw) && batchRaw > 0 ? batchRaw : 80;
-      const result = await this.schoolLifeService.dispatchPendingNotificationsGlobal(batchSize);
-      if (result.dispatchedCount > 0) {
-        this.logger.log(`Dispatched ${result.dispatchedCount} queued notifications.`);
+      const result = await this.backgroundTasks.runOnce();
+      if (result.audit.processedCount > 0 || result.audit.failedCount > 0) {
+        this.logger.log(
+          `Processed ${result.audit.processedCount} audit outbox event(s), ` +
+            `${result.audit.failedCount} failed.`
+        );
+      }
+      if (
+        result.notificationRequests.processedCount > 0 ||
+        result.notificationRequests.failedCount > 0
+      ) {
+        this.logger.log(
+          `Processed ${result.notificationRequests.processedCount} notification request event(s), ` +
+            `${result.notificationRequests.failedCount} failed.`
+        );
+      }
+      if (result.notifications.dispatchedCount > 0) {
+        this.logger.log(
+          `Dispatched ${result.notifications.dispatchedCount} queued notifications.`
+        );
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Unexpected worker error";

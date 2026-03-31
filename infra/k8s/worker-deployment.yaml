@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gestschool-worker
+  labels:
+    app: gestschool-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gestschool-worker
+  template:
+    metadata:
+      labels:
+        app: gestschool-worker
+    spec:
+      containers:
+        - name: worker
+          image: ghcr.io/gestschool/api:latest
+          command: ["node", "dist/worker.js"]
+          envFrom:
+            - secretRef:
+                name: gestschool-api-secrets
+          env:
+            - name: NOTIFICATIONS_WORKER_ENABLED
+              value: "true"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "192Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

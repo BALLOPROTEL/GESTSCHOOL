@@ -13,7 +13,10 @@ docker compose -f infra/docker/docker-compose.dev.yml up -d
 
 ## 2) Initialize database
 ```powershell
+# Snapshot bootstrap (optional)
 psql "postgresql://gestschool:gestschool@localhost:5432/gestschool" -f infra/migrations/V1__init.sql
+
+# Seed baseline reference data
 psql "postgresql://gestschool:gestschool@localhost:5432/gestschool" -f infra/scripts/seed.sql
 Copy-Item apps/api/.env.example apps/api/.env -Force
 ```
@@ -35,7 +38,12 @@ pnpm --filter @gestschool/api seed:users
 pnpm dev:api
 ```
 
-## 5b) Start Web Admin
+## 5b) Start Worker
+```powershell
+pnpm dev:worker
+```
+
+## 5c) Start Web Admin
 ```powershell
 Copy-Item apps/web-admin/.env.example apps/web-admin/.env -Force
 pnpm dev:web
@@ -63,6 +71,7 @@ Seed users available by default (`pnpm --filter @gestschool/api seed:users`):
 
 ## 7) Validate endpoints
 - Health: `http://localhost:3000/api/v1/health`
+- Readiness: `http://localhost:3000/api/v1/health/ready`
 - Swagger: `http://localhost:3000/api/docs`
 - Protected routes require `Authorization: Bearer <token>`.
 - Example:
