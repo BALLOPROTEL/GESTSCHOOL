@@ -1427,6 +1427,8 @@ describe("Auth + Core Flows (e2e, real PostgreSQL)", () => {
     await prisma.feePlan.deleteMany({});
     await prisma.reportCard.deleteMany({});
     await prisma.gradeEntry.deleteMany({});
+    await prisma.studentTrackPlacement.deleteMany({});
+    await prisma.pedagogicalRule.deleteMany({});
     await prisma.enrollment.deleteMany({});
     await prisma.academicPeriod.deleteMany({});
     await prisma.subject.deleteMany({});
