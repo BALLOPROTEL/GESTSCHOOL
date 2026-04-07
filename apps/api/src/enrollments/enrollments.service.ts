@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException
 } from "@nestjs/common";
-import { AcademicTrack, Prisma, type Enrollment } from "@prisma/client";
+import { AcademicTrack, type Enrollment } from "@prisma/client";
 
 import { AcademicStructureService } from "../academic-structure/academic-structure.service";
 import { PrismaService } from "../database/prisma.service";
