@@ -29,6 +29,8 @@ enum AcademicStage {
   PRIMARY
   SECONDARY
   HIGHER
+
+  @@map("academic_stage")
 }
 
 enum PedagogicalRuleType {
@@ -39,6 +41,8 @@ enum PedagogicalRuleType {
 enum ReportCardMode {
   TRACK_SINGLE
   PRIMARY_COMBINED
+
+  @@map("report_card_mode")
 }
 
 model Student {
