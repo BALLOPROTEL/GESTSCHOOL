@@ -13,6 +13,7 @@ import {
   Req
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { AcademicTrack } from "@prisma/client";
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiTags } from "@nestjs/swagger";
 
 import { resolveTenantContext } from "../common/tenant-context.util";
@@ -220,13 +221,15 @@ export class SchoolLifeController {
     @Query("classId") classId?: string,
     @Query("schoolYearId") schoolYearId?: string,
     @Query("dayOfWeek") dayOfWeek?: string,
+    @Query("track") track?: AcademicTrack,
     @Headers("x-tenant-id") tenantHeader?: string
   ) {
     const tenantId = this.getTenantId(request.user, tenantHeader);
     return this.schoolLifeService.listTimetableSlots(tenantId, {
       classId,
       schoolYearId,
-      dayOfWeek: dayOfWeek ? Number(dayOfWeek) : undefined
+      dayOfWeek: dayOfWeek ? Number(dayOfWeek) : undefined,
+      track
     });
   }
 
@@ -238,10 +241,11 @@ export class SchoolLifeController {
     @Req() request: { user?: AuthenticatedUser },
     @Query("classId") classId?: string,
     @Query("schoolYearId") schoolYearId?: string,
+    @Query("track") track?: AcademicTrack,
     @Headers("x-tenant-id") tenantHeader?: string
   ) {
     const tenantId = this.getTenantId(request.user, tenantHeader);
-    return this.schoolLifeService.getTimetableGrid(tenantId, { classId, schoolYearId });
+    return this.schoolLifeService.getTimetableGrid(tenantId, { classId, schoolYearId, track });
   }
 
   @Post("timetable-slots")
@@ -373,7 +377,6 @@ export class SchoolLifeController {
     return resolveTenantContext(this.configService, user, tenantHeader);
   }
 }
-
 
 
 

@@ -1,0 +1,44 @@
+name: Migrate Production
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: gestschool-production-migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Apply Prisma migrations to production
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.24.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @gestschool/api db:generate
+
+      - name: Show migration status
+        run: pnpm --filter @gestschool/api db:status
+
+      - name: Apply production migrations
+        run: pnpm --filter @gestschool/api db:migrate:deploy

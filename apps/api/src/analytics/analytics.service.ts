@@ -1,6 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { Prisma, type IamAuditLog, type User } from "@prisma/client";
+import {
+  AcademicPlacementStatus,
+  Prisma,
+  type IamAuditLog,
+  type User
+} from "@prisma/client";
 
 import { buildExcelXml, buildTablePdf, toDataUrl } from "../common/export.util";
 import { PrismaService } from "../database/prisma.service";
@@ -167,11 +172,13 @@ export class AnalyticsService {
           }
         }),
         this.prisma.subject.count({ where: { tenantId } }),
-        this.prisma.enrollment.count({
+        this.prisma.studentTrackPlacement.count({
           where: {
             tenantId,
             schoolYearId: query.schoolYearId,
-            enrollmentStatus: "ENROLLED"
+            placementStatus: {
+              in: [AcademicPlacementStatus.ACTIVE, AcademicPlacementStatus.COMPLETED]
+            }
           }
         }),
         this.prisma.invoice.aggregate({

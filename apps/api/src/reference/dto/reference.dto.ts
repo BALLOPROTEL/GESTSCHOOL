@@ -1,8 +1,11 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import { AcademicStage, AcademicTrack, PedagogicalRuleType, RotationGroup } from "@prisma/client";
 import {
   IsBoolean,
   IsDateString,
+  IsEnum,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -43,6 +46,11 @@ export class CreateCycleDto {
   @MaxLength(100)
   label!: string;
 
+  @ApiPropertyOptional({ enum: AcademicStage, default: AcademicStage.PRIMARY })
+  @IsOptional()
+  @IsEnum(AcademicStage)
+  academicStage?: AcademicStage;
+
   @ApiProperty({ example: 1 })
   @IsInt()
   @Min(0)
@@ -61,10 +69,20 @@ export class CreateLevelDto {
   @MaxLength(20)
   code!: string;
 
+  @ApiPropertyOptional({ enum: AcademicTrack, default: AcademicTrack.FRANCOPHONE })
+  @IsOptional()
+  @IsEnum(AcademicTrack)
+  track?: AcademicTrack;
+
   @ApiProperty({ example: "Cours Preparatoire 1" })
   @IsString()
   @MaxLength(100)
   label!: string;
+
+  @ApiPropertyOptional({ enum: RotationGroup })
+  @IsOptional()
+  @IsEnum(RotationGroup)
+  rotationGroup?: RotationGroup;
 
   @ApiProperty({ example: 1 })
   @IsInt()
@@ -83,6 +101,11 @@ export class CreateClassroomDto {
   @IsUUID("all")
   levelId!: string;
 
+  @ApiPropertyOptional({ enum: AcademicTrack })
+  @IsOptional()
+  @IsEnum(AcademicTrack)
+  track?: AcademicTrack;
+
   @ApiProperty({ example: "CP1-A" })
   @IsString()
   @MaxLength(30)
@@ -92,6 +115,11 @@ export class CreateClassroomDto {
   @IsString()
   @MaxLength(100)
   label!: string;
+
+  @ApiPropertyOptional({ enum: RotationGroup })
+  @IsOptional()
+  @IsEnum(RotationGroup)
+  rotationGroup?: RotationGroup;
 
   @ApiPropertyOptional({ example: 35 })
   @IsOptional()
@@ -151,3 +179,58 @@ export class CreateAcademicPeriodDto {
 }
 
 export class UpdateAcademicPeriodDto extends PartialType(CreateAcademicPeriodDto) {}
+
+export class CreatePedagogicalRuleDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID("all")
+  schoolYearId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID("all")
+  cycleId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID("all")
+  levelId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID("all")
+  classId?: string;
+
+  @ApiProperty({ example: "SECOND_CYCLE_TRACK_DAYS" })
+  @IsString()
+  @MaxLength(40)
+  code!: string;
+
+  @ApiProperty({ example: "Second cycle weekly track split" })
+  @IsString()
+  @MaxLength(140)
+  label!: string;
+
+  @ApiProperty({ enum: PedagogicalRuleType })
+  @IsEnum(PedagogicalRuleType)
+  ruleType!: PedagogicalRuleType;
+
+  @ApiPropertyOptional({ enum: AcademicTrack })
+  @IsOptional()
+  @IsEnum(AcademicTrack)
+  track?: AcademicTrack;
+
+  @ApiPropertyOptional({ enum: RotationGroup })
+  @IsOptional()
+  @IsEnum(RotationGroup)
+  rotationGroup?: RotationGroup;
+
+  @ApiProperty({ type: Object })
+  @IsObject()
+  config!: Record<string, unknown>;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}

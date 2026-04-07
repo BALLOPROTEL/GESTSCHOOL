@@ -28,9 +28,9 @@ pnpm install
 
 ## 4) Apply Prisma migrations + seed users
 ```powershell
-pnpm --filter @gestschool/api prisma:migrate:deploy
-pnpm --filter @gestschool/api prisma:generate
-pnpm --filter @gestschool/api seed:users
+pnpm --filter @gestschool/api db:generate
+pnpm --filter @gestschool/api db:migrate:deploy
+pnpm --filter @gestschool/api db:seed:users
 ```
 
 ## 5) Start API
@@ -122,3 +122,18 @@ See `docs/sprint0.md`.
 - Guide complet: `docs/deployment-github-vercel-render.md`
 - Render blueprint file: `render.yaml`
 - Vercel config: `vercel.json`
+
+## Production database operations
+- Runtime:
+  - `DATABASE_URL` is used by the API and the worker.
+- Schema migrations:
+  - `DIRECT_URL` is used by Prisma migrations outside the Render runtime.
+- Recommended production flow:
+```powershell
+# 1. Set Supabase env vars in GitHub + Render
+# 2. Run the manual GitHub Actions workflow: "Migrate Production"
+# 3. Deploy Render web + worker
+# 4. Run seed only if explicitly needed
+pnpm --filter @gestschool/api db:seed:users
+```
+- Render services must not execute `prisma migrate deploy` or seed commands at boot.

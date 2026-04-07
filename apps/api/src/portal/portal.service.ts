@@ -2,7 +2,12 @@ import {
   ForbiddenException,
   Injectable
 } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import {
+  AcademicPlacementStatus,
+  AcademicStage,
+  Prisma,
+  ReportCardMode
+} from "@prisma/client";
 
 import { PrismaService } from "../database/prisma.service";
 import { CreateGradeDto } from "../grades/dto/grades.dto";
@@ -31,9 +36,19 @@ export class PortalService {
       };
     }
 
-    const [studentsCount, gradesCount, pendingJustifications, timetableSlotsCount, notificationsCount] =
+    const [placementRows, gradesCount, pendingJustifications, timetableSlotsCount, notificationsCount] =
       await Promise.all([
-        this.prisma.enrollment.count({ where: { tenantId, classId: { in: classIds } } }),
+        this.prisma.studentTrackPlacement.findMany({
+          where: {
+            tenantId,
+            classId: { in: classIds },
+            placementStatus: {
+              in: [AcademicPlacementStatus.ACTIVE, AcademicPlacementStatus.COMPLETED]
+            }
+          },
+          select: { studentId: true },
+          distinct: ["studentId"]
+        }),
         this.prisma.gradeEntry.count({ where: { tenantId, classId: { in: classIds } } }),
         this.prisma.attendance.count({
           where: { tenantId, classId: { in: classIds }, justificationStatus: "PENDING" }
@@ -46,8 +61,14 @@ export class PortalService {
               { audienceRole: "ENSEIGNANT" },
               {
                 student: {
-                  enrollments: {
-                    some: { tenantId, classId: { in: classIds } }
+                  trackPlacements: {
+                    some: {
+                      tenantId,
+                      classId: { in: classIds },
+                      placementStatus: {
+                        in: [AcademicPlacementStatus.ACTIVE, AcademicPlacementStatus.COMPLETED]
+                      }
+                    }
                   }
                 }
               }
@@ -58,7 +79,7 @@ export class PortalService {
 
     return {
       classesCount: classIds.length,
-      studentsCount,
+      studentsCount: placementRows.length,
       gradesCount,
       pendingJustifications,
       timetableSlotsCount,
@@ -79,6 +100,7 @@ export class PortalService {
       classLabel: row.classroom.label,
       schoolYearId: row.schoolYearId,
       schoolYearCode: row.schoolYear.code,
+      track: row.classroom.track,
       subjectId: row.subjectId || undefined,
       subjectLabel: row.subject?.label
     }));
@@ -91,21 +113,31 @@ export class PortalService {
     );
     if (classIds.length === 0) return [];
 
-    const rows = await this.prisma.enrollment.findMany({
-      where: { tenantId, classId: { in: classIds } },
+    const rows = await this.prisma.studentTrackPlacement.findMany({
+      where: {
+        tenantId,
+        classId: { in: classIds },
+        placementStatus: {
+          in: [AcademicPlacementStatus.ACTIVE, AcademicPlacementStatus.COMPLETED]
+        }
+      },
       include: { student: true, classroom: true, schoolYear: true },
       orderBy: [{ classroom: { label: "asc" } }, { student: { lastName: "asc" } }]
     });
 
     return rows.map((row) => ({
-      enrollmentId: row.id,
+      placementId: row.id,
+      enrollmentId: row.legacyEnrollmentId || row.id,
       studentId: row.studentId,
       matricule: row.student.matricule,
       studentName: `${row.student.firstName} ${row.student.lastName}`.trim(),
-      classId: row.classId,
-      classLabel: row.classroom.label,
+      classId: row.classId!,
+      classLabel: row.classroom?.label || "-",
       schoolYearId: row.schoolYearId,
-      schoolYearCode: row.schoolYear.code
+      schoolYearCode: row.schoolYear.code,
+      track: row.track,
+      placementStatus: row.placementStatus,
+      isPrimary: row.isPrimary
     }));
   }
 
@@ -134,6 +166,8 @@ export class PortalService {
 
     return rows.map((row) => ({
       id: row.id,
+      placementId: row.placementId || undefined,
+      track: row.track,
       studentId: row.studentId,
       studentName: `${row.student.firstName} ${row.student.lastName}`.trim(),
       classId: row.classId,
@@ -192,6 +226,8 @@ export class PortalService {
       classLabel: row.classroom.label,
       schoolYearId: row.schoolYearId,
       schoolYearCode: row.schoolYear.code,
+      track: row.track,
+      rotationGroup: row.rotationGroup || undefined,
       subjectId: row.subjectId,
       subjectLabel: row.subject.label,
       dayOfWeek: row.dayOfWeek,
@@ -210,8 +246,14 @@ export class PortalService {
     const studentRows =
       classIds.length === 0
         ? []
-        : await this.prisma.enrollment.findMany({
-            where: { tenantId, classId: { in: classIds } },
+        : await this.prisma.studentTrackPlacement.findMany({
+            where: {
+              tenantId,
+              classId: { in: classIds },
+              placementStatus: {
+                in: [AcademicPlacementStatus.ACTIVE, AcademicPlacementStatus.COMPLETED]
+              }
+            },
             select: { studentId: true }
           });
     const studentIds = [...new Set(studentRows.map((row) => row.studentId))];
@@ -247,11 +289,18 @@ export class PortalService {
   ) {
     await this.assertTeacherCanAccessClass(tenantId, teacherUserId, payload.classId);
     if (payload.studentId) {
-      const enrollment = await this.prisma.enrollment.findFirst({
-        where: { tenantId, classId: payload.classId, studentId: payload.studentId },
+      const placement = await this.prisma.studentTrackPlacement.findFirst({
+        where: {
+          tenantId,
+          classId: payload.classId,
+          studentId: payload.studentId,
+          placementStatus: {
+            in: [AcademicPlacementStatus.ACTIVE, AcademicPlacementStatus.COMPLETED]
+          }
+        },
         select: { id: true }
       });
-      if (!enrollment) {
+      if (!placement) {
         throw new ForbiddenException("Target student is not part of selected class.");
       }
     }
@@ -337,13 +386,22 @@ export class PortalService {
       include: {
         student: {
           include: {
-            enrollments: {
+            trackPlacements: {
+              where: {
+                placementStatus: {
+                  in: [AcademicPlacementStatus.ACTIVE, AcademicPlacementStatus.COMPLETED]
+                }
+              },
               include: {
+                level: {
+                  include: {
+                    cycle: true
+                  }
+                },
                 classroom: true,
                 schoolYear: true
               },
-              orderBy: [{ enrollmentDate: "desc" }],
-              take: 1
+              orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }]
             }
           }
         }
@@ -352,7 +410,26 @@ export class PortalService {
     });
 
     return rows.map((row) => {
-      const enrollment = row.student.enrollments[0];
+      const placements = row.student.trackPlacements.map((placement) => ({
+        placementId: placement.id,
+        enrollmentId: placement.legacyEnrollmentId || undefined,
+        track: placement.track,
+        placementStatus: placement.placementStatus,
+        isPrimary: placement.isPrimary,
+        levelId: placement.levelId,
+        levelCode: placement.level.code,
+        levelLabel: placement.level.label,
+        academicStage: placement.level.cycle.academicStage,
+        classId: placement.classId || undefined,
+        classLabel: placement.classroom?.label,
+        schoolYearId: placement.schoolYearId,
+        schoolYearCode: placement.schoolYear.code
+      }));
+      const primaryPlacement =
+        placements.find((placement) => placement.isPrimary) || placements[0];
+      const secondaryPlacement =
+        placements.find((placement) => !placement.isPrimary) ||
+        placements.find((placement) => placement.placementId !== primaryPlacement?.placementId);
       return {
         linkId: row.id,
         studentId: row.studentId,
@@ -360,10 +437,16 @@ export class PortalService {
         studentName: `${row.student.firstName} ${row.student.lastName}`.trim(),
         relationship: row.relationship || undefined,
         isPrimary: row.isPrimary,
-        classId: enrollment?.classId,
-        classLabel: enrollment?.classroom.label,
-        schoolYearId: enrollment?.schoolYearId,
-        schoolYearCode: enrollment?.schoolYear.code
+        classId: primaryPlacement?.classId,
+        classLabel: primaryPlacement?.classLabel,
+        schoolYearId: primaryPlacement?.schoolYearId,
+        schoolYearCode: primaryPlacement?.schoolYearCode,
+        primaryTrack: primaryPlacement?.track,
+        primaryPlacement,
+        secondaryPlacement,
+        secondaryClassId: secondaryPlacement?.classId,
+        secondaryClassLabel: secondaryPlacement?.classLabel,
+        placements
       };
     });
   }
@@ -398,6 +481,8 @@ export class PortalService {
 
     return rows.map((row) => ({
       id: row.id,
+      placementId: row.placementId || undefined,
+      track: row.track,
       studentId: row.studentId,
       studentName: `${row.student.firstName} ${row.student.lastName}`.trim(),
       classId: row.classId,
@@ -433,14 +518,45 @@ export class PortalService {
         tenantId,
         studentId: { in: studentIds },
         academicPeriodId: filters.academicPeriodId,
-        classId: filters.classId
+        OR: filters.classId
+          ? [
+              { classId: filters.classId },
+              {
+                secondaryPlacement: {
+                  is: {
+                    classId: filters.classId
+                  }
+                }
+              }
+            ]
+          : undefined
       },
-      include: { student: true, classroom: true, academicPeriod: true },
+      include: {
+        student: true,
+        classroom: true,
+        academicPeriod: true,
+        placement: {
+          include: {
+            classroom: true,
+            level: true
+          }
+        },
+        secondaryPlacement: {
+          include: {
+            classroom: true,
+            level: true
+          }
+        }
+      },
       orderBy: [{ updatedAt: "desc" }]
     });
 
     return rows.map((row) => ({
       id: row.id,
+      placementId: row.placementId || undefined,
+      secondaryPlacementId: row.secondaryPlacementId || undefined,
+      track: row.track,
+      mode: row.mode as ReportCardMode,
       studentId: row.studentId,
       studentName: `${row.student.firstName} ${row.student.lastName}`.trim(),
       classId: row.classId,
@@ -451,7 +567,28 @@ export class PortalService {
       classRank: row.classRank || undefined,
       appreciation: row.appreciation || undefined,
       publishedAt: row.publishedAt?.toISOString(),
-      pdfDataUrl: row.pdfDataUrl || undefined
+      pdfDataUrl: row.pdfDataUrl || undefined,
+      secondaryClassLabel: row.secondaryPlacement?.classroom?.label || undefined,
+      sections:
+        row.summaryData && typeof row.summaryData === "object" && !Array.isArray(row.summaryData)
+          ? ((row.summaryData as { sections?: unknown }).sections as Array<{
+              placementId?: string;
+              track: "FRANCOPHONE" | "ARABOPHONE";
+              classId: string;
+              classLabel?: string;
+              levelCode?: string;
+              levelLabel?: string;
+              academicStage: AcademicStage;
+              averageGeneral: number;
+              classRank?: number;
+              appreciation: string;
+              subjectAverages: Array<{
+                subjectId: string;
+                subjectLabel: string;
+                average: number;
+              }>;
+            }> | undefined)
+          : undefined
     }));
   }
 
@@ -486,6 +623,8 @@ export class PortalService {
 
     return rows.map((row) => ({
       id: row.id,
+      placementId: row.placementId || undefined,
+      track: row.track,
       studentId: row.studentId,
       studentName: `${row.student.firstName} ${row.student.lastName}`.trim(),
       classId: row.classId,
@@ -510,7 +649,22 @@ export class PortalService {
         tenantId,
         studentId: { in: studentIds }
       },
-      include: { student: true, schoolYear: true },
+      include: {
+        student: true,
+        schoolYear: true,
+        billingPlacement: {
+          include: {
+            classroom: true,
+            level: true
+          }
+        },
+        secondaryPlacement: {
+          include: {
+            classroom: true,
+            level: true
+          }
+        }
+      },
       orderBy: [{ createdAt: "desc" }]
     });
 
@@ -523,12 +677,24 @@ export class PortalService {
         studentName: `${row.student.firstName} ${row.student.lastName}`.trim(),
         schoolYearId: row.schoolYearId,
         schoolYearCode: row.schoolYear.code,
+        billingPlacementId: row.billingPlacementId || undefined,
+        secondaryPlacementId: row.secondaryPlacementId || undefined,
         invoiceNo: row.invoiceNo,
         amountDue,
         amountPaid,
         remainingAmount: this.roundAmount(amountDue - amountPaid),
         status: row.status,
-        dueDate: row.dueDate?.toISOString().slice(0, 10)
+        dueDate: row.dueDate?.toISOString().slice(0, 10),
+        primaryTrack: row.billingPlacement?.track,
+        primaryClassId: row.billingPlacement?.classId || undefined,
+        primaryClassLabel: row.billingPlacement?.classroom?.label || undefined,
+        primaryLevelId: row.billingPlacement?.levelId || undefined,
+        primaryLevelLabel: row.billingPlacement?.level?.label || undefined,
+        secondaryTrack: row.secondaryPlacement?.track,
+        secondaryClassId: row.secondaryPlacement?.classId || undefined,
+        secondaryClassLabel: row.secondaryPlacement?.classroom?.label || undefined,
+        secondaryLevelId: row.secondaryPlacement?.levelId || undefined,
+        secondaryLevelLabel: row.secondaryPlacement?.level?.label || undefined
       };
     });
   }
@@ -581,13 +747,55 @@ export class PortalService {
       throw new ForbiddenException("Student is not linked to current parent.");
     }
 
-    const classChildren = scopedChildren.filter(
-      (item): item is typeof item & { classId: string; schoolYearId: string } =>
-        Boolean(item.classId) && Boolean(item.schoolYearId)
-    );
-    if (classChildren.length === 0) return [];
+    type ParentPlacementTimetableContext = {
+      studentId: string;
+      studentName: string;
+      placementId?: string;
+      track?: string;
+      classId: string;
+      classLabel?: string;
+      schoolYearId: string;
+      schoolYearCode?: string;
+    };
 
-    const classIds = [...new Set(classChildren.map((item) => item.classId))];
+    const placementChildren = scopedChildren.flatMap<ParentPlacementTimetableContext>((child) => {
+      if (Array.isArray(child.placements) && child.placements.length > 0) {
+        return child.placements
+          .filter(
+            (placement) => Boolean(placement.classId) && Boolean(placement.schoolYearId)
+          )
+          .map((placement) => ({
+            studentId: child.studentId,
+            studentName: child.studentName,
+            placementId: placement.placementId || undefined,
+            track: placement.track,
+            classId: placement.classId!,
+            classLabel: placement.classLabel,
+            schoolYearId: placement.schoolYearId!,
+            schoolYearCode: placement.schoolYearCode
+          }));
+      }
+
+      if (child.classId && child.schoolYearId) {
+        return [
+          {
+            studentId: child.studentId,
+            studentName: child.studentName,
+            placementId: undefined,
+            track: child.primaryTrack,
+            classId: child.classId,
+            classLabel: child.classLabel,
+            schoolYearId: child.schoolYearId,
+            schoolYearCode: child.schoolYearCode
+          }
+        ];
+      }
+
+      return [];
+    });
+    if (placementChildren.length === 0) return [];
+
+    const classIds = [...new Set(placementChildren.map((item) => item.classId))];
     const rows = await this.prisma.timetableSlot.findMany({
       where: {
         tenantId,
@@ -601,29 +809,29 @@ export class PortalService {
       orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }]
     });
 
-    const childByClass = new Map(classChildren.map((item) => [item.classId, item]));
-
     return rows
-      .map((row) => {
-        const child = childByClass.get(row.classId);
-        if (!child) return null;
-        return {
-          slotId: row.id,
-          studentId: child.studentId,
-          studentName: child.studentName,
-          classId: row.classId,
-          classLabel: row.classroom.label,
-          schoolYearId: row.schoolYearId,
-          schoolYearCode: row.schoolYear.code,
-          subjectLabel: row.subject.label,
-          dayOfWeek: row.dayOfWeek,
-          startTime: row.startTime,
-          endTime: row.endTime,
-          room: row.room || undefined,
-          teacherName: row.teacherName || undefined
-        };
-      })
-      .filter((item): item is NonNullable<typeof item> => item !== null);
+      .flatMap((row) =>
+        placementChildren
+          .filter((child) => child.classId === row.classId)
+          .map((child) => ({
+            slotId: row.id,
+            placementId: child.placementId,
+            track: row.track,
+            rotationGroup: row.rotationGroup || undefined,
+            studentId: child.studentId,
+            studentName: child.studentName,
+            classId: row.classId,
+            classLabel: row.classroom.label,
+            schoolYearId: row.schoolYearId,
+            schoolYearCode: row.schoolYear.code,
+            subjectLabel: row.subject.label,
+            dayOfWeek: row.dayOfWeek,
+            startTime: row.startTime,
+            endTime: row.endTime,
+            room: row.room || undefined,
+            teacherName: row.teacherName || undefined
+          }))
+      );
   }
 
   async listParentNotifications(tenantId: string, parentUserId: string, studentId?: string) {

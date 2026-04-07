@@ -5,8 +5,16 @@ import {
   Injectable,
   NotFoundException
 } from "@nestjs/common";
-import { Prisma, type FeePlan, type Invoice, type Payment, type Student } from "@prisma/client";
+import {
+  type AcademicTrack,
+  Prisma,
+  type FeePlan,
+  type Invoice,
+  type Payment,
+  type Student
+} from "@prisma/client";
 
+import { AcademicStructureService } from "../academic-structure/academic-structure.service";
 import { PrismaService } from "../database/prisma.service";
 import { NotificationRequestBusService } from "../notifications/notification-request-bus.service";
 import { ReferenceService } from "../reference/reference.service";
@@ -35,6 +43,8 @@ type InvoiceView = {
   studentId: string;
   schoolYearId: string;
   feePlanId?: string;
+  billingPlacementId?: string;
+  secondaryPlacementId?: string;
   invoiceNo: string;
   amountDue: number;
   amountPaid: number;
@@ -44,6 +54,16 @@ type InvoiceView = {
   studentName?: string;
   schoolYearCode?: string;
   feePlanLabel?: string;
+  primaryTrack?: AcademicTrack;
+  primaryClassId?: string;
+  primaryClassLabel?: string;
+  primaryLevelId?: string;
+  primaryLevelLabel?: string;
+  secondaryTrack?: AcademicTrack;
+  secondaryClassId?: string;
+  secondaryClassLabel?: string;
+  secondaryLevelId?: string;
+  secondaryLevelLabel?: string;
 };
 
 type PaymentView = {
@@ -85,6 +105,7 @@ type RecoveryDashboardView = {
 @Injectable()
 export class FinanceService {
   constructor(
+    private readonly academicStructureService: AcademicStructureService,
     private readonly notificationRequestBus: NotificationRequestBusService,
     private readonly prisma: PrismaService,
     private readonly referenceService: ReferenceService
@@ -188,7 +209,19 @@ export class FinanceService {
       include: {
         student: true,
         schoolYear: true,
-        feePlan: true
+        feePlan: true,
+        billingPlacement: {
+          include: {
+            classroom: true,
+            level: true
+          }
+        },
+        secondaryPlacement: {
+          include: {
+            classroom: true,
+            level: true
+          }
+        }
       },
       orderBy: [{ createdAt: "desc" }]
     });
@@ -202,6 +235,18 @@ export class FinanceService {
   ): Promise<InvoiceView> {
     const student = await this.requireStudent(tenantId, payload.studentId);
     await this.referenceService.requireSchoolYear(tenantId, payload.schoolYearId);
+    const { primaryPlacement, secondaryPlacement } =
+      await this.academicStructureService.resolvePrimarySecondaryPlacements(
+        tenantId,
+        student.id,
+        payload.schoolYearId
+      );
+
+    if (!primaryPlacement) {
+      throw new ConflictException(
+        "Student has no academic placement for this school year."
+      );
+    }
 
     let amountDue = payload.amountDue;
     let feePlanLabel: string | undefined;
@@ -213,6 +258,12 @@ export class FinanceService {
 
       if (feePlan.schoolYearId !== payload.schoolYearId) {
         throw new ConflictException("Fee plan school year must match invoice school year.");
+      }
+
+      if (feePlan.levelId !== primaryPlacement.levelId) {
+        throw new ConflictException(
+          "Fee plan must target the student's principal placement level."
+        );
       }
     }
 
@@ -233,6 +284,8 @@ export class FinanceService {
           studentId: student.id,
           schoolYearId: payload.schoolYearId,
           feePlanId: payload.feePlanId,
+          billingPlacementId: primaryPlacement.id,
+          secondaryPlacementId: secondaryPlacement?.id,
           invoiceNo,
           amountDue,
           amountPaid: 0,
@@ -243,7 +296,19 @@ export class FinanceService {
         include: {
           student: true,
           schoolYear: true,
-          feePlan: true
+          feePlan: true,
+          billingPlacement: {
+            include: {
+              classroom: true,
+              level: true
+            }
+          },
+          secondaryPlacement: {
+            include: {
+              classroom: true,
+              level: true
+            }
+          }
         }
       });
 
@@ -283,7 +348,19 @@ export class FinanceService {
       include: {
         student: true,
         schoolYear: true,
-        feePlan: true
+        feePlan: true,
+        billingPlacement: {
+          include: {
+            classroom: true,
+            level: true
+          }
+        },
+        secondaryPlacement: {
+          include: {
+            classroom: true,
+            level: true
+          }
+        }
       }
     });
 
@@ -558,6 +635,22 @@ export class FinanceService {
       student?: { firstName: string; lastName: string } | null;
       schoolYear?: { code: string } | null;
       feePlan?: { label: string } | null;
+      billingPlacement?: {
+        id: string;
+        track: AcademicTrack;
+        levelId: string;
+        level: { label: string } | null;
+        classId: string | null;
+        classroom: { label: string } | null;
+      } | null;
+      secondaryPlacement?: {
+        id: string;
+        track: AcademicTrack;
+        levelId: string;
+        level: { label: string } | null;
+        classId: string | null;
+        classroom: { label: string } | null;
+      } | null;
     }
   ): InvoiceView {
     const amountDue = this.decimalToNumber(row.amountDue);
@@ -569,6 +662,8 @@ export class FinanceService {
       studentId: row.studentId,
       schoolYearId: row.schoolYearId,
       feePlanId: row.feePlanId === null ? undefined : row.feePlanId,
+      billingPlacementId: row.billingPlacementId || undefined,
+      secondaryPlacementId: row.secondaryPlacementId || undefined,
       invoiceNo: row.invoiceNo,
       amountDue,
       amountPaid,
@@ -577,7 +672,17 @@ export class FinanceService {
       dueDate: row.dueDate?.toISOString().slice(0, 10),
       studentName: row.student ? `${row.student.firstName} ${row.student.lastName}`.trim() : undefined,
       schoolYearCode: row.schoolYear?.code,
-      feePlanLabel: row.feePlan?.label
+      feePlanLabel: row.feePlan?.label,
+      primaryTrack: row.billingPlacement?.track,
+      primaryClassId: row.billingPlacement?.classId || undefined,
+      primaryClassLabel: row.billingPlacement?.classroom?.label,
+      primaryLevelId: row.billingPlacement?.levelId,
+      primaryLevelLabel: row.billingPlacement?.level?.label || undefined,
+      secondaryTrack: row.secondaryPlacement?.track,
+      secondaryClassId: row.secondaryPlacement?.classId || undefined,
+      secondaryClassLabel: row.secondaryPlacement?.classroom?.label,
+      secondaryLevelId: row.secondaryPlacement?.levelId,
+      secondaryLevelLabel: row.secondaryPlacement?.level?.label || undefined
     };
   }
 

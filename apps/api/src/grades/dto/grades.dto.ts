@@ -1,7 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { AcademicTrack } from "@prisma/client";
 import {
   IsArray,
   IsBoolean,
+  IsEnum,
   IsIn,
   IsNumber,
   IsOptional,
@@ -30,6 +32,16 @@ export class CreateGradeDto {
   @ApiProperty()
   @IsUUID("all")
   academicPeriodId!: string;
+
+  @ApiPropertyOptional({ enum: AcademicTrack })
+  @IsOptional()
+  @IsEnum(AcademicTrack)
+  track?: AcademicTrack;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID("all")
+  placementId?: string;
 
   @ApiProperty({ example: "Devoir 1" })
   @IsString()
@@ -97,6 +109,11 @@ export class BulkCreateGradesDto {
   @IsUUID("all")
   academicPeriodId!: string;
 
+  @ApiPropertyOptional({ enum: AcademicTrack })
+  @IsOptional()
+  @IsEnum(AcademicTrack)
+  track?: AcademicTrack;
+
   @ApiProperty({ example: "Devoir 2" })
   @IsString()
   @MaxLength(120)
@@ -132,6 +149,16 @@ export class GenerateReportCardDto {
   @ApiProperty()
   @IsUUID("all")
   academicPeriodId!: string;
+
+  @ApiPropertyOptional({ enum: AcademicTrack })
+  @IsOptional()
+  @IsEnum(AcademicTrack)
+  track?: AcademicTrack;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID("all")
+  placementId?: string;
 
   @ApiPropertyOptional({ default: true })
   @IsOptional()

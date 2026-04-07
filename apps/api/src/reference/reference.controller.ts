@@ -24,6 +24,7 @@ import {
   CreateClassroomDto,
   CreateCycleDto,
   CreateLevelDto,
+  CreatePedagogicalRuleDto,
   CreateSchoolYearDto,
   CreateSubjectDto,
   UpdateAcademicPeriodDto,
@@ -160,10 +161,11 @@ export class ReferenceController {
   async listLevels(
     @Req() request: { user?: AuthenticatedUser },
     @Query("cycleId") cycleId?: string,
+    @Query("track") track?: string,
     @Headers("x-tenant-id") tenantHeader?: string
   ) {
     const tenantId = this.getTenantId(request.user, tenantHeader);
-    return this.referenceService.listLevels(tenantId, cycleId);
+    return this.referenceService.listLevels(tenantId, cycleId, track);
   }
 
   @Post("levels")
@@ -214,10 +216,11 @@ export class ReferenceController {
     @Req() request: { user?: AuthenticatedUser },
     @Query("schoolYearId") schoolYearId?: string,
     @Query("levelId") levelId?: string,
+    @Query("track") track?: string,
     @Headers("x-tenant-id") tenantHeader?: string
   ) {
     const tenantId = this.getTenantId(request.user, tenantHeader);
-    return this.referenceService.listClassrooms(tenantId, { schoolYearId, levelId });
+    return this.referenceService.listClassrooms(tenantId, { schoolYearId, levelId, track });
   }
 
   @Post("classes")
@@ -365,6 +368,65 @@ export class ReferenceController {
     await this.referenceService.deleteAcademicPeriod(tenantId, id);
   }
 
+  @Get("academic-tracks")
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermission("reference", "read")
+  @ApiOperation({ summary: "List supported academic tracks" })
+  async listAcademicTracks() {
+    return this.referenceService.listAcademicTracks();
+  }
+
+  @Get("pedagogical-rules")
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermission("reference", "read")
+  @ApiOperation({ summary: "List pedagogical rules" })
+  async listPedagogicalRules(
+    @Req() request: { user?: AuthenticatedUser },
+    @Query("schoolYearId") schoolYearId?: string,
+    @Query("cycleId") cycleId?: string,
+    @Query("levelId") levelId?: string,
+    @Query("classId") classId?: string,
+    @Query("ruleType") ruleType?: string,
+    @Query("track") track?: string,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ) {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    return this.referenceService.listPedagogicalRules(tenantId, {
+      schoolYearId,
+      cycleId,
+      levelId,
+      classId,
+      ruleType,
+      track
+    });
+  }
+
+  @Post("pedagogical-rules")
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermission("reference", "create")
+  @ApiOperation({ summary: "Create pedagogical rule" })
+  async createPedagogicalRule(
+    @Req() request: { user?: AuthenticatedUser },
+    @Body() body: CreatePedagogicalRuleDto,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ) {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    return this.referenceService.createPedagogicalRule(tenantId, body);
+  }
+
+  @Delete("pedagogical-rules/:id")
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermission("reference", "delete")
+  @ApiOperation({ summary: "Delete pedagogical rule" })
+  async deletePedagogicalRule(
+    @Req() request: { user?: AuthenticatedUser },
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ) {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    await this.referenceService.deletePedagogicalRule(tenantId, id);
+  }
+
   private getTenantId(
     user: AuthenticatedUser | undefined,
     tenantHeader?: string
@@ -372,4 +434,3 @@ export class ReferenceController {
     return resolveTenantContext(this.configService, user, tenantHeader);
   }
 }
-

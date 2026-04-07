@@ -1,16 +1,10 @@
-databases:
-  - name: gestschool-postgres
-    databaseName: gestschool
-    user: gestschool
-    plan: starter
-
 services:
   - type: web
     name: gestschool-api
     runtime: node
     plan: starter
     autoDeploy: true
-    healthCheckPath: /api/v1/health/live
+    healthCheckPath: /api/v1/health/ready
     buildCommand: >
       corepack enable &&
       corepack prepare pnpm@10.24.0 --activate &&
@@ -18,15 +12,16 @@ services:
       pnpm --filter @gestschool/api prisma:generate &&
       pnpm --filter @gestschool/api build
     startCommand: >
-      pnpm --filter @gestschool/api prisma:migrate:deploy &&
       pnpm --filter @gestschool/api start:prod
     envVars:
       - key: NODE_ENV
         value: production
+      - key: HOST
+        value: 0.0.0.0
       - key: DATABASE_URL
-        fromDatabase:
-          name: gestschool-postgres
-          property: connectionString
+        sync: false
+      - key: DIRECT_URL
+        sync: false
       - key: REDIS_URL
         sync: false
       - key: JWT_ISSUER
@@ -89,15 +84,14 @@ services:
       pnpm --filter @gestschool/api prisma:generate &&
       pnpm --filter @gestschool/api build
     startCommand: >
-      pnpm --filter @gestschool/api prisma:migrate:deploy &&
       pnpm --filter @gestschool/api start:worker
     envVars:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        fromDatabase:
-          name: gestschool-postgres
-          property: connectionString
+        sync: false
+      - key: DIRECT_URL
+        sync: false
       - key: REDIS_URL
         sync: false
       - key: DEFAULT_TENANT_ID

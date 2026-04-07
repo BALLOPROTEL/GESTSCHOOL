@@ -1,170 +1,79 @@
-import { Children, FormEvent, ReactNode, cloneElement, isValidElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import type {
+  AcademicStage,
+  AcademicTrack,
+  AnalyticsOverview,
+  AnalyticsTrendPoint,
+  AuditLogExportResponse,
+  AuditLogPage,
+  AuthMessageResponse,
+  ClassItem,
+  ClassSummary,
+  Cycle,
+  Enrollment,
+  FeePlan,
+  FieldErrors,
+  ForgotPasswordResponse,
+  GradeEntry,
+  HeroSlide,
+  Invoice,
+  Level,
+  ModuleTile,
+  MosqueActivity,
+  MosqueDashboard,
+  MosqueDonation,
+  MosqueDonationReceipt,
+  MosqueExportResponse,
+  MosqueMember,
+  ParentChild,
+  ParentLink,
+  ParentOverview,
+  PaymentRecord,
+  Period,
+  PermissionAction,
+  PermissionResource,
+  PortalNotification,
+  RecoveryDashboard,
+  RememberedLogin,
+  ReportCard,
+  ReportCardMode,
+  Role,
+  RolePermissionView,
+  SchoolYear,
+  ScreenDef,
+  ScreenId,
+  Session,
+  Student,
+  Subject,
+  TeacherAssignment,
+  TeacherClass,
+  TeacherOverview,
+  TeacherStudent,
+  ThemeMode,
+  UserAccount,
+  WorkflowStepDef
+} from "./app-types";
+import { FlipIconButton } from "./components/flip-icon-button";
 import { ConstructionPageMosquee } from "./construction-page-mosquee";
+import { WorkflowGuide } from "./components/workflow-guide";
 import {
   HeaderNavigation,
   type HeaderNavigationAction,
   type HeaderNavigationGroup,
   type HeaderPreferenceAction
 } from "./header-navigation";
+import { useAuthSession } from "./hooks/use-auth-session";
 import { UI_LANGUAGE_META, UI_LANGUAGE_ORDER, UiLanguage, useDomTranslation } from "./i18n";
 import { SchoolLifePanel } from "./school-life-panel";
-
-type Session = {
-  accessToken: string;
-  refreshToken: string;
-  user: { username: string; role: string; tenantId: string };
-  tenantId: string;
-};
-
-type Student = {
-  id: string;
-  matricule: string;
-  firstName: string;
-  lastName: string;
-  sex: "M" | "F";
-  birthDate?: string;
-};
-
-type SchoolYear = { id: string; code: string; isActive: boolean };
-type Cycle = { id: string; code: string; label: string };
-type Level = { id: string; cycleId: string; code: string; label: string };
-type ClassItem = { id: string; schoolYearId: string; levelId: string; code: string; label: string };
-type Subject = { id: string; code: string; label: string; isArabic: boolean };
-type Period = { id: string; schoolYearId: string; code: string; label: string; periodType: string };
-type Enrollment = {
-  id: string;
-  schoolYearId: string;
-  classId: string;
-  studentId: string;
-  enrollmentDate: string;
-  enrollmentStatus: string;
-  studentName?: string;
-  classLabel?: string;
-  schoolYearCode?: string;
-};
-
-type FeePlan = {
-  id: string;
-  schoolYearId: string;
-  levelId: string;
-  label: string;
-  totalAmount: number;
-  currency: string;
-};
-
-type Invoice = {
-  id: string;
-  studentId: string;
-  schoolYearId: string;
-  feePlanId?: string;
-  invoiceNo: string;
-  amountDue: number;
-  amountPaid: number;
-  remainingAmount: number;
-  status: string;
-  dueDate?: string;
-  studentName?: string;
-  schoolYearCode?: string;
-  feePlanLabel?: string;
-};
-
-type PaymentRecord = {
-  id: string;
-  invoiceId: string;
-  invoiceNo?: string;
-  studentId?: string;
-  studentName?: string;
-  schoolYearId?: string;
-  receiptNo: string;
-  paidAmount: number;
-  paymentMethod: string;
-  paidAt: string;
-  referenceExternal?: string;
-};
-
-type RecoveryDashboard = {
-  totals: {
-    amountDue: number;
-    amountPaid: number;
-    remainingAmount: number;
-    recoveryRatePercent: number;
-  };
-  invoices: {
-    total: number;
-    open: number;
-    partial: number;
-    paid: number;
-    void: number;
-  };
-};
-
-type GradeEntry = {
-  id: string;
-  studentId: string;
-  studentName?: string;
-  classId: string;
-  subjectId: string;
-  subjectLabel?: string;
-  academicPeriodId: string;
-  assessmentLabel: string;
-  assessmentType: string;
-  score: number;
-  scoreMax: number;
-  absent: boolean;
-};
-
-type ClassSummaryStudent = {
-  studentId: string;
-  matricule: string;
-  studentName: string;
-  averageGeneral: number;
-  classRank: number;
-  noteCount: number;
-  appreciation: string;
-};
-
-type ClassSummary = {
-  classId: string;
-  academicPeriodId: string;
-  classAverage: number;
-  students: ClassSummaryStudent[];
-};
-
-type ReportCard = {
-  id: string;
-  studentId: string;
-  classId: string;
-  academicPeriodId: string;
-  averageGeneral: number;
-  classRank?: number;
-  appreciation?: string;
-  pdfDataUrl?: string;
-  studentName?: string;
-  classLabel?: string;
-  periodLabel?: string;
-};
-
-type WorkflowStepDef = {
-  id: string;
-  title: string;
-  hint: string;
-  done?: boolean;
-};
-
-type FieldErrors = Record<string, string>;
-type ThemeMode = "light" | "dark";
-type RememberedLogin = {
-  username: string;
-  tenantId?: string;
-  remember: boolean;
-};
-type ForgotPasswordResponse = {
-  message: string;
-};
-type AuthMessageResponse = {
-  message: string;
-};
+import { AuthScreen } from "./screens/auth-screen";
+import { DashboardScreen } from "./screens/dashboard-screen";
+import { StudentsScreen } from "./screens/students-screen";
+import {
+  readLanguagePreference,
+  readRememberedLogin,
+  readThemePreference
+} from "./services/session-storage";
 
 const hasFieldErrors = (errors: FieldErrors): boolean => Object.keys(errors).length > 0;
 
@@ -181,7 +90,6 @@ const CHANNEL_LABELS: Record<string, string> = {
   TRANSFER: "Virement",
   OTHER: "Autre"
 };
-const STORAGE_KEY = "gestschool.web-admin.session";
 const THEME_STORAGE_KEY = "gestschool.web-admin.theme";
 const LANGUAGE_STORAGE_KEY = "gestschool.web-admin.language";
 const LOGIN_HINT_STORAGE_KEY = "gestschool.web-admin.login-hint";
@@ -217,11 +125,48 @@ const formatAudienceRoleLabel = (value?: string): string =>
 const formatMemberStatusLabel = (value?: string): string => formatLookupLabel(MEMBER_STATUS_LABELS, value);
 const formatEnrollmentStatusLabel = (value?: string): string =>
   formatLookupLabel(ENROLLMENT_STATUS_LABELS, value);
+const formatAcademicTrackLabel = (value?: string): string =>
+  value === "ARABOPHONE" ? "Arabophone" : "Francophone";
+const formatAcademicStageLabel = (value?: AcademicStage): string => {
+  if (value === "PRIMARY") return "Primaire";
+  if (value === "HIGHER") return "Superieur";
+  return "Secondaire";
+};
+const formatReportCardModeLabel = (value?: ReportCardMode): string =>
+  value === "PRIMARY_COMBINED" ? "Bulletin primaire combine" : "Bulletin par cursus";
 const formatWeekdayLabel = (day?: number): string => WEEKDAY_LABELS[day || 0] || String(day || "-");
 const formatPermissionActionLabel = (value: PermissionAction): string =>
   PERMISSION_ACTION_LABELS[value] || value;
 const formatPermissionResourceLabel = (value: PermissionResource): string =>
   PERMISSION_RESOURCE_LABELS[value] || value;
+
+const getReferenceFieldErrorTarget = (
+  path: string,
+  message: string
+): { scope: "schoolYear" | "cycle" | "level" | "class" | "subject" | "period"; field: string } | null => {
+  const normalized = message.trim().toLowerCase();
+
+  if (path === "/school-years" && normalized.includes("already exists")) {
+    return { scope: "schoolYear", field: "code" };
+  }
+  if (path === "/cycles" && normalized.includes("already exists")) {
+    return { scope: "cycle", field: "code" };
+  }
+  if (path === "/levels" && normalized.includes("already exists")) {
+    return { scope: "level", field: "code" };
+  }
+  if (path === "/classes" && normalized.includes("already exists")) {
+    return { scope: "class", field: "code" };
+  }
+  if (path === "/subjects" && normalized.includes("already exists")) {
+    return { scope: "subject", field: "code" };
+  }
+  if (path === "/academic-periods" && normalized.includes("already exists")) {
+    return { scope: "period", field: "code" };
+  }
+
+  return null;
+};
 
 const parseError = async (response: Response): Promise<string> => {
   try {
@@ -246,443 +191,6 @@ const triggerFileDownload = (fileName: string, dataUrl: string): void => {
   anchor.click();
 };
 
-const readRememberedLogin = (): RememberedLogin | null => {
-  const raw = localStorage.getItem(LOGIN_HINT_STORAGE_KEY);
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as Partial<RememberedLogin>;
-    if (!parsed.remember) return null;
-    if (typeof parsed.username !== "string") return null;
-    return {
-      username: parsed.username,
-      tenantId: typeof parsed.tenantId === "string" ? parsed.tenantId : DEFAULT_TENANT,
-      remember: true
-    };
-  } catch {
-    return null;
-  }
-};
-
-const isStoredSession = (value: unknown): value is Session => {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<Session> & { user?: Partial<Session["user"]> };
-  return (
-    typeof candidate.accessToken === "string" &&
-    typeof candidate.refreshToken === "string" &&
-    typeof candidate.tenantId === "string" &&
-    typeof candidate.user?.username === "string" &&
-    typeof candidate.user?.role === "string" &&
-    typeof candidate.user?.tenantId === "string"
-  );
-};
-
-const readStoredSession = (): Session | null => {
-  if (typeof window === "undefined") return null;
-
-  const storages = [window.sessionStorage, window.localStorage];
-  for (const storage of storages) {
-    const raw = storage.getItem(STORAGE_KEY);
-    if (!raw) continue;
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      if (!isStoredSession(parsed)) {
-        storage.removeItem(STORAGE_KEY);
-        continue;
-      }
-      const normalized: Session = {
-        accessToken: parsed.accessToken,
-        refreshToken: parsed.refreshToken,
-        tenantId: parsed.tenantId,
-        user: {
-          username: parsed.user.username,
-          role: parsed.user.role,
-          tenantId: parsed.user.tenantId
-        }
-      };
-      window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
-      if (storage !== window.sessionStorage) {
-        storage.removeItem(STORAGE_KEY);
-      }
-      return normalized;
-    } catch {
-      storage.removeItem(STORAGE_KEY);
-    }
-  }
-
-  return null;
-};
-
-const persistSession = (session: Session): void => {
-  if (typeof window === "undefined") return;
-  window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-  window.localStorage.removeItem(STORAGE_KEY);
-};
-
-const clearStoredSession = (): void => {
-  if (typeof window === "undefined") return;
-  window.sessionStorage.removeItem(STORAGE_KEY);
-  window.localStorage.removeItem(STORAGE_KEY);
-};
-
-const readThemePreference = (): ThemeMode => {
-  const saved = localStorage.getItem(THEME_STORAGE_KEY);
-  if (saved === "light" || saved === "dark") return saved;
-  if (window.matchMedia?.("(prefers-color-scheme: dark)").matches) return "dark";
-  return "light";
-};
-
-const readLanguagePreference = (): UiLanguage => {
-  const saved = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-  if (saved === "fr" || saved === "en" || saved === "ar") return saved;
-  return "fr";
-};
-
-type FlipIconButtonProps = {
-  buttonClassName: string;
-  currentIconSrc: string;
-  nextIconSrc: string;
-  label: string;
-  isFlipping: boolean;
-  onClick: () => void;
-};
-
-function FlipIconButton({
-  buttonClassName,
-  currentIconSrc,
-  nextIconSrc,
-  label,
-  isFlipping,
-  onClick
-}: FlipIconButtonProps): JSX.Element {
-  return (
-    <button
-      type="button"
-      className={[buttonClassName, "flip-icon-button", isFlipping ? "is-flipping" : ""].filter(Boolean).join(" ")}
-      onClick={onClick}
-      aria-label={label}
-      title={label}
-      disabled={isFlipping}
-    >
-      <span className={["flip-icon-card", isFlipping ? "is-flipping" : ""].filter(Boolean).join(" ")} aria-hidden="true">
-        <span className="flip-icon-face flip-icon-face-front">
-          <img src={currentIconSrc} alt="" />
-        </span>
-        <span className="flip-icon-face flip-icon-face-back">
-          <img src={nextIconSrc} alt="" />
-        </span>
-      </span>
-      <span className="visually-hidden">{label}</span>
-    </button>
-  );
-}
-
-type Role = "ADMIN" | "SCOLARITE" | "ENSEIGNANT" | "COMPTABLE" | "PARENT";
-
-type UserAccount = {
-  id: string;
-  tenantId: string;
-  username: string;
-  role: Role;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type PermissionResource =
-  | "students"
-  | "users"
-  | "teacherPortal"
-  | "parentPortal"
-  | "enrollments"
-  | "reference"
-  | "finance"
-  | "payments"
-  | "grades"
-  | "reportCards"
-  | "attendance"
-  | "attendanceAttachment"
-  | "attendanceValidation"
-  | "timetable"
-  | "notifications"
-  | "mosque"
-  | "analytics"
-  | "audit";
-
-type PermissionAction = "read" | "create" | "update" | "delete" | "validate" | "dispatch";
-
-type RolePermissionView = {
-  role: Role;
-  resource: PermissionResource;
-  action: PermissionAction;
-  allowed: boolean;
-  source: "DEFAULT" | "CUSTOM";
-};
-
-type TeacherAssignment = {
-  id: string;
-  userId: string;
-  classId: string;
-  schoolYearId: string;
-  subjectId?: string;
-  teacherUsername: string;
-  classLabel: string;
-  schoolYearCode: string;
-  subjectLabel?: string;
-};
-
-type ParentLink = {
-  id: string;
-  parentUserId: string;
-  studentId: string;
-  relationship?: string;
-  isPrimary: boolean;
-  parentUsername: string;
-  studentMatricule: string;
-  studentName: string;
-};
-
-type TeacherOverview = {
-  classesCount: number;
-  studentsCount: number;
-  gradesCount: number;
-  pendingJustifications: number;
-  timetableSlotsCount: number;
-  notificationsCount: number;
-};
-
-type TeacherClass = {
-  assignmentId: string;
-  classId: string;
-  classLabel: string;
-  schoolYearId: string;
-  schoolYearCode: string;
-  subjectId?: string;
-  subjectLabel?: string;
-};
-
-type TeacherStudent = {
-  enrollmentId: string;
-  studentId: string;
-  matricule: string;
-  studentName: string;
-  classId: string;
-  classLabel: string;
-  schoolYearId: string;
-  schoolYearCode: string;
-};
-
-type PortalNotification = {
-  id: string;
-  studentId?: string;
-  studentName?: string;
-  audienceRole?: string;
-  title: string;
-  message: string;
-  channel: string;
-  status: string;
-  scheduledAt?: string;
-  sentAt?: string;
-  createdAt: string;
-};
-
-type ParentOverview = {
-  childrenCount: number;
-  openInvoicesCount: number;
-  remainingAmount: number;
-  absencesCount: number;
-  reportCardsCount: number;
-  notificationsCount: number;
-};
-
-type ParentChild = {
-  linkId: string;
-  studentId: string;
-  matricule: string;
-  studentName: string;
-  relationship?: string;
-  isPrimary: boolean;
-  classId?: string;
-  classLabel?: string;
-  schoolYearId?: string;
-  schoolYearCode?: string;
-};
-
-type MosqueMember = {
-  id: string;
-  tenantId: string;
-  memberCode: string;
-  fullName: string;
-  sex?: "M" | "F";
-  phone?: string;
-  email?: string;
-  address?: string;
-  joinedAt?: string;
-  status: "ACTIVE" | "INACTIVE";
-};
-
-type MosqueActivity = {
-  id: string;
-  tenantId: string;
-  code: string;
-  title: string;
-  activityDate: string;
-  category: string;
-  location?: string;
-  description?: string;
-  isSchoolLinked: boolean;
-};
-
-type MosqueDonation = {
-  id: string;
-  tenantId: string;
-  memberId?: string;
-  memberCode?: string;
-  memberName?: string;
-  amount: number;
-  currency: string;
-  channel: string;
-  donatedAt: string;
-  referenceNo?: string;
-  notes?: string;
-};
-
-type MosqueDashboard = {
-  totals: {
-    members: number;
-    activeMembers: number;
-    activitiesThisMonth: number;
-    donationsThisMonth: number;
-    donationsTotal: number;
-    averageDonation: number;
-  };
-  donationsByChannel: Array<{
-    channel: string;
-    count: number;
-    totalAmount: number;
-  }>;
-};
-
-type MosqueExportResponse = {
-  format: "PDF" | "EXCEL";
-  fileName: string;
-  mimeType: string;
-  dataUrl: string;
-  dataBase64: string;
-  generatedAt: string;
-  rowCount: number;
-};
-
-type MosqueDonationReceipt = {
-  receiptNo: string;
-  pdfDataUrl: string;
-};
-
-type AnalyticsTrendPoint = {
-  bucket: string;
-  label: string;
-  value: number;
-};
-
-type AnalyticsOverview = {
-  generatedAt: string;
-  window: {
-    from: string;
-    to: string;
-    days: number;
-  };
-  students: {
-    total: number;
-    active: number;
-    createdInWindow: number;
-  };
-  academics: {
-    schoolYears: number;
-    classes: number;
-    subjects: number;
-    activeEnrollments: number;
-  };
-  finance: {
-    amountDue: number;
-    amountPaid: number;
-    remainingAmount: number;
-    recoveryRatePercent: number;
-    paymentsInWindow: number;
-    overdueInvoices: number;
-  };
-  schoolLife: {
-    attendanceEntries: number;
-    absences: number;
-    justifiedAbsences: number;
-    justificationRatePercent: number;
-    notificationsQueued: number;
-    notificationsFailed: number;
-  };
-  mosque: {
-    members: number;
-    activeMembers: number;
-    activitiesInWindow: number;
-    donationsInWindow: number;
-    donationsCountInWindow: number;
-  };
-  trends: {
-    payments: AnalyticsTrendPoint[];
-    donations: AnalyticsTrendPoint[];
-    absences: AnalyticsTrendPoint[];
-  };
-};
-
-type AuditLogItem = {
-  id: string;
-  createdAt: string;
-  action: string;
-  resource: string;
-  resourceId?: string;
-  userId?: string;
-  username?: string;
-  payloadPreview?: string;
-};
-
-type AuditLogPage = {
-  page: number;
-  pageSize: number;
-  total: number;
-  totalPages: number;
-  items: AuditLogItem[];
-};
-
-type AuditLogExportResponse = {
-  format: "PDF" | "EXCEL";
-  fileName: string;
-  mimeType: string;
-  dataUrl: string;
-  dataBase64: string;
-  generatedAt: string;
-  rowCount: number;
-};
-
-type ScreenId =
-  | "dashboard"
-  | "iam"
-  | "students"
-  | "reference"
-  | "enrollments"
-  | "finance"
-  | "reports"
-  | "mosque"
-  | "grades"
-  | "schoolLifeOverview"
-  | "schoolLifeAttendance"
-  | "schoolLifeTimetable"
-  | "schoolLifeNotifications"
-  | "teacherPortal"
-  | "parentPortal";
-
-type ScreenDef = {
-  id: ScreenId;
-  label: string;
-  group: "principal" | "vie" | "portail";
-  roles: Role[];
-};
 
 const SCREEN_DEFS: ScreenDef[] = [
   { id: "dashboard", label: "Tableau de bord", group: "principal", roles: ["ADMIN", "SCOLARITE", "COMPTABLE"] },
@@ -701,6 +209,8 @@ const SCREEN_DEFS: ScreenDef[] = [
   { id: "teacherPortal", label: "Portail enseignant", group: "portail", roles: ["ENSEIGNANT"] },
   { id: "parentPortal", label: "Portail parent", group: "portail", roles: ["PARENT"] }
 ];
+
+const ACADEMIC_TRACK_OPTIONS: AcademicTrack[] = ["FRANCOPHONE", "ARABOPHONE"];
 
 const ROLE_HOME_SCREEN: Record<Role, ScreenId> = {
   ADMIN: "dashboard",
@@ -850,38 +360,6 @@ const PERMISSION_ACTION_VALUES: PermissionAction[] = [
   "dispatch"
 ];
 
-type ModuleTone = "blue" | "orange" | "violet" | "green" | "teal" | "pink" | "indigo" | "slate";
-type ModuleIconName =
-  | "users"
-  | "shield"
-  | "clipboard"
-  | "graduation"
-  | "wallet"
-  | "book"
-  | "calendar"
-  | "clock"
-  | "bell"
-  | "chart"
-  | "settings"
-  | "teacher"
-  | "parent"
-  | "moon";
-
-type ModuleTile = {
-  screen: ScreenId;
-  title: string;
-  subtitle: string;
-  icon: ModuleIconName;
-  tone: ModuleTone;
-  tags: string[];
-};
-
-type HeroSlide = {
-  quote: string;
-  author: string;
-  label: string;
-};
-
 const MODULE_TILES: ModuleTile[] = [
   {
     screen: "iam",
@@ -1015,195 +493,10 @@ const HERO_SLIDES: HeroSlide[] = [
   }
 ];
 
-function ModuleIcon(props: { name: ModuleIconName }): JSX.Element {
-  const { name } = props;
-
-  if (name === "users") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M8 12a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm8 1a3 3 0 1 1 0-6 3 3 0 0 1 0 6ZM2 20a6 6 0 0 1 12 0H2Zm12 0a5 5 0 0 1 8 0h-8Z" />
-      </svg>
-    );
-  }
-
-  if (name === "shield") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3Zm0 4.1 4 1.5v3.4c0 3.4-1.9 6.7-4 8.1-2.1-1.4-4-4.7-4-8.1V7.6l4-1.5Z" />
-      </svg>
-    );
-  }
-
-  if (name === "clipboard") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M9 2h6l1 2h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3l1-2Zm-2 8h10v2H7v-2Zm0 4h10v2H7v-2Z" />
-      </svg>
-    );
-  }
-
-  if (name === "graduation") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="m12 3 10 5-10 5L2 8l10-5Zm-6 8 6 3 6-3v4a6 6 0 1 1-12 0v-4Z" />
-      </svg>
-    );
-  }
-
-  if (name === "wallet") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M3 7a3 3 0 0 1 3-3h12v3h3v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7Zm12 5h6v3h-6a1.5 1.5 0 1 1 0-3Z" />
-      </svg>
-    );
-  }
-
-  if (name === "book") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4 4h7a3 3 0 0 1 3 3v13H7a3 3 0 0 0-3 3V4Zm16 0h-7a3 3 0 0 0-3 3v13h7a3 3 0 0 1 3 3V4Z" />
-      </svg>
-    );
-  }
-
-  if (name === "calendar") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M7 2h2v2h6V2h2v2h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2V2Zm-2 8h14v10H5V10Zm3 3h3v3H8v-3Z" />
-      </svg>
-    );
-  }
-
-  if (name === "clock") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm1 5h-2v6l5 3 1-1.7-4-2.3V7Z" />
-      </svg>
-    );
-  }
-
-  if (name === "bell") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 2a6 6 0 0 1 6 6v3c0 1.5.6 3 1.7 4.1L21 16v2H3v-2l1.3-.9A5.8 5.8 0 0 0 6 11V8a6 6 0 0 1 6-6Zm0 20a3 3 0 0 1-2.8-2h5.6A3 3 0 0 1 12 22Z" />
-      </svg>
-    );
-  }
-
-  if (name === "chart") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4 19h16v2H2V3h2v16Zm3-2H5v-6h2v6Zm5 0H9V7h3v10Zm5 0h-3V4h3v13Zm2-8h2v8h-2V9Z" />
-      </svg>
-    );
-  }
-
-  if (name === "settings") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="m12 2 2 2.5 3.2-.3.8 3 2.8 1.6-1.6 2.8.8 3-3 .8-2 2.5-2-2.5-3 .8-.8-3-2.8-1.6 1.6-2.8-.8-3 3.2-.3L12 2Zm0 6a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" />
-      </svg>
-    );
-  }
-
-  if (name === "teacher") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8ZM4 20a8 8 0 0 1 16 0H4Zm11-8h7v7h-7v-7Zm2 2v3h3v-3h-3Z" />
-      </svg>
-    );
-  }
-
-  if (name === "moon") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M13.7 2.1A9.8 9.8 0 1 0 22 15.8a8.2 8.2 0 0 1-10.1-13.7h1.8Zm-.8 2.5a6.6 6.6 0 1 1-7.4 9.8 8.3 8.3 0 0 0 7.4-9.8Z" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 3a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm-8 17a8 8 0 0 1 16 0H4Z" />
-    </svg>
-  );
-}
-
-function WorkflowGuide(props: {
-  title: string;
-  steps: WorkflowStepDef[];
-  activeStepId: string;
-  onStepChange: (stepId: string) => void;
-  children: ReactNode;
-}): JSX.Element {
-  const { title, steps, activeStepId, onStepChange, children } = props;
-  const activeStep = steps.find((step) => step.id === activeStepId) || steps[0];
-
-  const walk = (currentNode: ReactNode): ReactNode =>
-    Children.map(currentNode, (node) => {
-      if (!isValidElement(node)) return node;
-
-      const currentProps = node.props as {
-        children?: ReactNode;
-        className?: string;
-        ["data-step-id"]?: string;
-      };
-
-      const nestedChildren = walk(currentProps.children);
-      const stepId = currentProps["data-step-id"];
-      const isStepNode = typeof stepId === "string" && stepId.length > 0;
-
-      if (!isStepNode) {
-        if (nestedChildren !== currentProps.children) {
-          return cloneElement(node, { children: nestedChildren });
-        }
-        return node;
-      }
-
-      const isActive = stepId === activeStep.id;
-      const className = [currentProps.className, isActive ? "workflow-step-active" : "workflow-hidden"]
-        .filter(Boolean)
-        .join(" ");
-
-      return cloneElement(node, {
-        className,
-        "aria-hidden": !isActive,
-        "data-active-step": isActive ? "true" : "false",
-        children: nestedChildren
-      });
-    });
-
-  const managedChildren = walk(children);
-
-  return (
-    <section className="workflow-shell workflow-shell-compact">
-      {steps.length > 1 ? (
-        <div className="workflow-tabs" role="tablist" aria-label={title}>
-          {steps.map((step) => (
-            <button
-              key={step.id}
-              type="button"
-              role="tab"
-              aria-selected={step.id === activeStep.id}
-              className={`workflow-tab ${step.id === activeStep.id ? "is-active" : ""}`.trim()}
-              onClick={() => onStepChange(step.id)}
-            >
-              {step.title}
-            </button>
-          ))}
-        </div>
-      ) : null}
-      <div className="workflow-body">{managedChildren}</div>
-    </section>
-  );
-}
-
 export function App(): JSX.Element {
   const [tab, setTab] = useState<ScreenId>("dashboard");
-  const [session, setSession] = useState<Session | null>(() => readStoredSession());
   const appRootRef = useRef<HTMLElement | null>(null);
-  const sessionRef = useRef<Session | null>(session);
-  const rememberedLogin = useMemo(() => readRememberedLogin(), []);
+  const rememberedLogin = useMemo(() => readRememberedLogin(DEFAULT_TENANT), []);
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => readThemePreference());
   const [uiLanguage, setUiLanguage] = useState<UiLanguage>(() => readLanguagePreference());
   const [themeFlipTarget, setThemeFlipTarget] = useState<ThemeMode | null>(null);
@@ -1266,19 +559,43 @@ export function App(): JSX.Element {
   const [periodYearFilter, setPeriodYearFilter] = useState("");
 
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
-  const [enrollmentFilters, setEnrollmentFilters] = useState({ schoolYearId: "", classId: "", studentId: "" });
+  const [enrollmentFilters, setEnrollmentFilters] = useState({
+    schoolYearId: "",
+    classId: "",
+    studentId: "",
+    track: ""
+  });
   const [enrollmentForm, setEnrollmentForm] = useState({
     schoolYearId: "",
     classId: "",
     studentId: "",
+    track: "FRANCOPHONE" as AcademicTrack,
     enrollmentDate: today(),
     enrollmentStatus: "ENROLLED"
   });
 
   const [syForm, setSyForm] = useState({ code: "", startDate: "", endDate: "", isActive: false });
-  const [cycleForm, setCycleForm] = useState({ code: "", label: "", sortOrder: 1 });
-  const [levelForm, setLevelForm] = useState({ cycleId: "", code: "", label: "", sortOrder: 1 });
-  const [classForm, setClassForm] = useState({ schoolYearId: "", levelId: "", code: "", label: "", capacity: "" });
+  const [cycleForm, setCycleForm] = useState({
+    code: "",
+    label: "",
+    academicStage: "PRIMARY" as AcademicStage,
+    sortOrder: 1
+  });
+  const [levelForm, setLevelForm] = useState({
+    cycleId: "",
+    code: "",
+    label: "",
+    sortOrder: 1,
+    track: "FRANCOPHONE" as AcademicTrack
+  });
+  const [classForm, setClassForm] = useState({
+    schoolYearId: "",
+    levelId: "",
+    code: "",
+    label: "",
+    capacity: "",
+    track: "FRANCOPHONE" as AcademicTrack
+  });
   const [subjectForm, setSubjectForm] = useState({ code: "", label: "", isArabic: false });
   const [periodForm, setPeriodForm] = useState({
     schoolYearId: "",
@@ -1377,6 +694,8 @@ export function App(): JSX.Element {
       classLabel?: string;
       schoolYearId: string;
       schoolYearCode?: string;
+      track: AcademicTrack;
+      rotationGroup?: "GROUP_A" | "GROUP_B";
       subjectId: string;
       subjectLabel?: string;
       dayOfWeek: number;
@@ -1437,6 +756,8 @@ export function App(): JSX.Element {
       studentName?: string;
       classId: string;
       classLabel?: string;
+      placementId?: string;
+      track: AcademicTrack;
       attendanceDate: string;
       status: string;
       reason?: string;
@@ -1454,6 +775,9 @@ export function App(): JSX.Element {
       classLabel: string;
       schoolYearId: string;
       schoolYearCode?: string;
+      placementId?: string;
+      track: AcademicTrack;
+      rotationGroup?: "GROUP_A" | "GROUP_B";
       subjectLabel: string;
       dayOfWeek: number;
       startTime: string;
@@ -1567,9 +891,94 @@ export function App(): JSX.Element {
   const [mosqueMemberErrors, setMosqueMemberErrors] = useState<FieldErrors>({});
   const [mosqueActivityErrors, setMosqueActivityErrors] = useState<FieldErrors>({});
   const [mosqueDonationErrors, setMosqueDonationErrors] = useState<FieldErrors>({});
+  const clearData = useCallback(() => {
+    setStudents([]);
+    setSchoolYears([]);
+    setCycles([]);
+    setLevels([]);
+    setClasses([]);
+    setSubjects([]);
+    setPeriods([]);
+    setEnrollments([]);
+    setFeePlans([]);
+    setInvoices([]);
+    setPayments([]);
+    setRecovery(null);
+    setGrades([]);
+    setClassSummary(null);
+    setReportCards([]);
+    setReceiptPdfUrl("");
+    setReportPdfUrl("");
+    setUsers([]);
+    setTeacherAssignments([]);
+    setParentLinks([]);
+    setRolePermissions([]);
+    setTeacherOverview(null);
+    setTeacherClasses([]);
+    setTeacherStudents([]);
+    setTeacherGrades([]);
+    setTeacherTimetable([]);
+    setTeacherNotifications([]);
+    setParentOverview(null);
+    setParentChildren([]);
+    setParentGrades([]);
+    setParentReportCards([]);
+    setParentAttendance([]);
+    setParentInvoices([]);
+    setParentPayments([]);
+    setParentTimetable([]);
+    setParentNotifications([]);
+    setMosqueDashboard(null);
+    setMosqueMembers([]);
+    setMosqueActivities([]);
+    setMosqueDonations([]);
+    setMosqueExportFormat("PDF");
+    setAnalyticsOverview(null);
+    setAuditLogs(null);
+    setAuditExportFormat("PDF");
+    setReportWorkflowStep("overview");
+    setHeaderNotificationCount(0);
+    setLastSyncAt(null);
+    setModuleQueryInput("");
+    setModuleQuery("");
+  }, []);
+  const handleAuthClearData = useCallback(() => {
+    clearData();
+  }, [clearData]);
+  const handleAuthRefreshSuccess = useCallback(() => {
+    setLastSyncAt(new Date().toISOString());
+  }, []);
+  const {
+    api,
+    apiConnection,
+    clearSession,
+    ensureApiAvailable,
+    markApiAvailable,
+    markApiUnavailable,
+    saveSession,
+    session,
+    sessionRef
+  } = useAuthSession({
+    apiBaseUrl: API,
+    onAuthError: setError,
+    onClearData: handleAuthClearData,
+    onRefreshNotice: setNotice,
+    onRefreshSuccess: handleAuthRefreshSuccess
+  });
+  const bootstrapSessionKeyRef = useRef<string | null>(null);
+  const bootstrapSessionInFlightRef = useRef<string | null>(null);
 
   const currentRole = (session?.user.role as Role | undefined) || null;
   const currentRoleLabel = currentRole ? formatRoleLabel(currentRole) : "Visiteur";
+  const apiAvailable = apiConnection.status === "online";
+  const apiStatusText =
+    apiConnection.status === "checking"
+      ? "Connexion a l'API..."
+      : apiConnection.status === "online"
+        ? "API disponible"
+        : apiConnection.status === "reconnecting"
+          ? "API indisponible. Reconnexion..."
+          : "API indisponible";
   const fieldError = (errors: FieldErrors, key: string): JSX.Element | null =>
     errors[key] ? <span className="field-error">{errors[key]}</span> : null;
   const focusFirstInlineErrorField = (stepId?: string): void => {
@@ -1626,16 +1035,29 @@ export function App(): JSX.Element {
   const currentSlide = HERO_SLIDES[2];
 
   useEffect(() => {
+    void ensureApiAvailable();
+  }, [ensureApiAvailable]);
+
+  useEffect(() => {
+    if (!apiConnection.nextRetryAt || apiConnection.status === "online") {
+      return undefined;
+    }
+
+    const delay = Math.max(250, apiConnection.nextRetryAt - Date.now());
+    const timer = window.setTimeout(() => {
+      void ensureApiAvailable();
+    }, delay);
+
+    return () => window.clearTimeout(timer);
+  }, [apiConnection.nextRetryAt, apiConnection.status, ensureApiAvailable]);
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
       setModuleQuery(moduleQueryInput);
     }, 180);
 
     return () => window.clearTimeout(timer);
   }, [moduleQueryInput]);
-
-  useEffect(() => {
-    sessionRef.current = session;
-  }, [session]);
 
   useEffect(() => {
     if (!notice) {
@@ -1700,110 +1122,6 @@ export function App(): JSX.Element {
   useEffect(() => {
     setMobileTasksOpen(false);
   }, [session?.user.username, tab]);
-
-  const clearData = useCallback(() => {
-    setStudents([]);
-    setSchoolYears([]);
-    setCycles([]);
-    setLevels([]);
-    setClasses([]);
-    setSubjects([]);
-    setPeriods([]);
-    setEnrollments([]);
-    setFeePlans([]);
-    setInvoices([]);
-    setPayments([]);
-    setRecovery(null);
-    setGrades([]);
-    setClassSummary(null);
-    setReportCards([]);
-    setReceiptPdfUrl("");
-    setReportPdfUrl("");
-    setUsers([]);
-    setTeacherAssignments([]);
-    setParentLinks([]);
-    setRolePermissions([]);
-    setTeacherOverview(null);
-    setTeacherClasses([]);
-    setTeacherStudents([]);
-    setTeacherGrades([]);
-    setTeacherTimetable([]);
-    setTeacherNotifications([]);
-    setParentOverview(null);
-    setParentChildren([]);
-    setParentGrades([]);
-    setParentReportCards([]);
-    setParentAttendance([]);
-    setParentInvoices([]);
-    setParentPayments([]);
-    setParentTimetable([]);
-    setParentNotifications([]);
-    setMosqueDashboard(null);
-    setMosqueMembers([]);
-    setMosqueActivities([]);
-    setMosqueDonations([]);
-    setMosqueExportFormat("PDF");
-    setAnalyticsOverview(null);
-    setAuditLogs(null);
-    setAuditExportFormat("PDF");
-    setReportWorkflowStep("overview");
-    setHeaderNotificationCount(0);
-    setLastSyncAt(null);
-    setModuleQueryInput("");
-    setModuleQuery("");
-  }, []);
-
-  const refresh = useCallback(async (): Promise<Session | null> => {
-    const current = sessionRef.current;
-    if (!current?.refreshToken) return null;
-    try {
-      const response = await fetch(`${API}/auth/refresh`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken: current.refreshToken })
-      });
-      if (!response.ok) {
-        clearStoredSession();
-        setSession(null);
-        clearData();
-        setError("Session expiree.");
-        return null;
-      }
-      const payload = (await response.json()) as Omit<Session, "tenantId"> & { user: Session["user"] };
-      const next: Session = { ...payload, tenantId: current.tenantId || payload.user.tenantId };
-      persistSession(next);
-      setSession(next);
-      setLastSyncAt(new Date().toISOString());
-      setNotice("Session actualisee.");
-      return next;
-    } catch {
-      clearStoredSession();
-      setSession(null);
-      clearData();
-      setError("API indisponible ou CORS refuse. Verifie CORS_ORIGINS sur Render.");
-      return null;
-    }
-  }, [clearData]);
-
-  const api = useCallback(
-    async (path: string, init: RequestInit = {}, retry = true): Promise<Response> => {
-      const send = async (active: Session | null): Promise<Response> => {
-        const headers = new Headers(init.headers ?? {});
-        if (init.body !== undefined && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
-          headers.set("Content-Type", "application/json");
-        }
-        if (active?.accessToken) headers.set("Authorization", `Bearer ${active.accessToken}`);
-        if (active?.tenantId) headers.set("x-tenant-id", active.tenantId);
-        return fetch(`${API}${path}`, { ...init, headers });
-      };
-      const first = await send(sessionRef.current);
-      if (first.status !== 401 || !retry || !sessionRef.current?.refreshToken) return first;
-      const next = await refresh();
-      if (!next) return first;
-      return send(next);
-    },
-    [refresh]
-  );
 
   const loadStudents = useCallback(async () => {
     if (!sessionRef.current) return;
@@ -1897,6 +1215,8 @@ export function App(): JSX.Element {
             classLabel?: string;
             schoolYearId: string;
             schoolYearCode?: string;
+            track: AcademicTrack;
+            rotationGroup?: "GROUP_A" | "GROUP_B";
             subjectId: string;
             subjectLabel?: string;
             dayOfWeek: number;
@@ -1964,6 +1284,8 @@ export function App(): JSX.Element {
             studentName?: string;
             classId: string;
             classLabel?: string;
+            placementId?: string;
+            track: AcademicTrack;
             attendanceDate: string;
             status: string;
             reason?: string;
@@ -1981,6 +1303,9 @@ export function App(): JSX.Element {
             classLabel: string;
             schoolYearId: string;
             schoolYearCode?: string;
+            placementId?: string;
+            track: AcademicTrack;
+            rotationGroup?: "GROUP_A" | "GROUP_B";
             subjectLabel: string;
             dayOfWeek: number;
             startTime: string;
@@ -2111,33 +1436,63 @@ export function App(): JSX.Element {
 
   const loadReference = useCallback(async () => {
     if (!sessionRef.current) return;
-    const responses = await Promise.all([
-      api("/school-years"),
-      api("/cycles"),
-      api("/levels"),
-      api("/classes"),
-      api("/subjects"),
-      api("/academic-periods")
-    ]);
-    const failed = responses.find((item) => !item.ok);
-    if (failed) {
-      setError(await parseError(failed));
-      return;
+    const [schoolYearsResponse, cyclesResponse, levelsResponse, classesResponse, subjectsResponse, periodsResponse] =
+      await Promise.all([
+        api("/school-years"),
+        api("/cycles"),
+        api("/levels"),
+        api("/classes"),
+        api("/subjects"),
+        api("/academic-periods")
+      ]);
+
+    const referenceErrors: string[] = [];
+
+    if (schoolYearsResponse.ok) {
+      setSchoolYears((await schoolYearsResponse.json()) as SchoolYear[]);
+    } else {
+      setSchoolYears([]);
+      referenceErrors.push(`Annees: ${await parseError(schoolYearsResponse)}`);
     }
-    const [schoolYearsData, cyclesData, levelsData, classesData, subjectsData, periodsData] = await Promise.all([
-      responses[0].json() as Promise<SchoolYear[]>,
-      responses[1].json() as Promise<Cycle[]>,
-      responses[2].json() as Promise<Level[]>,
-      responses[3].json() as Promise<ClassItem[]>,
-      responses[4].json() as Promise<Subject[]>,
-      responses[5].json() as Promise<Period[]>
-    ]);
-    setSchoolYears(schoolYearsData);
-    setCycles(cyclesData);
-    setLevels(levelsData);
-    setClasses(classesData);
-    setSubjects(subjectsData);
-    setPeriods(periodsData);
+
+    if (cyclesResponse.ok) {
+      setCycles((await cyclesResponse.json()) as Cycle[]);
+    } else {
+      setCycles([]);
+      referenceErrors.push(`Cycles: ${await parseError(cyclesResponse)}`);
+    }
+
+    if (levelsResponse.ok) {
+      setLevels((await levelsResponse.json()) as Level[]);
+    } else {
+      setLevels([]);
+      referenceErrors.push(`Niveaux: ${await parseError(levelsResponse)}`);
+    }
+
+    if (classesResponse.ok) {
+      setClasses((await classesResponse.json()) as ClassItem[]);
+    } else {
+      setClasses([]);
+      referenceErrors.push(`Classes: ${await parseError(classesResponse)}`);
+    }
+
+    if (subjectsResponse.ok) {
+      setSubjects((await subjectsResponse.json()) as Subject[]);
+    } else {
+      setSubjects([]);
+      referenceErrors.push(`Matieres: ${await parseError(subjectsResponse)}`);
+    }
+
+    if (periodsResponse.ok) {
+      setPeriods((await periodsResponse.json()) as Period[]);
+    } else {
+      setPeriods([]);
+      referenceErrors.push(`Periodes: ${await parseError(periodsResponse)}`);
+    }
+
+    if (referenceErrors.length > 0) {
+      setError(referenceErrors.join(" | "));
+    }
   }, [api]);
 
   const loadEnrollments = useCallback(
@@ -2147,6 +1502,7 @@ export function App(): JSX.Element {
       if (filters.schoolYearId) query.set("schoolYearId", filters.schoolYearId);
       if (filters.classId) query.set("classId", filters.classId);
       if (filters.studentId) query.set("studentId", filters.studentId);
+      if (filters.track) query.set("track", filters.track);
       const suffix = query.toString() ? `?${query.toString()}` : "";
       const response = await api(`/enrollments${suffix}`);
       if (!response.ok) {
@@ -2241,7 +1597,7 @@ export function App(): JSX.Element {
       return;
     }
 
-    const response = await api("/notifications", {}, false);
+    const response = await api("/notifications", {}, false, { background: true });
     if (!response.ok) {
       setHeaderNotificationCount(0);
       return;
@@ -2275,7 +1631,14 @@ export function App(): JSX.Element {
 
   useEffect(() => {
     if (!session || !currentRole) {
+      bootstrapSessionKeyRef.current = null;
+      bootstrapSessionInFlightRef.current = null;
       clearData();
+      return;
+    }
+
+    if (!apiAvailable) {
+      void ensureApiAvailable();
       return;
     }
 
@@ -2286,33 +1649,67 @@ export function App(): JSX.Element {
       (screen) => hasScreenAccess(currentRole, screen as ScreenId)
     );
 
-    if (needStudents) void loadStudents();
-    if (hasScreenAccess(currentRole, "iam")) {
-      void loadUsers();
-      void loadRolePermissions(rolePermissionTarget);
-      void loadTeacherAssignments();
-      void loadParentLinks();
+    const sessionKey = `${session.user.username}:${session.tenantId}:${currentRole}`;
+    if (
+      bootstrapSessionKeyRef.current === sessionKey ||
+      bootstrapSessionInFlightRef.current === sessionKey
+    ) {
+      return;
     }
-    if (needReference) void loadReference();
-    if (hasScreenAccess(currentRole, "enrollments")) void loadEnrollments();
-    if (hasScreenAccess(currentRole, "finance")) void loadFinance();
-    if (hasScreenAccess(currentRole, "reports")) {
-      void loadAnalytics(analyticsFiltersRef.current);
-      void loadAuditLogs(auditFiltersRef.current);
-    }
-    if (hasScreenAccess(currentRole, "grades")) {
-      void loadGrades();
-      void loadReportCards();
-    }
-    if (hasScreenAccess(currentRole, "teacherPortal")) {
-      void loadTeacherPortalData();
-    }
-    if (hasScreenAccess(currentRole, "parentPortal")) {
-      void loadParentPortalData();
-    }
+
+    bootstrapSessionInFlightRef.current = sessionKey;
+    let cancelled = false;
+
+    const bootstrapData = async (): Promise<void> => {
+      try {
+        if (needReference) await loadReference();
+        if (needStudents) await loadStudents();
+        if (hasScreenAccess(currentRole, "iam")) {
+          await loadUsers();
+          await loadRolePermissions(rolePermissionTarget);
+          await loadTeacherAssignments();
+          await loadParentLinks();
+        }
+        if (hasScreenAccess(currentRole, "enrollments")) await loadEnrollments();
+        if (hasScreenAccess(currentRole, "finance")) await loadFinance();
+        if (hasScreenAccess(currentRole, "reports")) {
+          await loadAnalytics(analyticsFiltersRef.current);
+          await loadAuditLogs(auditFiltersRef.current);
+        }
+        if (hasScreenAccess(currentRole, "grades")) {
+          await loadGrades();
+          await loadReportCards();
+        }
+        if (hasScreenAccess(currentRole, "teacherPortal")) {
+          await loadTeacherPortalData();
+        }
+        if (hasScreenAccess(currentRole, "parentPortal")) {
+          await loadParentPortalData();
+        }
+
+        if (!cancelled) {
+          bootstrapSessionKeyRef.current = sessionKey;
+        }
+      } finally {
+        if (bootstrapSessionInFlightRef.current === sessionKey) {
+          bootstrapSessionInFlightRef.current = null;
+        }
+      }
+    };
+
+    void bootstrapData();
+
+    return () => {
+      cancelled = true;
+      if (bootstrapSessionInFlightRef.current === sessionKey) {
+        bootstrapSessionInFlightRef.current = null;
+      }
+    };
   }, [
+    apiAvailable,
     clearData,
     currentRole,
+    ensureApiAvailable,
     loadAnalytics,
     loadAuditLogs,
     loadEnrollments,
@@ -2332,8 +1729,11 @@ export function App(): JSX.Element {
   ]);
 
   useEffect(() => {
-    if (!session || !currentRole) {
+    if (!session || !currentRole || !apiAvailable) {
       setHeaderNotificationCount(0);
+      if (session && currentRole && !apiAvailable) {
+        void ensureApiAvailable();
+      }
       return;
     }
 
@@ -2352,7 +1752,7 @@ export function App(): JSX.Element {
       isCancelled = true;
       window.clearInterval(timer);
     };
-  }, [currentRole, loadHeaderNotificationCount, session]);
+  }, [apiAvailable, currentRole, ensureApiAvailable, loadHeaderNotificationCount, session]);
 
   useEffect(() => {
     if (!levelForm.cycleId && cycles[0]) setLevelForm((prev) => ({ ...prev, cycleId: cycles[0].id }));
@@ -2484,6 +1884,20 @@ export function App(): JSX.Element {
     mosqueMembers,
     users
   ]);
+
+  useEffect(() => {
+    const selectedLevel = levels.find((item) => item.id === classForm.levelId);
+    if (selectedLevel && classForm.track !== selectedLevel.track) {
+      setClassForm((prev) => ({ ...prev, track: selectedLevel.track }));
+    }
+  }, [classForm.levelId, classForm.track, levels]);
+
+  useEffect(() => {
+    const selectedClass = classes.find((item) => item.id === enrollmentForm.classId);
+    if (selectedClass && enrollmentForm.track !== selectedClass.track) {
+      setEnrollmentForm((prev) => ({ ...prev, track: selectedClass.track }));
+    }
+  }, [classes, enrollmentForm.classId, enrollmentForm.track]);
 
   useEffect(() => {
     const ensureCompatiblePeriod = (
@@ -2935,9 +2349,29 @@ export function App(): JSX.Element {
   };
 
   const toggleThemeMode = (): void => {
-    if (themeFlipTarget) return;
-
     const nextThemeMode = getNextThemeMode(themeMode);
+    if (themeFlipTarget || nextThemeMode === themeMode) return;
+    const animationDuration = getIconToggleAnimationDuration();
+    if (animationDuration === 0) {
+      setThemeMode(nextThemeMode);
+      return;
+    }
+
+    if (themeFlipTimeoutRef.current !== null) {
+      window.clearTimeout(themeFlipTimeoutRef.current);
+    }
+
+    setThemeFlipTarget(nextThemeMode);
+    themeFlipTimeoutRef.current = window.setTimeout(() => {
+      setThemeMode(nextThemeMode);
+      setThemeFlipTarget(null);
+      themeFlipTimeoutRef.current = null;
+    }, animationDuration);
+  };
+
+  const selectThemeMode = (nextThemeMode: ThemeMode): void => {
+    if (nextThemeMode === themeMode || themeFlipTarget) return;
+
     const animationDuration = getIconToggleAnimationDuration();
     if (animationDuration === 0) {
       setThemeMode(nextThemeMode);
@@ -2957,9 +2391,29 @@ export function App(): JSX.Element {
   };
 
   const cycleLanguage = (): void => {
-    if (languageFlipTarget) return;
-
     const nextLanguage = getNextUiLanguage(uiLanguage);
+    if (languageFlipTarget || nextLanguage === uiLanguage) return;
+    const animationDuration = getIconToggleAnimationDuration();
+    if (animationDuration === 0) {
+      setUiLanguage(nextLanguage);
+      return;
+    }
+
+    if (languageFlipTimeoutRef.current !== null) {
+      window.clearTimeout(languageFlipTimeoutRef.current);
+    }
+
+    setLanguageFlipTarget(nextLanguage);
+    languageFlipTimeoutRef.current = window.setTimeout(() => {
+      setUiLanguage(nextLanguage);
+      setLanguageFlipTarget(null);
+      languageFlipTimeoutRef.current = null;
+    }, animationDuration);
+  };
+
+  const selectLanguage = (nextLanguage: UiLanguage): void => {
+    if (nextLanguage === uiLanguage || languageFlipTarget) return;
+
     const animationDuration = getIconToggleAnimationDuration();
     if (animationDuration === 0) {
       setUiLanguage(nextLanguage);
@@ -2990,6 +2444,54 @@ export function App(): JSX.Element {
     setNotice(null);
   };
 
+  const showLoginPanel = (): void => {
+    setAuthAssistMode("none");
+    setError(null);
+    setNotice(null);
+  };
+
+  const showForgotPasswordPanel = (): void => {
+    setAuthAssistMode("forgot");
+    setError(null);
+    setNotice(null);
+  };
+
+  const showFirstConnectionPanel = (): void => {
+    setAuthAssistMode("first");
+    setError(null);
+    setNotice(null);
+  };
+
+  const performPublicRequest = useCallback(
+    async (
+      path: string,
+      init: RequestInit,
+      options: { forceProbe?: boolean; suppressError?: boolean } = {}
+    ): Promise<Response | null> => {
+      const { forceProbe = true, suppressError = false } = options;
+      const ready = await ensureApiAvailable(forceProbe);
+      if (!ready) {
+        if (!suppressError) {
+          setError("API indisponible. Reconnexion...");
+        }
+        return null;
+      }
+
+      try {
+        const response = await fetch(`${API}${path}`, init);
+        markApiAvailable();
+        return response;
+      } catch {
+        markApiUnavailable();
+        if (!suppressError) {
+          setError("API indisponible. Reconnexion...");
+        }
+        return null;
+      }
+    },
+    [ensureApiAvailable, markApiAvailable, markApiUnavailable]
+  );
+
   const requestForgotPasswordToken = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     setError(null);
@@ -3002,7 +2504,7 @@ export function App(): JSX.Element {
 
     setAuthAssistLoading(true);
     try {
-      const response = await fetch(`${API}/auth/forgot-password`, {
+      const response = await performPublicRequest("/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -3010,6 +2512,7 @@ export function App(): JSX.Element {
           tenantId: DEFAULT_TENANT
         })
       });
+      if (!response) return;
       if (!response.ok) {
         setError(await parseError(response));
         return;
@@ -3017,8 +2520,6 @@ export function App(): JSX.Element {
 
       const payload = (await response.json()) as ForgotPasswordResponse;
       setNotice(payload.message || "Demande de reinitialisation enregistree.");
-    } catch {
-      setError("Connexion API impossible pendant la demande de reinitialisation.");
     } finally {
       setAuthAssistLoading(false);
     }
@@ -3044,7 +2545,7 @@ export function App(): JSX.Element {
 
     setAuthAssistLoading(true);
     try {
-      const response = await fetch(`${API}/auth/reset-password`, {
+      const response = await performPublicRequest("/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -3052,6 +2553,7 @@ export function App(): JSX.Element {
           newPassword: resetPasswordForm.newPassword
         })
       });
+      if (!response) return;
       if (!response.ok) {
         setError(await parseError(response));
         return;
@@ -3067,8 +2569,6 @@ export function App(): JSX.Element {
       }));
       setResetPasswordForm({ token: "", newPassword: "", confirmPassword: "" });
       setAuthAssistMode("none");
-    } catch {
-      setError("Connexion API impossible pendant la reinitialisation du mot de passe.");
     } finally {
       setAuthAssistLoading(false);
     }
@@ -3098,7 +2598,7 @@ export function App(): JSX.Element {
 
     setAuthAssistLoading(true);
     try {
-      const response = await fetch(`${API}/auth/first-connection`, {
+      const response = await performPublicRequest("/auth/first-connection", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -3108,6 +2608,7 @@ export function App(): JSX.Element {
           newPassword: firstConnectionForm.newPassword
         })
       });
+      if (!response) return;
       if (!response.ok) {
         setError(await parseError(response));
         return;
@@ -3128,8 +2629,6 @@ export function App(): JSX.Element {
         confirmPassword: ""
       }));
       setAuthAssistMode("none");
-    } catch {
-      setError("Connexion API impossible pendant l'activation du compte.");
     } finally {
       setAuthAssistLoading(false);
     }
@@ -3149,7 +2648,7 @@ export function App(): JSX.Element {
     }
     setLoadingAuth(true);
     try {
-      const response = await fetch(`${API}/auth/login`, {
+      const response = await performPublicRequest("/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -3158,6 +2657,7 @@ export function App(): JSX.Element {
           tenantId: DEFAULT_TENANT
         })
       });
+      if (!response) return;
       if (!response.ok) {
         setError(await parseError(response));
         return;
@@ -3168,8 +2668,7 @@ export function App(): JSX.Element {
       const cleanUsername = loginForm.username.trim();
       const cleanTenant = payload.user.tenantId || DEFAULT_TENANT;
       setLoginErrors({});
-      persistSession(nextSession);
-      setSession(nextSession);
+      saveSession(nextSession);
       setLastSyncAt(new Date().toISOString());
       setAuthAssistMode("none");
       if (rememberMe) {
@@ -3186,8 +2685,6 @@ export function App(): JSX.Element {
       }
       setNotice("Connexion reussie.");
       setTab(ROLE_HOME_SCREEN[role] || "dashboard");
-    } catch {
-      setError("Connexion API impossible. En local, verifie que l'API Nest tourne sur le port 3000.");
     } finally {
       setLoadingAuth(false);
     }
@@ -3195,15 +2692,14 @@ export function App(): JSX.Element {
 
   const logout = async (): Promise<void> => {
     const current = sessionRef.current;
-    if (current?.refreshToken) {
-      await fetch(`${API}/auth/logout`, {
+    if (current?.refreshToken && (await ensureApiAvailable())) {
+      await performPublicRequest("/auth/logout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refreshToken: current.refreshToken })
-      }).catch(() => undefined);
+      }, { forceProbe: false, suppressError: true });
     }
-    clearStoredSession();
-    setSession(null);
+    clearSession();
     setAuthAssistMode("none");
     setResetPasswordForm({ token: "", newPassword: "", confirmPassword: "" });
     clearData();
@@ -3331,9 +2827,30 @@ export function App(): JSX.Element {
 
   const createRef = async (path: string, payload: unknown, message: string): Promise<boolean> => {
     setError(null);
+    const clearReferenceFieldErrors = (): void => {
+      if (path === "/school-years") setSchoolYearErrors({});
+      if (path === "/cycles") setCycleErrors({});
+      if (path === "/levels") setLevelErrors({});
+      if (path === "/classes") setClassErrors({});
+      if (path === "/subjects") setSubjectErrors({});
+      if (path === "/academic-periods") setPeriodErrors({});
+    };
+
+    clearReferenceFieldErrors();
     const response = await api(path, { method: "POST", body: JSON.stringify(payload) });
     if (!response.ok) {
-      setError(await parseError(response));
+      const messageText = await parseError(response);
+      const target = getReferenceFieldErrorTarget(path, messageText);
+      if (target) {
+        const nextErrors = { [target.field]: messageText };
+        if (target.scope === "schoolYear") setSchoolYearErrors(nextErrors);
+        if (target.scope === "cycle") setCycleErrors(nextErrors);
+        if (target.scope === "level") setLevelErrors(nextErrors);
+        if (target.scope === "class") setClassErrors(nextErrors);
+        if (target.scope === "subject") setSubjectErrors(nextErrors);
+        if (target.scope === "period") setPeriodErrors(nextErrors);
+      }
+      setError(messageText);
       return false;
     }
     setNotice(message);
@@ -3607,11 +3124,15 @@ export function App(): JSX.Element {
     if (!enrollmentForm.schoolYearId) errors.schoolYearId = "Annee scolaire requise.";
     if (!enrollmentForm.classId) errors.classId = "Classe requise.";
     if (!enrollmentForm.studentId) errors.studentId = "Eleve requis.";
+    if (!enrollmentForm.track) errors.track = "Cursus requis.";
     if (!enrollmentForm.enrollmentDate) errors.enrollmentDate = "Date d'inscription requise.";
     if (!enrollmentForm.enrollmentStatus.trim()) errors.enrollmentStatus = "Statut requis.";
     const selectedClass = classes.find((item) => item.id === enrollmentForm.classId);
     if (selectedClass && selectedClass.schoolYearId !== enrollmentForm.schoolYearId) {
       errors.classId = "La classe doit appartenir a l'annee selectionnee.";
+    }
+    if (selectedClass && selectedClass.track !== enrollmentForm.track) {
+      errors.track = "Le cursus doit correspondre a la classe selectionnee.";
     }
     setEnrollmentErrors(errors);
     if (hasFieldErrors(errors)) {
@@ -3624,6 +3145,7 @@ export function App(): JSX.Element {
         schoolYearId: enrollmentForm.schoolYearId,
         classId: enrollmentForm.classId,
         studentId: enrollmentForm.studentId,
+        track: enrollmentForm.track,
         enrollmentDate: enrollmentForm.enrollmentDate || today(),
         enrollmentStatus: enrollmentForm.enrollmentStatus.trim().toUpperCase() || "ENROLLED"
       })
@@ -3650,7 +3172,7 @@ export function App(): JSX.Element {
   };
 
   const resetEnrollmentFilters = async (): Promise<void> => {
-    const next = { schoolYearId: "", classId: "", studentId: "" };
+    const next = { schoolYearId: "", classId: "", studentId: "", track: "" };
     setEnrollmentFilters(next);
     await loadEnrollments(next);
   };
@@ -3973,7 +3495,7 @@ export function App(): JSX.Element {
       window.open(payload.pdfDataUrl, "_blank", "noopener,noreferrer");
     }
 
-    setNotice("Bulletin genere.");
+    setNotice("Bulletin(s) genere(s).");
     setGradesWorkflowStep("reports");
     await loadReportCards();
   };
@@ -4019,173 +3541,59 @@ export function App(): JSX.Element {
   const reportFormPeriods = reportFormClass
     ? periods.filter((item) => item.schoolYearId === reportFormClass.schoolYearId)
     : periods;
+  const formatReportCardAverage = (item: ReportCard): string => {
+    if (item.mode === "PRIMARY_COMBINED" && item.sections && item.sections.length > 0) {
+      return item.sections
+        .map((section) => `${formatAcademicTrackLabel(section.track)} ${section.averageGeneral.toFixed(2)}`)
+        .join(" | ");
+    }
+
+    return item.averageGeneral.toFixed(2);
+  };
+  const formatReportCardContext = (item: ReportCard): string => {
+    if (item.mode === "PRIMARY_COMBINED" && item.sections && item.sections.length > 0) {
+      return item.sections
+        .map((section) =>
+          [formatAcademicTrackLabel(section.track), section.classLabel || section.levelLabel]
+            .filter(Boolean)
+            .join(" / ")
+        )
+        .join(" | ");
+    }
+
+    return item.classLabel || classById.get(item.classId)?.label || "-";
+  };
 
   const renderStudents = (): JSX.Element => {
-    const studentSteps: WorkflowStepDef[] = [
-      {
-        id: "entry",
-        title: editingStudentId ? "Edition du dossier" : "Nouveau dossier",
-        hint: "Renseigner les informations d'identite de l'eleve."
-      },
-      {
-        id: "list",
-        title: "Base eleves",
-        hint: "Filtrer, verifier et corriger les dossiers existants.",
-        done: students.length > 0
-      }
-    ];
-
     return (
-      <WorkflowGuide
-        title="Eleves"
-        steps={studentSteps}
-        activeStepId={studentWorkflowStep}
-        onStepChange={setStudentWorkflowStep}
-      >
-        {studentWorkflowStep === "entry" ? (
-          <section data-step-id="entry" className="panel editor-panel workflow-section">
-            <div className="table-header">
-              <h2>{editingStudentId ? "Modifier un eleve" : "Ajouter un eleve"}</h2>
-            </div>
-            <p className="hint">Matricule unique, identite complete, puis validation.</p>
-            <form className="form-grid" onSubmit={(event) => void submitStudent(event)}>
-              <label>
-                Matricule
-                <input
-                  value={studentForm.matricule}
-                  onChange={(event) => setStudentForm((prev) => ({ ...prev, matricule: event.target.value }))}
-                  required
-                />
-                {fieldError(studentErrors, "matricule")}
-              </label>
-              <label>
-                Prenom
-                <input
-                  value={studentForm.firstName}
-                  onChange={(event) => setStudentForm((prev) => ({ ...prev, firstName: event.target.value }))}
-                  required
-                />
-                {fieldError(studentErrors, "firstName")}
-              </label>
-              <label>
-                Nom
-                <input
-                  value={studentForm.lastName}
-                  onChange={(event) => setStudentForm((prev) => ({ ...prev, lastName: event.target.value }))}
-                  required
-                />
-                {fieldError(studentErrors, "lastName")}
-              </label>
-              <label>
-                Sexe
-                <select
-                  value={studentForm.sex}
-                  onChange={(event) => setStudentForm((prev) => ({ ...prev, sex: event.target.value as "M" | "F" }))}
-                >
-                  <option value="M">M</option>
-                  <option value="F">F</option>
-                </select>
-                {fieldError(studentErrors, "sex")}
-              </label>
-              <label>
-                Date de naissance
-                <input
-                  type="date"
-                  value={studentForm.birthDate}
-                  onChange={(event) => setStudentForm((prev) => ({ ...prev, birthDate: event.target.value }))}
-                />
-                {fieldError(studentErrors, "birthDate")}
-              </label>
-              <div className="actions">
-                <button type="submit">{editingStudentId ? "Mettre a jour" : "Ajouter"}</button>
-                <button type="button" className="button-ghost" onClick={resetStudentForm}>
-                  Reinitialiser
-                </button>
-                <button type="button" className="button-ghost" onClick={() => setStudentWorkflowStep("list")}>
-                  Aller a la liste
-                </button>
-              </div>
-            </form>
-          </section>
-        ) : null}
-
-        {studentWorkflowStep === "list" ? (
-          <section data-step-id="list" className="panel table-panel workflow-section">
-            <div className="table-header">
-              <h2>Liste des eleves</h2>
-              <input
-                className="search-input"
-                placeholder="Filtrer par matricule, nom ou prenom"
-                value={studentSearch}
-                onChange={(event) => setStudentSearch(event.target.value)}
-              />
-            </div>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Matricule</th>
-                    <th>Nom</th>
-                    <th>Sexe</th>
-                    <th>Naissance</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {studentsLoading ? (
-                    <tr>
-                      <td colSpan={5} className="empty-row">
-                        Chargement...
-                      </td>
-                    </tr>
-                  ) : shownStudents.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="empty-row">
-                        Aucun eleve.
-                      </td>
-                    </tr>
-                  ) : (
-                    shownStudents.map((item) => (
-                      <tr key={item.id}>
-                        <td>{item.matricule}</td>
-                        <td>
-                          {item.firstName} {item.lastName}
-                        </td>
-                        <td>{item.sex}</td>
-                        <td>{item.birthDate || "-"}</td>
-                        <td>
-                          <div className="row-actions">
-                            <button
-                              type="button"
-                              className="button-ghost"
-                              onClick={() => {
-                                setEditingStudentId(item.id);
-                                setStudentForm({
-                                  matricule: item.matricule,
-                                  firstName: item.firstName,
-                                  lastName: item.lastName,
-                                  sex: item.sex,
-                                  birthDate: item.birthDate || ""
-                                });
-                                setStudentWorkflowStep("entry");
-                              }}
-                            >
-                              Modifier
-                            </button>
-                            <button type="button" className="button-danger" onClick={() => void deleteStudent(item.id)}>
-                              Supprimer
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        ) : null}
-      </WorkflowGuide>
+      <StudentsScreen
+        editingStudentId={editingStudentId}
+        studentErrors={studentErrors}
+        studentForm={studentForm}
+        studentSearch={studentSearch}
+        studentWorkflowStep={studentWorkflowStep}
+        students={students}
+        studentsLoading={studentsLoading}
+        shownStudents={shownStudents}
+        onDeleteStudent={(studentId) => void deleteStudent(studentId)}
+        onEditStudent={(student) => {
+          setEditingStudentId(student.id);
+          setStudentForm({
+            matricule: student.matricule,
+            firstName: student.firstName,
+            lastName: student.lastName,
+            sex: student.sex,
+            birthDate: student.birthDate || ""
+          });
+          setStudentWorkflowStep("entry");
+        }}
+        onResetStudentForm={resetStudentForm}
+        onSearchChange={setStudentSearch}
+        onStudentFormChange={setStudentForm}
+        onStudentWorkflowStepChange={setStudentWorkflowStep}
+        onSubmitStudent={(event) => void submitStudent(event)}
+        renderFieldError={fieldError}
+      />
     );
   };
   const renderFinance = (): JSX.Element => {
@@ -4454,6 +3862,8 @@ export function App(): JSX.Element {
                 <tr>
                   <th>Numero</th>
                   <th>Eleve</th>
+                  <th>Classe principale</th>
+                  <th>Classe secondaire</th>
                   <th>Du</th>
                   <th>Paye</th>
                   <th>Reste</th>
@@ -4464,7 +3874,7 @@ export function App(): JSX.Element {
               <tbody>
                 {invoices.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="empty-row">
+                    <td colSpan={9} className="empty-row">
                       Aucune facture.
                     </td>
                   </tr>
@@ -4473,6 +3883,16 @@ export function App(): JSX.Element {
                     <tr key={item.id}>
                       <td>{item.invoiceNo}</td>
                       <td>{item.studentName || studentById.get(item.studentId)?.matricule || "-"}</td>
+                      <td>
+                        {[item.primaryClassLabel, item.primaryTrack ? formatAcademicTrackLabel(item.primaryTrack) : undefined]
+                          .filter(Boolean)
+                          .join(" / ") || "-"}
+                      </td>
+                      <td>
+                        {[item.secondaryClassLabel, item.secondaryTrack ? formatAcademicTrackLabel(item.secondaryTrack) : undefined]
+                          .filter(Boolean)
+                          .join(" / ") || "-"}
+                      </td>
                       <td>{formatAmount(item.amountDue)}</td>
                       <td>{formatAmount(item.amountPaid)}</td>
                       <td>{formatAmount(item.remainingAmount)}</td>
@@ -5526,7 +4946,8 @@ export function App(): JSX.Element {
               <thead>
                 <tr>
                   <th>Eleve</th>
-                  <th>Classe</th>
+                  <th>Mode</th>
+                  <th>Contexte</th>
                   <th>Periode</th>
                   <th>Moyenne</th>
                   <th>Rang</th>
@@ -5537,7 +4958,7 @@ export function App(): JSX.Element {
               <tbody>
                 {reportCards.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="empty-row">
+                    <td colSpan={8} className="empty-row">
                       Aucun bulletin.
                     </td>
                   </tr>
@@ -5545,9 +4966,10 @@ export function App(): JSX.Element {
                   reportCards.map((item) => (
                     <tr key={item.id}>
                       <td>{item.studentName || studentById.get(item.studentId)?.matricule || "-"}</td>
-                      <td>{item.classLabel || classById.get(item.classId)?.label || "-"}</td>
+                      <td>{formatReportCardModeLabel(item.mode)}</td>
+                      <td>{formatReportCardContext(item)}</td>
                       <td>{item.periodLabel || periods.find((period) => period.id === item.academicPeriodId)?.label || "-"}</td>
-                      <td>{item.averageGeneral.toFixed(2)}</td>
+                      <td>{formatReportCardAverage(item)}</td>
                       <td>{item.classRank || "-"}</td>
                       <td>{item.appreciation || "-"}</td>
                       <td>
@@ -5994,454 +5416,40 @@ export function App(): JSX.Element {
   };
 
   const renderDashboard = (): JSX.Element => {
-    if (!currentRole) {
-      return <></>;
-    }
-
-    const activeModules = filteredTiles.slice(0, 8);
-    const primaryModule = filteredTiles[0];
-    const openInvoices = invoices.filter((item) => item.status !== "PAID").length;
-    const pendingReports = Math.max(0, classes.length - reportCards.length);
-    const lowRecovery = (recovery?.totals.recoveryRatePercent ?? 0) < 70;
-    let heroEyebrow = "Accueil simplifie";
-    let heroTitle = "Tableau de bord clair et actionnable";
-    let heroText = currentSlide.quote;
-    let primaryActionScreen: ScreenId = primaryModule?.screen || ROLE_HOME_SCREEN[currentRole];
-    let primaryActionLabel = primaryModule
-      ? `Ouvrir ${primaryModule.title}`
-      : "Ouvrir l'espace principal";
-    const priorityTitle = currentRole === "PARENT" ? "Actions utiles" : "Taches prioritaires";
-
-    let dashboardCards: Array<{ label: string; value: string | number; hint: string }> = [];
-    let dashboardTasks: Array<{ id: string; title: string; text: string; screen: ScreenId }> = [];
-    let dashboardNotifications: Array<{
-      id: string;
-      tone: "warning" | "info";
-      title: string;
-      text: string;
-    }> = [];
-
-    if (currentRole === "PARENT") {
-      heroEyebrow = "Espace parent";
-      heroTitle = "Suivi famille strictement limite a vos enfants";
-      heroText =
-        "Accedez uniquement aux absences, bulletins, emplois du temps et paiements qui concernent votre famille.";
-      primaryActionScreen = "parentPortal";
-      primaryActionLabel = "Ouvrir le portail parent";
-      dashboardCards = [
-        {
-          label: "Enfants",
-          value: parentOverview?.childrenCount ?? parentChildren.length,
-          hint: "Suivi famille"
-        },
-        {
-          label: "Factures ouvertes",
-          value: parentOverview?.openInvoicesCount ?? parentInvoices.filter((item) => item.status !== "PAID").length,
-          hint: "A regler"
-        },
-        {
-          label: "Reste a payer",
-          value: formatMoney(parentOverview?.remainingAmount ?? 0),
-          hint: "Situation famille"
-        },
-        {
-          label: "Notifications",
-          value: parentOverview?.notificationsCount ?? parentNotifications.length,
-          hint: "Messages recus"
-        }
-      ];
-      dashboardTasks = [
-        {
-          id: "parent-portal",
-          title: "Ouvrir le portail parent",
-          text: "Retrouver les notes, absences et bulletins de vos enfants.",
-          screen: "parentPortal"
-        },
-        {
-          id: "family-payments",
-          title: "Verifier les paiements",
-          text: "Consulter les factures ouvertes et les reglements deja recus.",
-          screen: "parentPortal"
-        },
-        {
-          id: "family-timetable",
-          title: "Consulter l'emploi du temps",
-          text: "Voir les horaires utiles directement depuis l'espace famille.",
-          screen: "parentPortal"
-        }
-      ];
-      dashboardNotifications = [
-        (parentOverview?.remainingAmount ?? 0) > 0
-          ? {
-              id: "parent-remaining",
-              tone: "warning",
-              title: "Paiements a suivre",
-              text: `Reste a payer: ${formatMoney(parentOverview?.remainingAmount ?? 0)}`
-            }
-          : null,
-        (parentOverview?.absencesCount ?? 0) > 0
-          ? {
-              id: "parent-attendance",
-              tone: "info",
-              title: "Absences ou retards a consulter",
-              text: `${parentOverview?.absencesCount ?? 0} evenement(s) concernent vos enfants.`
-            }
-          : null,
-        parentNotifications[0]
-          ? {
-              id: `parent-notification-${parentNotifications[0].id}`,
-              tone: "info",
-              title: parentNotifications[0].title,
-              text: parentNotifications[0].message
-            }
-          : null
-      ].filter(
-        (
-          item
-        ): item is {
-          id: string;
-          tone: "warning" | "info";
-          title: string;
-          text: string;
-        } => item !== null
-      );
-    } else if (currentRole === "ENSEIGNANT") {
-      heroEyebrow = "Espace enseignant";
-      heroTitle = "Vue enseignant limitee a vos classes";
-      heroText =
-        "Retrouvez vos classes, vos notes, votre emploi du temps et les notifications utiles a votre mission.";
-      primaryActionScreen = "teacherPortal";
-      primaryActionLabel = "Ouvrir le portail enseignant";
-      dashboardCards = [
-        {
-          label: "Classes",
-          value: teacherOverview?.classesCount ?? teacherClasses.length,
-          hint: "Affectations"
-        },
-        {
-          label: "Eleves suivis",
-          value: teacherOverview?.studentsCount ?? teacherStudents.length,
-          hint: "Perimetre"
-        },
-        {
-          label: "Notes",
-          value: teacherOverview?.gradesCount ?? teacherGrades.length,
-          hint: "Saisies"
-        },
-        {
-          label: "Notifications",
-          value: teacherOverview?.notificationsCount ?? teacherNotifications.length,
-          hint: "Messages utiles"
-        }
-      ];
-      dashboardTasks = [
-        {
-          id: "teacher-portal",
-          title: "Ouvrir le portail enseignant",
-          text: "Acceder aux classes, eleves et notes sous votre responsabilite.",
-          screen: "teacherPortal"
-        },
-        {
-          id: "teacher-grades",
-          title: "Saisir les notes",
-          text: "Renseigner les evaluations de vos classes affectees.",
-          screen: "teacherPortal"
-        },
-        {
-          id: "teacher-timetable",
-          title: "Consulter l'emploi du temps",
-          text: "Verifier rapidement vos creneaux hebdomadaires.",
-          screen: "teacherPortal"
-        }
-      ];
-      dashboardNotifications = [
-        (teacherOverview?.pendingJustifications ?? 0) > 0
-          ? {
-              id: "teacher-justifications",
-              tone: "warning",
-              title: "Justificatifs en attente",
-              text: `${teacherOverview?.pendingJustifications ?? 0} justificatif(s) restent a suivre.`
-            }
-          : null,
-        teacherNotifications[0]
-          ? {
-              id: `teacher-notification-${teacherNotifications[0].id}`,
-              tone: "info",
-              title: teacherNotifications[0].title,
-              text: teacherNotifications[0].message
-            }
-          : null,
-        teacherNotifications[1]
-          ? {
-              id: `teacher-notification-${teacherNotifications[1].id}`,
-              tone: "info",
-              title: teacherNotifications[1].title,
-              text: teacherNotifications[1].message
-            }
-          : null
-      ].filter(
-        (
-          item
-        ): item is {
-          id: string;
-          tone: "warning" | "info";
-          title: string;
-          text: string;
-        } => item !== null
-      );
-    } else {
-      const backOfficeCards: Array<{ label: string; value: string | number; hint: string } | null> = [
-        hasScreenAccess(currentRole, "students")
-          ? { label: "Eleves", value: students.length, hint: "Population" }
-          : null,
-        hasScreenAccess(currentRole, "reference") || hasScreenAccess(currentRole, "enrollments")
-          ? { label: "Classes", value: classes.length, hint: "Organisation" }
-          : null,
-        hasScreenAccess(currentRole, "enrollments")
-          ? { label: "Inscriptions", value: enrollments.length, hint: "Actives" }
-          : null,
-        hasScreenAccess(currentRole, "finance")
-          ? {
-              label: "Recouvrement",
-              value: `${recovery ? recovery.totals.recoveryRatePercent.toFixed(1) : "0.0"}%`,
-              hint: "Sante financiere"
-            }
-          : null,
-        hasScreenAccess(currentRole, "grades")
-          ? { label: "Bulletins", value: reportCards.length, hint: "Publies" }
-          : null,
-        hasScreenAccess(currentRole, "mosque")
-          ? {
-              label: "Dons mosquee",
-              value: formatMoney(mosqueDashboard?.totals.donationsTotal ?? 0),
-              hint: "Total cumule"
-            }
-          : null
-      ];
-      dashboardCards = backOfficeCards.filter(
-        (item): item is { label: string; value: string | number; hint: string } => item !== null
-      );
-
-      dashboardTasks = [
-        hasScreenAccess(currentRole, "students")
-          ? {
-              id: "students",
-              title: "Creer un eleve",
-              text: "Commencer un nouveau dossier eleve.",
-              screen: "students" as ScreenId
-            }
-          : null,
-        hasScreenAccess(currentRole, "enrollments")
-          ? {
-              id: "enrollments",
-              title: "Valider les inscriptions",
-              text: "Relier eleves, classes et annee scolaire.",
-              screen: "enrollments" as ScreenId
-            }
-          : null,
-        hasScreenAccess(currentRole, "finance")
-          ? {
-              id: "finance",
-              title: "Suivre les paiements",
-              text: "Verifier factures ouvertes et recouvrement.",
-              screen: "finance" as ScreenId
-            }
-          : null,
-        hasScreenAccess(currentRole, "grades")
-          ? {
-              id: "grades",
-              title: "Publier les bulletins",
-              text: "Generer les bulletins PDF de periode.",
-              screen: "grades" as ScreenId
-            }
-          : null,
-        hasScreenAccess(currentRole, "reports")
-          ? {
-              id: "reports",
-              title: "Consulter les rapports",
-              text: "Suivre les indicateurs et les journaux de conformite.",
-              screen: "reports" as ScreenId
-            }
-          : null
-      ].filter(
-        (
-          item
-        ): item is {
-          id: string;
-          title: string;
-          text: string;
-          screen: ScreenId;
-        } => item !== null
-      );
-
-      dashboardNotifications = [
-        hasScreenAccess(currentRole, "finance") && lowRecovery
-          ? {
-              id: "recovery",
-              tone: "warning",
-              title: "Recouvrement a surveiller",
-              text: `Taux actuel: ${(recovery?.totals.recoveryRatePercent ?? 0).toFixed(1)}%`
-            }
-          : null,
-        hasScreenAccess(currentRole, "finance") && openInvoices > 0
-          ? {
-              id: "invoices",
-              tone: "info",
-              title: "Factures en attente",
-              text: `${openInvoices} facture(s) restent a suivre.`
-            }
-          : null,
-        hasScreenAccess(currentRole, "grades") && pendingReports > 0
-          ? {
-              id: "reports",
-              tone: "info",
-              title: "Bulletins a publier",
-              text: `${pendingReports} classe(s) sans bulletin genere.`
-            }
-          : null
-      ].filter(
-        (
-          item
-        ): item is {
-          id: string;
-          tone: "warning" | "info";
-          title: string;
-          text: string;
-        } => item !== null
-      );
-    }
-
     return (
-      <>
-        <section className="panel dashboard-hero">
-          <div>
-            <p className="eyebrow">{heroEyebrow}</p>
-            <h2>{heroTitle}</h2>
-            <p className="subtle">{heroText}</p>
-          </div>
-          <button
-            type="button"
-            className="hero-primary-cta"
-            onClick={() => setTab(primaryActionScreen)}
-          >
-            {primaryActionLabel}
-          </button>
-        </section>
-
-        <section className="dashboard-kpi-grid">
-          {dashboardCards.slice(0, 4).map((card) => (
-            <article key={card.label} className="panel metric-card kpi-card">
-              <span>{card.label}</span>
-              <strong>{card.value}</strong>
-              <small className="subtle">{card.hint}</small>
-            </article>
-          ))}
-        </section>
-
-        <section className="dashboard-main-grid">
-          <article className="panel dashboard-modules" aria-label="Modules applicatifs">
-            <div className="table-header">
-              <h2>Modules</h2>
-              {moduleQuery.trim() ? (
-                <button
-                  type="button"
-                  className="button-ghost"
-                  onClick={() => {
-                    setModuleQueryInput("");
-                    setModuleQuery("");
-                  }}
-                >
-                  Effacer filtre
-                </button>
-              ) : null}
-            </div>
-            <div className="module-grid">
-              {activeModules.length === 0 ? (
-                <article className="empty-modules">
-                  <h3>Aucun module trouve</h3>
-                  <p className="subtle">Essaie un mot-cle plus simple.</p>
-                </article>
-              ) : (
-                activeModules.map((tile) => (
-                  <button
-                    key={tile.screen}
-                    type="button"
-                    className="module-card"
-                    onClick={() => setTab(tile.screen)}
-                  >
-                    <span className={`module-icon tone-${tile.tone}`}>
-                      <ModuleIcon name={tile.icon} />
-                    </span>
-                    <span className="module-text">
-                      <strong>{tile.title}</strong>
-                      <small>{tile.subtitle}</small>
-                    </span>
-                  </button>
-                ))
-              )}
-            </div>
-          </article>
-
-            <aside className="dashboard-side">
-              <article className="panel priority-panel">
-                <div className="priority-panel-head">
-                  <div className="table-header">
-                    <h3>{priorityTitle}</h3>
-                  </div>
-                  <button
-                    type="button"
-                    className="mobile-section-toggle"
-                    aria-expanded={mobileTasksOpen}
-                    onClick={() => setMobileTasksOpen((prev) => !prev)}
-                  >
-                    {mobileTasksOpen ? "Masquer" : "Afficher"}
-                  </button>
-                </div>
-                <div className={`priority-collapsible ${mobileTasksOpen ? "is-open" : ""}`.trim()}>
-                  <div className="priority-list">
-                  {dashboardTasks.length === 0 ? (
-                    <p className="subtle">Aucune action prioritaire pour ce profil.</p>
-                  ) : (
-                    dashboardTasks.map((task) => (
-                      <button
-                        key={task.id}
-                        type="button"
-                        className="priority-item"
-                        onClick={() => setTab(task.screen)}
-                      >
-                        <strong>{task.title}</strong>
-                        <small>{task.text}</small>
-                      </button>
-                    ))
-                  )}
-                  </div>
-                </div>
-              </article>
-
-              <article className="panel priority-panel">
-                <div className="table-header">
-                  <h3>{currentRole === "PARENT" ? "Informations recentes" : "Notifications recentes"}</h3>
-                </div>
-                <div className="notice-list">
-                  {dashboardNotifications.length === 0 ? (
-                    <p className="subtle">
-                      {currentRole === "PARENT"
-                        ? "Aucune information sensible ou urgente a signaler."
-                        : "Aucune alerte critique pour le moment."}
-                    </p>
-                  ) : (
-                    dashboardNotifications.map((item) => (
-                      <article key={item.id} className={`notice-card notice-${item.tone}`}>
-                      <strong>{item.title}</strong>
-                      <p>{item.text}</p>
-                    </article>
-                  ))
-                )}
-              </div>
-            </article>
-          </aside>
-        </section>
-      </>
+      <DashboardScreen
+        currentRole={currentRole}
+        currentSlide={currentSlide}
+        defaultActionScreen={ROLE_HOME_SCREEN[currentRole || "ADMIN"] || "dashboard"}
+        filteredTiles={filteredTiles}
+        invoices={invoices}
+        classesCount={classes.length}
+        reportCards={reportCards}
+        recovery={recovery}
+        students={students}
+        enrollments={enrollments}
+        mosqueDashboard={mosqueDashboard}
+        parentOverview={parentOverview}
+        parentChildren={parentChildren}
+        parentInvoices={parentInvoices}
+        parentNotifications={parentNotifications}
+        teacherOverview={teacherOverview}
+        teacherClasses={teacherClasses}
+        teacherStudentsCount={teacherStudents.length}
+        teacherGradesCount={teacherGrades.length}
+        teacherNotifications={teacherNotifications}
+        moduleQuery={moduleQuery}
+        mobileTasksOpen={mobileTasksOpen}
+        onClearModuleFilter={() => {
+          setModuleQueryInput("");
+          setModuleQuery("");
+        }}
+        onSelectScreen={setTab}
+        onToggleMobileTasks={() => setMobileTasksOpen((prev) => !prev)}
+        formatMoney={formatMoney}
+        hasScreenAccess={hasScreenAccess}
+        currentRoleLabel={currentRoleLabel}
+      />
     );
   };
 
@@ -6518,7 +5526,7 @@ export function App(): JSX.Element {
                 <option value="">Toutes</option>
                 {teacherClasses.map((item) => (
                   <option key={item.assignmentId} value={item.classId}>
-                    {item.classLabel} ({item.schoolYearCode})
+                    {item.classLabel} ({formatAcademicTrackLabel(item.track)}) - {item.schoolYearCode}
                   </option>
                 ))}
               </select>
@@ -6569,7 +5577,7 @@ export function App(): JSX.Element {
                 <option value="">Tous</option>
                 {teacherStudentsForClass.map((item) => (
                   <option key={item.enrollmentId} value={item.studentId}>
-                    {item.matricule} - {item.studentName}
+                    {item.matricule} - {item.studentName} ({formatAcademicTrackLabel(item.track)})
                   </option>
                 ))}
               </select>
@@ -6606,7 +5614,7 @@ export function App(): JSX.Element {
                 >
                   {teacherClasses.map((item) => (
                     <option key={item.assignmentId} value={item.classId}>
-                      {item.classLabel}
+                      {item.classLabel} ({formatAcademicTrackLabel(item.track)})
                     </option>
                   ))}
                 </select>
@@ -6620,7 +5628,7 @@ export function App(): JSX.Element {
                 >
                   {teacherStudentsForClass.map((item) => (
                     <option key={item.enrollmentId} value={item.studentId}>
-                      {item.matricule} - {item.studentName}
+                      {item.matricule} - {item.studentName} ({formatAcademicTrackLabel(item.track)})
                     </option>
                   ))}
                 </select>
@@ -6699,7 +5707,7 @@ export function App(): JSX.Element {
                 >
                   {teacherClasses.map((item) => (
                     <option key={item.assignmentId} value={item.classId}>
-                      {item.classLabel}
+                      {item.classLabel} ({formatAcademicTrackLabel(item.track)})
                     </option>
                   ))}
                 </select>
@@ -6741,7 +5749,7 @@ export function App(): JSX.Element {
                 >
                   {teacherStudentsForClass.map((item) => (
                     <option key={item.enrollmentId} value={item.studentId}>
-                      {item.matricule} - {item.studentName}
+                      {item.matricule} - {item.studentName} ({formatAcademicTrackLabel(item.track)})
                     </option>
                   ))}
                 </select>
@@ -6760,7 +5768,7 @@ export function App(): JSX.Element {
                 >
                   {teacherClasses.map((item) => (
                     <option key={item.assignmentId} value={item.classId}>
-                      {item.classLabel}
+                      {item.classLabel} ({formatAcademicTrackLabel(item.track)})
                     </option>
                   ))}
                 </select>
@@ -6775,7 +5783,7 @@ export function App(): JSX.Element {
                   <option value="">Tous les parents de la classe</option>
                   {teacherStudentsForClass.map((item) => (
                     <option key={item.enrollmentId} value={item.studentId}>
-                      {item.studentName}
+                      {item.studentName} ({formatAcademicTrackLabel(item.track)})
                     </option>
                   ))}
                 </select>
@@ -6811,6 +5819,7 @@ export function App(): JSX.Element {
               <thead>
                 <tr>
                   <th>Eleve</th>
+                  <th>Cursus</th>
                   <th>Matiere</th>
                   <th>Periode</th>
                   <th>Evaluation</th>
@@ -6820,12 +5829,13 @@ export function App(): JSX.Element {
               <tbody>
                 {teacherGrades.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="empty-row">Aucune note.</td>
+                    <td colSpan={6} className="empty-row">Aucune note.</td>
                   </tr>
                 ) : (
                   teacherGrades.map((item) => (
                     <tr key={item.id}>
                       <td>{item.studentName || "-"}</td>
+                      <td>{formatAcademicTrackLabel(item.track)}</td>
                       <td>{item.subjectLabel || "-"}</td>
                         <td>{periods.find((period) => period.id === item.academicPeriodId)?.label || "-"}</td>
                       <td>{item.assessmentLabel}</td>
@@ -6845,25 +5855,27 @@ export function App(): JSX.Element {
             </div>
             <div className="table-wrap">
               <table>
-                <thead>
-                  <tr>
-                    <th>Jour</th>
-                    <th>Classe</th>
-                    <th>Matiere</th>
-                    <th>Horaire</th>
-                    <th>Salle</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {teacherTimetable.length === 0 ? (
-                    <tr><td colSpan={5} className="empty-row">Aucun creneau.</td></tr>
-                  ) : (
-                    teacherTimetable.map((item) => (
-                      <tr key={item.id}>
-                        <td>{formatWeekdayLabel(item.dayOfWeek)}</td>
-                        <td>{item.classLabel || "-"}</td>
-                        <td>{item.subjectLabel || "-"}</td>
-                        <td>{item.startTime} - {item.endTime}</td>
+              <thead>
+                <tr>
+                  <th>Jour</th>
+                  <th>Classe</th>
+                  <th>Cursus</th>
+                  <th>Matiere</th>
+                  <th>Horaire</th>
+                  <th>Salle</th>
+                </tr>
+              </thead>
+              <tbody>
+                {teacherTimetable.length === 0 ? (
+                  <tr><td colSpan={6} className="empty-row">Aucun creneau.</td></tr>
+                ) : (
+                  teacherTimetable.map((item) => (
+                    <tr key={item.id}>
+                      <td>{formatWeekdayLabel(item.dayOfWeek)}</td>
+                      <td>{item.classLabel || "-"}</td>
+                      <td>{formatAcademicTrackLabel(item.track)}</td>
+                      <td>{item.subjectLabel || "-"}</td>
+                      <td>{item.startTime} - {item.endTime}</td>
                         <td>{item.room || "-"}</td>
                       </tr>
                     ))
@@ -7392,7 +6404,7 @@ export function App(): JSX.Element {
                 <option value="">Tous</option>
                 {parentChildren.map((item) => (
                   <option key={item.linkId} value={item.studentId}>
-                    {item.matricule} - {item.studentName}
+                    {item.matricule} - {item.studentName}{item.primaryTrack ? ` (${formatAcademicTrackLabel(item.primaryTrack)})` : ""}
                   </option>
                 ))}
               </select>
@@ -7411,6 +6423,56 @@ export function App(): JSX.Element {
               </button>
             </div>
           </form>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Eleve</th>
+                  <th>Classe principale</th>
+                  <th>Classe secondaire</th>
+                  <th>Parcours actifs</th>
+                </tr>
+              </thead>
+              <tbody>
+                {parentChildren.length === 0 ? (
+                  <tr><td colSpan={4} className="empty-row">Aucun parcours parent-eleve.</td></tr>
+                ) : (
+                  parentChildren.map((item) => (
+                    <tr key={`child-placement-summary-${item.linkId}`}>
+                      <td>{item.matricule} - {item.studentName}</td>
+                      <td>
+                        {[item.primaryPlacement?.classLabel || item.classLabel, item.primaryPlacement?.track ? formatAcademicTrackLabel(item.primaryPlacement.track) : item.primaryTrack ? formatAcademicTrackLabel(item.primaryTrack) : undefined]
+                          .filter(Boolean)
+                          .join(" / ") || "-"}
+                      </td>
+                      <td>
+                        {[item.secondaryPlacement?.classLabel || item.secondaryClassLabel, item.secondaryPlacement?.track ? formatAcademicTrackLabel(item.secondaryPlacement.track) : undefined]
+                          .filter(Boolean)
+                          .join(" / ") || "-"}
+                      </td>
+                      <td>
+                        {item.placements?.length ? (
+                          item.placements
+                            .map((placement) => {
+                              const placementParts = [
+                                formatAcademicTrackLabel(placement.track),
+                                placement.levelCode,
+                                placement.classLabel,
+                                placement.schoolYearCode
+                              ].filter(Boolean);
+                              return `${placement.isPrimary ? "Principal" : "Secondaire"}: ${placementParts.join(" / ")}`;
+                            })
+                            .join(" | ")
+                        ) : (
+                          "Aucun parcours actif"
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <div className="split-grid">
@@ -7423,6 +6485,7 @@ export function App(): JSX.Element {
                 <thead>
                   <tr>
                     <th>Eleve</th>
+                    <th>Cursus</th>
                     <th>Matiere</th>
                     <th>Periode</th>
                     <th>Evaluation</th>
@@ -7431,11 +6494,12 @@ export function App(): JSX.Element {
                 </thead>
                 <tbody>
                   {parentGrades.length === 0 ? (
-                    <tr><td colSpan={5} className="empty-row">Aucune note.</td></tr>
+                    <tr><td colSpan={6} className="empty-row">Aucune note.</td></tr>
                   ) : (
                     parentGrades.map((item) => (
                       <tr key={item.id}>
                         <td>{item.studentName || "-"}</td>
+                        <td>{formatAcademicTrackLabel(item.track)}</td>
                         <td>{item.subjectLabel || "-"}</td>
                         <td>{item.periodLabel || periods.find((period) => period.id === item.academicPeriodId)?.label || "-"}</td>
                         <td>{item.assessmentLabel}</td>
@@ -7457,7 +6521,8 @@ export function App(): JSX.Element {
                 <thead>
                   <tr>
                     <th>Eleve</th>
-                    <th>Classe</th>
+                    <th>Mode</th>
+                    <th>Contexte</th>
                     <th>Periode</th>
                     <th>Moyenne</th>
                     <th>Rang</th>
@@ -7466,14 +6531,15 @@ export function App(): JSX.Element {
                 </thead>
                 <tbody>
                   {parentReportCards.length === 0 ? (
-                    <tr><td colSpan={6} className="empty-row">Aucun bulletin.</td></tr>
+                    <tr><td colSpan={7} className="empty-row">Aucun bulletin.</td></tr>
                   ) : (
                     parentReportCards.map((item) => (
                       <tr key={item.id}>
                         <td>{item.studentName || "-"}</td>
-                        <td>{item.classLabel || "-"}</td>
+                        <td>{formatReportCardModeLabel(item.mode)}</td>
+                        <td>{formatReportCardContext(item)}</td>
                         <td>{item.periodLabel || "-"}</td>
-                        <td>{item.averageGeneral.toFixed(2)}</td>
+                        <td>{formatReportCardAverage(item)}</td>
                         <td>{item.classRank || "-"}</td>
                         <td>
                           {item.pdfDataUrl ? (
@@ -7509,19 +6575,21 @@ export function App(): JSX.Element {
                     <th>Date</th>
                     <th>Eleve</th>
                     <th>Classe</th>
+                    <th>Cursus</th>
                     <th>Statut</th>
                     <th>Validation</th>
                   </tr>
                 </thead>
                 <tbody>
                   {parentAttendance.length === 0 ? (
-                    <tr><td colSpan={5} className="empty-row">Aucune absence.</td></tr>
+                    <tr><td colSpan={6} className="empty-row">Aucune absence.</td></tr>
                   ) : (
                     parentAttendance.map((item) => (
                       <tr key={item.id}>
                         <td>{item.attendanceDate}</td>
                         <td>{item.studentName || "-"}</td>
                         <td>{item.classLabel || "-"}</td>
+                        <td>{formatAcademicTrackLabel(item.track)}</td>
                         <td>{formatAttendanceStatusLabel(item.status)}</td>
                         <td>{formatValidationStatusLabel(item.justificationStatus)}</td>
                       </tr>
@@ -7542,6 +6610,8 @@ export function App(): JSX.Element {
                   <tr>
                     <th>Facture</th>
                     <th>Eleve</th>
+                    <th>Classe principale</th>
+                    <th>Classe secondaire</th>
                     <th>Du</th>
                     <th>Paye</th>
                     <th>Reste</th>
@@ -7550,12 +6620,22 @@ export function App(): JSX.Element {
                 </thead>
                 <tbody>
                   {parentInvoices.length === 0 ? (
-                    <tr><td colSpan={6} className="empty-row">Aucune facture.</td></tr>
+                    <tr><td colSpan={8} className="empty-row">Aucune facture.</td></tr>
                   ) : (
                     parentInvoices.map((item) => (
                       <tr key={item.id}>
                         <td>{item.invoiceNo}</td>
                         <td>{item.studentName || "-"}</td>
+                        <td>
+                          {[item.primaryClassLabel, item.primaryTrack ? formatAcademicTrackLabel(item.primaryTrack) : undefined]
+                            .filter(Boolean)
+                            .join(" / ") || "-"}
+                        </td>
+                        <td>
+                          {[item.secondaryClassLabel, item.secondaryTrack ? formatAcademicTrackLabel(item.secondaryTrack) : undefined]
+                            .filter(Boolean)
+                            .join(" / ") || "-"}
+                        </td>
                         <td>{formatAmount(item.amountDue)}</td>
                         <td>{formatAmount(item.amountPaid)}</td>
                         <td>{formatAmount(item.remainingAmount)}</td>
@@ -7613,6 +6693,7 @@ export function App(): JSX.Element {
                 <thead>
                   <tr>
                     <th>Eleve</th>
+                    <th>Cursus</th>
                     <th>Jour</th>
                     <th>Matiere</th>
                     <th>Horaire</th>
@@ -7621,11 +6702,12 @@ export function App(): JSX.Element {
                 </thead>
                 <tbody>
                   {parentTimetable.length === 0 ? (
-                    <tr><td colSpan={5} className="empty-row">Aucun creneau.</td></tr>
+                    <tr><td colSpan={6} className="empty-row">Aucun creneau.</td></tr>
                   ) : (
                     parentTimetable.map((item) => (
-                      <tr key={item.slotId}>
+                      <tr key={`${item.slotId}:${item.placementId || item.studentId}`}>
                         <td>{item.studentName}</td>
+                        <td>{formatAcademicTrackLabel(item.track)}</td>
                         <td>{formatWeekdayLabel(item.dayOfWeek)}</td>
                         <td>{item.subjectLabel}</td>
                         <td>{item.startTime} - {item.endTime}</td>
@@ -7817,7 +6899,12 @@ export function App(): JSX.Element {
                     void createRef("/cycles", cycleForm, "Cycle cree.").then((ok) => {
                       if (ok) {
                         setCycleErrors({});
-                        setCycleForm({ code: "", label: "", sortOrder: 1 });
+                        setCycleForm({
+                          code: "",
+                          label: "",
+                          academicStage: "PRIMARY",
+                          sortOrder: 1
+                        });
                       }
                     });
                   }}
@@ -7833,6 +6920,22 @@ export function App(): JSX.Element {
                     {fieldError(cycleErrors, "label")}
                   </label>
                   <label>
+                    Stade academique
+                    <select
+                      value={cycleForm.academicStage}
+                      onChange={(event) =>
+                        setCycleForm((prev) => ({
+                          ...prev,
+                          academicStage: event.target.value as AcademicStage
+                        }))
+                      }
+                    >
+                      <option value="PRIMARY">{formatAcademicStageLabel("PRIMARY")}</option>
+                      <option value="SECONDARY">{formatAcademicStageLabel("SECONDARY")}</option>
+                      <option value="HIGHER">{formatAcademicStageLabel("HIGHER")}</option>
+                    </select>
+                  </label>
+                  <label>
                     Ordre
                     <input type="number" min={0} value={cycleForm.sortOrder} onChange={(event) => setCycleForm((prev) => ({ ...prev, sortOrder: Number(event.target.value) || 0 }))} required />
                     {fieldError(cycleErrors, "sortOrder")}
@@ -7842,7 +6945,7 @@ export function App(): JSX.Element {
                 <div className="mini-list">
                   {cycles.map((item) => (
                     <div key={item.id} className="mini-item">
-                      <span>{item.code} - {item.label}</span>
+                      <span>{item.code} - {item.label} ({formatAcademicStageLabel(item.academicStage)})</span>
                       <button type="button" className="button-ghost" onClick={() => void deleteRef(`/cycles/${item.id}`, "Cycle supprime.")}>
                         Suppr.
                       </button>
@@ -7858,6 +6961,7 @@ export function App(): JSX.Element {
                     if (!levelForm.cycleId) errors.cycleId = "Choisir un cycle.";
                     if (!levelForm.code.trim()) errors.code = "Code niveau requis.";
                     if (!levelForm.label.trim()) errors.label = "Libelle niveau requis.";
+                    if (!levelForm.track) errors.track = "Cursus requis.";
                     if (!Number.isFinite(levelForm.sortOrder) || levelForm.sortOrder < 0) {
                       errors.sortOrder = "Ordre invalide.";
                     }
@@ -7884,6 +6988,22 @@ export function App(): JSX.Element {
                     {fieldError(levelErrors, "cycleId")}
                   </label>
                   <label>
+                    Cursus
+                    <select
+                      value={levelForm.track}
+                      onChange={(event) =>
+                        setLevelForm((prev) => ({ ...prev, track: event.target.value as AcademicTrack }))
+                      }
+                    >
+                      {ACADEMIC_TRACK_OPTIONS.map((track) => (
+                        <option key={track} value={track}>
+                          {formatAcademicTrackLabel(track)}
+                        </option>
+                      ))}
+                    </select>
+                    {fieldError(levelErrors, "track")}
+                  </label>
+                  <label>
                     Code niveau
                     <input value={levelForm.code} onChange={(event) => setLevelForm((prev) => ({ ...prev, code: event.target.value }))} required />
                     {fieldError(levelErrors, "code")}
@@ -7907,7 +7027,7 @@ export function App(): JSX.Element {
                 <div className="mini-list">
                   {shownLevels.map((item) => (
                     <div key={item.id} className="mini-item">
-                      <span>{item.code} - {item.label}</span>
+                      <span>{item.code} - {item.label} ({formatAcademicTrackLabel(item.track)})</span>
                       <button type="button" className="button-ghost" onClick={() => void deleteRef(`/levels/${item.id}`, "Niveau supprime.")}>
                         Suppr.
                       </button>
@@ -7926,8 +7046,13 @@ export function App(): JSX.Element {
                     const errors: FieldErrors = {};
                     if (!classForm.schoolYearId) errors.schoolYearId = "Annee requise.";
                     if (!classForm.levelId) errors.levelId = "Niveau requis.";
+                    if (!classForm.track) errors.track = "Cursus requis.";
                     if (!classForm.code.trim()) errors.code = "Code classe requis.";
                     if (!classForm.label.trim()) errors.label = "Libelle classe requis.";
+                    const selectedLevel = levels.find((item) => item.id === classForm.levelId);
+                    if (selectedLevel && selectedLevel.track !== classForm.track) {
+                      errors.track = "Le cursus de la classe doit correspondre a celui du niveau.";
+                    }
                     if (classForm.capacity.trim() && (!Number.isFinite(Number(classForm.capacity)) || Number(classForm.capacity) <= 0)) {
                       errors.capacity = "Capacite invalide.";
                     }
@@ -7962,12 +7087,39 @@ export function App(): JSX.Element {
                   </label>
                   <label>
                     Niveau
-                    <select value={classForm.levelId} onChange={(event) => setClassForm((prev) => ({ ...prev, levelId: event.target.value }))}>
+                    <select
+                      value={classForm.levelId}
+                      onChange={(event) => {
+                        const nextLevelId = event.target.value;
+                        const nextLevel = levels.find((item) => item.id === nextLevelId);
+                        setClassForm((prev) => ({
+                          ...prev,
+                          levelId: nextLevelId,
+                          track: nextLevel?.track || prev.track
+                        }));
+                      }}
+                    >
                       {levels.map((item) => (
                         <option key={item.id} value={item.id}>{item.code}</option>
                       ))}
                     </select>
                     {fieldError(classErrors, "levelId")}
+                  </label>
+                  <label>
+                    Cursus
+                    <select
+                      value={classForm.track}
+                      onChange={(event) =>
+                        setClassForm((prev) => ({ ...prev, track: event.target.value as AcademicTrack }))
+                      }
+                    >
+                      {ACADEMIC_TRACK_OPTIONS.map((track) => (
+                        <option key={track} value={track}>
+                          {formatAcademicTrackLabel(track)}
+                        </option>
+                      ))}
+                    </select>
+                    {fieldError(classErrors, "track")}
                   </label>
                   <label>
                     Code classe
@@ -8014,7 +7166,7 @@ export function App(): JSX.Element {
                 <div className="mini-list">
                   {shownClasses.map((item) => (
                     <div key={item.id} className="mini-item">
-                      <span>{item.code} - {item.label}</span>
+                      <span>{item.code} - {item.label} ({formatAcademicTrackLabel(item.track)})</span>
                       <button type="button" className="button-ghost" onClick={() => void deleteRef(`/classes/${item.id}`, "Classe supprimee.")}>
                         Suppr.
                       </button>
@@ -8205,16 +7357,41 @@ export function App(): JSX.Element {
                   Classe
                   <select
                     value={enrollmentForm.classId}
-                    onChange={(event) => setEnrollmentForm((prev) => ({ ...prev, classId: event.target.value }))}
+                    onChange={(event) => {
+                      const nextClassId = event.target.value;
+                      const nextClass = classes.find((item) => item.id === nextClassId);
+                      setEnrollmentForm((prev) => ({
+                        ...prev,
+                        classId: nextClassId,
+                        track: nextClass?.track || prev.track
+                      }));
+                    }}
                     required
                   >
                     {classes.map((item) => (
                       <option key={item.id} value={item.id}>
-                        {item.code} - {item.label}
+                        {item.code} - {item.label} ({formatAcademicTrackLabel(item.track)})
                       </option>
                     ))}
                   </select>
                   {fieldError(enrollmentErrors, "classId")}
+                </label>
+                <label>
+                  Cursus
+                  <select
+                    value={enrollmentForm.track}
+                    onChange={(event) =>
+                      setEnrollmentForm((prev) => ({ ...prev, track: event.target.value as AcademicTrack }))
+                    }
+                    required
+                  >
+                    {ACADEMIC_TRACK_OPTIONS.map((track) => (
+                      <option key={track} value={track}>
+                        {formatAcademicTrackLabel(track)}
+                      </option>
+                    ))}
+                  </select>
+                  {fieldError(enrollmentErrors, "track")}
                 </label>
                 <label>
                   Eleve
@@ -8313,6 +7490,22 @@ export function App(): JSX.Element {
                     ))}
                   </select>
                 </label>
+                <label>
+                  Filtre cursus
+                  <select
+                    value={enrollmentFilters.track}
+                    onChange={(event) =>
+                      setEnrollmentFilters((prev) => ({ ...prev, track: event.target.value }))
+                    }
+                  >
+                    <option value="">Tous</option>
+                    {ACADEMIC_TRACK_OPTIONS.map((track) => (
+                      <option key={track} value={track}>
+                        {formatAcademicTrackLabel(track)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <div className="actions">
                   <button type="submit">Filtrer</button>
                   <button type="button" className="button-ghost" onClick={() => void resetEnrollmentFilters()}>
@@ -8327,6 +7520,10 @@ export function App(): JSX.Element {
                       <th>Annee</th>
                       <th>Classe</th>
                       <th>Eleve</th>
+                      <th>Cursus</th>
+                      <th>Role</th>
+                      <th>Classe principale</th>
+                      <th>Classe secondaire</th>
                       <th>Date</th>
                       <th>Statut</th>
                       <th>Actions</th>
@@ -8335,7 +7532,7 @@ export function App(): JSX.Element {
                   <tbody>
                     {enrollments.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="empty-row">
+                        <td colSpan={10} className="empty-row">
                           Aucune inscription.
                         </td>
                       </tr>
@@ -8351,6 +7548,10 @@ export function App(): JSX.Element {
                             <td>{item.schoolYearCode || schoolYearById.get(item.schoolYearId)?.code || "-"}</td>
                             <td>{item.classLabel || localClass?.label || "-"}</td>
                             <td>{item.studentName || fallbackStudent}</td>
+                            <td>{formatAcademicTrackLabel(item.track)}</td>
+                            <td>{item.isPrimary ? "Principal" : "Secondaire"}</td>
+                            <td>{item.primaryClassLabel || "-"}</td>
+                            <td>{item.secondaryClassLabel || "-"}</td>
                             <td>{item.enrollmentDate}</td>
                             <td>{formatEnrollmentStatusLabel(item.enrollmentStatus)}</td>
                             <td>
@@ -8538,6 +7739,7 @@ export function App(): JSX.Element {
       setTab("dashboard");
     }
   };
+  const showLegacyAuthPreview = window.location.hash === "#__legacy-auth";
 
   return (
     <main
@@ -8551,7 +7753,44 @@ export function App(): JSX.Element {
       <div className="aurora aurora-right" />
 
       {!session ? (
-        <section className="auth-layout fade-up">
+        <>
+          <AuthScreen
+            schoolName={SCHOOL_NAME}
+            themeMode={themeMode}
+            themeBusy={Boolean(themeFlipTarget)}
+            onSelectTheme={selectThemeMode}
+            uiLanguage={uiLanguage}
+            languageBusy={Boolean(languageFlipTarget)}
+            onSelectLanguage={selectLanguage}
+            apiStatus={apiConnection.status}
+            apiStatusText={apiStatusText}
+            loginForm={loginForm}
+            loginUsernameError={loginErrors.username}
+            loginPasswordError={loginErrors.password}
+            onLoginFormChange={(patch) => setLoginForm((prev) => ({ ...prev, ...patch }))}
+            rememberMe={rememberMe}
+            onRememberMeChange={(next) => {
+              setRememberMe(next);
+              if (!next) localStorage.removeItem(LOGIN_HINT_STORAGE_KEY);
+            }}
+            loadingAuth={loadingAuth}
+            onSubmitLogin={(event) => void login(event)}
+            authAssistMode={authAssistMode}
+            onShowLogin={showLoginPanel}
+            onShowForgotPassword={showForgotPasswordPanel}
+            onShowFirstConnection={showFirstConnectionPanel}
+            forgotPasswordForm={forgotPasswordForm}
+            onForgotPasswordChange={(patch) => setForgotPasswordForm((prev) => ({ ...prev, ...patch }))}
+            resetPasswordForm={resetPasswordForm}
+            onResetPasswordChange={(patch) => setResetPasswordForm((prev) => ({ ...prev, ...patch }))}
+            firstConnectionForm={firstConnectionForm}
+            onFirstConnectionChange={(patch) => setFirstConnectionForm((prev) => ({ ...prev, ...patch }))}
+            authAssistLoading={authAssistLoading}
+            onSubmitForgotPassword={(event) => void requestForgotPasswordToken(event)}
+            onSubmitResetPassword={(event) => void submitResetPassword(event)}
+            onSubmitFirstConnection={(event) => void submitFirstConnection(event)}
+          />
+          {showLegacyAuthPreview ? <section className="auth-layout fade-up">
           <article className="panel auth-visual">
             <div className="auth-visual-surface">
               <div className="auth-visual-copy">
@@ -8608,6 +7847,14 @@ export function App(): JSX.Element {
                 />
               </div>
             </div>
+            {apiConnection.status !== "online" ? (
+              <p
+                className={`auth-api-banner auth-api-banner-${apiConnection.status}`.trim()}
+                role="status"
+              >
+                {apiStatusText}
+              </p>
+            ) : null}
             <form className="form-grid auth-form-grid" onSubmit={(event) => void login(event)}>
               <label className="auth-field">
                 <span className="visually-hidden">Email ou identifiant</span>
@@ -8788,7 +8035,8 @@ export function App(): JSX.Element {
               </article>
             ) : null}
           </section>
-        </section>
+        </section> : null}
+        </>
       ) : (
         <section className="workspace fade-up">
           <HeaderNavigation
@@ -8856,6 +8104,7 @@ export function App(): JSX.Element {
                   <div className="footer-meta">
                     <span>Annee: {schoolYearLabel}</span>
                     <span>Derniere sync: {lastSyncLabel}</span>
+                    {apiConnection.status !== "online" ? <span>{apiStatusText}</span> : null}
                   </div>
                 </div>
               </footer>
@@ -8893,3 +8142,5 @@ export function App(): JSX.Element {
     </main>
   );
 }
+
+

@@ -3,14 +3,27 @@ import {
   Injectable,
   NotFoundException
 } from "@nestjs/common";
-import { Prisma, type AcademicPeriod, type Classroom, type Cycle, type Level, type SchoolYear, type Subject } from "@prisma/client";
+import {
+  AcademicStage,
+  AcademicTrack,
+  Prisma,
+  RotationGroup,
+  type AcademicPeriod,
+  type Classroom,
+  type Cycle,
+  type Level,
+  type SchoolYear,
+  type Subject
+} from "@prisma/client";
 
+import { AcademicStructureService } from "../academic-structure/academic-structure.service";
 import { PrismaService } from "../database/prisma.service";
 import {
   CreateAcademicPeriodDto,
   CreateClassroomDto,
   CreateCycleDto,
   CreateLevelDto,
+  CreatePedagogicalRuleDto,
   CreateSchoolYearDto,
   CreateSubjectDto,
   UpdateAcademicPeriodDto,
@@ -35,6 +48,7 @@ type CycleView = {
   tenantId: string;
   code: string;
   label: string;
+  academicStage: AcademicStage;
   sortOrder: number;
 };
 
@@ -42,9 +56,11 @@ type LevelView = {
   id: string;
   tenantId: string;
   cycleId: string;
+  track: AcademicTrack;
   code: string;
   label: string;
   sortOrder: number;
+  rotationGroup?: RotationGroup;
 };
 
 type ClassroomView = {
@@ -52,9 +68,11 @@ type ClassroomView = {
   tenantId: string;
   schoolYearId: string;
   levelId: string;
+  track: AcademicTrack;
   code: string;
   label: string;
   capacity?: number;
+  rotationGroup?: RotationGroup;
 };
 
 type SubjectView = {
@@ -78,7 +96,10 @@ type AcademicPeriodView = {
 
 @Injectable()
 export class ReferenceService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly academicStructureService: AcademicStructureService
+  ) {}
 
   async listSchoolYears(tenantId: string): Promise<SchoolYearView[]> {
     const rows = await this.prisma.schoolYear.findMany({
@@ -178,6 +199,7 @@ export class ReferenceService {
           tenantId,
           code: payload.code.trim(),
           label: payload.label.trim(),
+          academicStage: payload.academicStage || AcademicStage.PRIMARY,
           sortOrder: payload.sortOrder,
           updatedAt: new Date()
         }
@@ -201,6 +223,7 @@ export class ReferenceService {
         data: {
           code: payload.code?.trim(),
           label: payload.label?.trim(),
+          academicStage: payload.academicStage,
           sortOrder: payload.sortOrder,
           updatedAt: new Date()
         }
@@ -220,11 +243,18 @@ export class ReferenceService {
     );
   }
 
-  async listLevels(tenantId: string, cycleId?: string): Promise<LevelView[]> {
+  async listLevels(
+    tenantId: string,
+    cycleId?: string,
+    track?: string
+  ): Promise<LevelView[]> {
     const rows = await this.prisma.level.findMany({
       where: {
         tenantId,
-        cycleId
+        cycleId,
+        track: track
+          ? this.academicStructureService.normalizeTrack(track)
+          : undefined
       },
       orderBy: [{ sortOrder: "asc" }, { label: "asc" }]
     });
@@ -233,15 +263,18 @@ export class ReferenceService {
 
   async createLevel(tenantId: string, payload: CreateLevelDto): Promise<LevelView> {
     await this.requireCycle(tenantId, payload.cycleId);
+    const track = payload.track || AcademicTrack.FRANCOPHONE;
 
     try {
       const created = await this.prisma.level.create({
         data: {
           tenantId,
           cycleId: payload.cycleId,
+          track,
           code: payload.code.trim(),
           label: payload.label.trim(),
           sortOrder: payload.sortOrder,
+          rotationGroup: payload.rotationGroup || null,
           updatedAt: new Date()
         }
       });
@@ -267,9 +300,11 @@ export class ReferenceService {
         where: { id },
         data: {
           cycleId: payload.cycleId,
+          track: payload.track,
           code: payload.code?.trim(),
           label: payload.label?.trim(),
           sortOrder: payload.sortOrder,
+          rotationGroup: payload.rotationGroup ?? undefined,
           updatedAt: new Date()
         }
       });
@@ -290,13 +325,16 @@ export class ReferenceService {
 
   async listClassrooms(
     tenantId: string,
-    filters: { schoolYearId?: string; levelId?: string }
+    filters: { schoolYearId?: string; levelId?: string; track?: string }
   ): Promise<ClassroomView[]> {
     const rows = await this.prisma.classroom.findMany({
       where: {
         tenantId,
         schoolYearId: filters.schoolYearId,
-        levelId: filters.levelId
+        levelId: filters.levelId,
+        track: filters.track
+          ? this.academicStructureService.normalizeTrack(filters.track)
+          : undefined
       },
       orderBy: [{ label: "asc" }]
     });
@@ -308,7 +346,11 @@ export class ReferenceService {
     payload: CreateClassroomDto
   ): Promise<ClassroomView> {
     await this.requireSchoolYear(tenantId, payload.schoolYearId);
-    await this.requireLevel(tenantId, payload.levelId);
+    const level = await this.requireLevel(tenantId, payload.levelId);
+    const track = payload.track || level.track;
+    if (track !== level.track) {
+      throw new ConflictException("Class track must match level track.");
+    }
 
     try {
       const created = await this.prisma.classroom.create({
@@ -316,9 +358,11 @@ export class ReferenceService {
           tenantId,
           schoolYearId: payload.schoolYearId,
           levelId: payload.levelId,
+          track,
           code: payload.code.trim(),
           label: payload.label.trim(),
           capacity: payload.capacity,
+          rotationGroup: payload.rotationGroup ?? level.rotationGroup ?? null,
           updatedAt: new Date()
         }
       });
@@ -341,8 +385,12 @@ export class ReferenceService {
     if (payload.schoolYearId) {
       await this.requireSchoolYear(tenantId, payload.schoolYearId);
     }
-    if (payload.levelId) {
-      await this.requireLevel(tenantId, payload.levelId);
+    const level = payload.levelId
+      ? await this.requireLevel(tenantId, payload.levelId)
+      : undefined;
+    const nextTrack = payload.track || level?.track;
+    if (level && nextTrack && nextTrack !== level.track) {
+      throw new ConflictException("Class track must match level track.");
     }
 
     try {
@@ -351,9 +399,11 @@ export class ReferenceService {
         data: {
           schoolYearId: payload.schoolYearId,
           levelId: payload.levelId,
+          track: payload.track,
           code: payload.code?.trim(),
           label: payload.label?.trim(),
           capacity: payload.capacity,
+          rotationGroup: payload.rotationGroup ?? undefined,
           updatedAt: new Date()
         }
       });
@@ -517,6 +567,41 @@ export class ReferenceService {
     );
   }
 
+  listAcademicTracks(): Array<{ code: AcademicTrack; label: string }> {
+    return [
+      { code: AcademicTrack.FRANCOPHONE, label: "Francophone" },
+      { code: AcademicTrack.ARABOPHONE, label: "Arabophone" }
+    ];
+  }
+
+  async listPedagogicalRules(
+    tenantId: string,
+    filters: {
+      schoolYearId?: string;
+      cycleId?: string;
+      levelId?: string;
+      classId?: string;
+      ruleType?: string;
+      track?: string;
+    }
+  ) {
+    return this.academicStructureService.listPedagogicalRules(tenantId, filters);
+  }
+
+  async createPedagogicalRule(
+    tenantId: string,
+    payload: CreatePedagogicalRuleDto
+  ) {
+    return this.academicStructureService.createPedagogicalRule(tenantId, {
+      ...payload,
+      config: payload.config as Prisma.InputJsonValue
+    });
+  }
+
+  async deletePedagogicalRule(tenantId: string, id: string): Promise<void> {
+    await this.academicStructureService.deletePedagogicalRule(tenantId, id);
+  }
+
   async requireSchoolYear(tenantId: string, id: string): Promise<SchoolYear> {
     const row = await this.prisma.schoolYear.findFirst({
       where: { id, tenantId }
@@ -597,6 +682,7 @@ export class ReferenceService {
       tenantId: row.tenantId,
       code: row.code,
       label: row.label,
+      academicStage: row.academicStage,
       sortOrder: row.sortOrder
     };
   }
@@ -606,9 +692,11 @@ export class ReferenceService {
       id: row.id,
       tenantId: row.tenantId,
       cycleId: row.cycleId,
+      track: row.track,
       code: row.code,
       label: row.label,
-      sortOrder: row.sortOrder
+      sortOrder: row.sortOrder,
+      rotationGroup: row.rotationGroup || undefined
     };
   }
 
@@ -618,9 +706,11 @@ export class ReferenceService {
       tenantId: row.tenantId,
       schoolYearId: row.schoolYearId,
       levelId: row.levelId,
+      track: row.track,
       code: row.code,
       label: row.label,
-      capacity: row.capacity === null ? undefined : row.capacity
+      capacity: row.capacity === null ? undefined : row.capacity,
+      rotationGroup: row.rotationGroup || undefined
     };
   }
 

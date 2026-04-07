@@ -1,9 +1,11 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
+import { AcademicTrack, RotationGroup } from "@prisma/client";
 import { Type } from "class-transformer";
 import {
   ArrayMinSize,
   IsArray,
   IsDateString,
+  IsEnum,
   IsIn,
   IsInt,
   IsOptional,
@@ -131,6 +133,16 @@ export class CreateTimetableSlotDto {
   @ApiProperty()
   @IsUUID("all")
   subjectId!: string;
+
+  @ApiPropertyOptional({ enum: AcademicTrack })
+  @IsOptional()
+  @IsEnum(AcademicTrack)
+  track?: AcademicTrack;
+
+  @ApiPropertyOptional({ enum: RotationGroup })
+  @IsOptional()
+  @IsEnum(RotationGroup)
+  rotationGroup?: RotationGroup;
 
   @ApiProperty({ example: 1, description: "1=Monday ... 7=Sunday" })
   @IsInt()

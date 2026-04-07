@@ -10,6 +10,7 @@ import {
   Req
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { AcademicTrack } from "@prisma/client";
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiTags } from "@nestjs/swagger";
 
 import { resolveTenantContext } from "../common/tenant-context.util";
@@ -48,6 +49,7 @@ export class GradesController {
     @Query("subjectId") subjectId?: string,
     @Query("academicPeriodId") academicPeriodId?: string,
     @Query("studentId") studentId?: string,
+    @Query("track") track?: AcademicTrack,
     @Headers("x-tenant-id") tenantHeader?: string
   ) {
     const tenantId = this.getTenantId(request.user, tenantHeader);
@@ -55,7 +57,8 @@ export class GradesController {
       classId,
       subjectId,
       academicPeriodId,
-      studentId
+      studentId,
+      track
     });
   }
 
@@ -108,13 +111,15 @@ export class GradesController {
     @Query("classId") classId?: string,
     @Query("academicPeriodId") academicPeriodId?: string,
     @Query("studentId") studentId?: string,
+    @Query("track") track?: AcademicTrack,
     @Headers("x-tenant-id") tenantHeader?: string
   ) {
     const tenantId = this.getTenantId(request.user, tenantHeader);
     return this.gradesService.listReportCards(tenantId, {
       classId,
       academicPeriodId,
-      studentId
+      studentId,
+      track
     });
   }
 
@@ -151,4 +156,3 @@ export class GradesController {
     return resolveTenantContext(this.configService, user, tenantHeader);
   }
 }
-

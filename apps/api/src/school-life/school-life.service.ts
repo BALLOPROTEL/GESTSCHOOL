@@ -4,8 +4,9 @@ import {
   NotFoundException
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { Prisma, type AttendanceAttachment } from "@prisma/client";
+import { AcademicTrack, Prisma, RotationGroup, type AttendanceAttachment } from "@prisma/client";
 
+import { AcademicStructureService } from "../academic-structure/academic-structure.service";
 import { PrismaService } from "../database/prisma.service";
 import { NotificationRequestBusService } from "../notifications/notification-request-bus.service";
 import { NotificationsService } from "../notifications/notifications.service";
@@ -47,6 +48,8 @@ type AttendanceView = {
   studentId: string;
   classId: string;
   schoolYearId: string;
+  placementId?: string;
+  track: AcademicTrack;
   attendanceDate: string;
   status: string;
   reason?: string;
@@ -103,6 +106,8 @@ type TimetableSlotView = {
   classId: string;
   schoolYearId: string;
   subjectId: string;
+  track: AcademicTrack;
+  rotationGroup?: RotationGroup;
   dayOfWeek: number;
   startTime: string;
   endTime: string;
@@ -174,6 +179,7 @@ const DAY_LABELS = new Map<number, string>([
 @Injectable()
 export class SchoolLifeService {
   constructor(
+    private readonly academicStructureService: AcademicStructureService,
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
     private readonly notificationRequestBus: NotificationRequestBusService,
@@ -310,8 +316,7 @@ export class SchoolLifeService {
   ): Promise<AttendanceView> {
     const classroom = await this.referenceService.requireClassroom(tenantId, payload.classId);
     const student = await this.requireStudent(tenantId, payload.studentId);
-
-    await this.requireEnrollmentForClassSchoolYear(
+    const placement = await this.academicStructureService.requirePlacementForStudentClass(
       tenantId,
       student.id,
       classroom.id,
@@ -329,6 +334,8 @@ export class SchoolLifeService {
             studentId: student.id,
             classId: classroom.id,
             schoolYearId: classroom.schoolYearId,
+            placementId: placement.id,
+            track: placement.track,
             attendanceDate: new Date(payload.attendanceDate),
             status,
             reason: payload.reason?.trim(),
@@ -391,7 +398,7 @@ export class SchoolLifeService {
 
       try {
         await this.requireStudent(tenantId, entry.studentId);
-        await this.requireEnrollmentForClassSchoolYear(
+        const placement = await this.academicStructureService.requirePlacementForStudentClass(
           tenantId,
           entry.studentId,
           classroom.id,
@@ -417,6 +424,8 @@ export class SchoolLifeService {
               data: {
                 status,
                 reason: entry.reason?.trim(),
+                placementId: placement.id,
+                track: placement.track,
                 justificationStatus: requiresJustification ? "PENDING" : "APPROVED",
                 validationComment: null,
                 validatedByUserId: null,
@@ -444,6 +453,8 @@ export class SchoolLifeService {
                 studentId: entry.studentId,
                 classId: classroom.id,
                 schoolYearId: classroom.schoolYearId,
+                placementId: placement.id,
+                track: placement.track,
                 attendanceDate,
                 status,
                 reason: entry.reason?.trim(),
@@ -497,8 +508,7 @@ export class SchoolLifeService {
 
     const classroom = await this.referenceService.requireClassroom(tenantId, classId);
     await this.requireStudent(tenantId, studentId);
-
-    await this.requireEnrollmentForClassSchoolYear(
+    const placement = await this.academicStructureService.requirePlacementForStudentClass(
       tenantId,
       studentId,
       classroom.id,
@@ -526,6 +536,8 @@ export class SchoolLifeService {
             studentId,
             classId: classroom.id,
             schoolYearId: classroom.schoolYearId,
+            placementId: placement.id,
+            track: placement.track,
             attendanceDate: payload.attendanceDate
               ? new Date(payload.attendanceDate)
               : undefined,
@@ -670,14 +682,20 @@ export class SchoolLifeService {
 
   async listTimetableSlots(
     tenantId: string,
-    filters: { classId?: string; schoolYearId?: string; dayOfWeek?: number }
+    filters: {
+      classId?: string;
+      schoolYearId?: string;
+      dayOfWeek?: number;
+      track?: AcademicTrack;
+    }
   ): Promise<TimetableSlotView[]> {
     const rows = await this.prisma.timetableSlot.findMany({
       where: {
         tenantId,
         classId: filters.classId,
         schoolYearId: filters.schoolYearId,
-        dayOfWeek: filters.dayOfWeek
+        dayOfWeek: filters.dayOfWeek,
+        track: filters.track
       },
       include: {
         classroom: true,
@@ -692,11 +710,12 @@ export class SchoolLifeService {
 
   async getTimetableGrid(
     tenantId: string,
-    filters: { classId?: string; schoolYearId?: string }
+    filters: { classId?: string; schoolYearId?: string; track?: AcademicTrack }
   ): Promise<TimetableGridView> {
     const slots = await this.listTimetableSlots(tenantId, {
       classId: filters.classId,
-      schoolYearId: filters.schoolYearId
+      schoolYearId: filters.schoolYearId,
+      track: filters.track
     });
 
     const days = Array.from({ length: 7 }, (_, index) => {
@@ -731,6 +750,17 @@ export class SchoolLifeService {
 
     this.validateTimes(payload.startTime, payload.endTime);
 
+    const ruleContext = await this.academicStructureService.validateTimetableSlotAgainstPedagogicalRules(
+      tenantId,
+      {
+        classId: classroom.id,
+        dayOfWeek: payload.dayOfWeek,
+        startTime: payload.startTime,
+        track: payload.track,
+        rotationGroup: payload.rotationGroup
+      }
+    );
+
     await this.ensureNoTimetableConflict(tenantId, {
       classId: classroom.id,
       schoolYearId: classroom.schoolYearId,
@@ -746,6 +776,8 @@ export class SchoolLifeService {
           tenantId,
           classId: classroom.id,
           schoolYearId: classroom.schoolYearId,
+          track: ruleContext.track,
+          rotationGroup: ruleContext.rotationGroup || null,
           subjectId: payload.subjectId,
           dayOfWeek: payload.dayOfWeek,
           startTime: payload.startTime,
@@ -796,6 +828,17 @@ export class SchoolLifeService {
 
     this.validateTimes(startTime, endTime);
 
+    const ruleContext = await this.academicStructureService.validateTimetableSlotAgainstPedagogicalRules(
+      tenantId,
+      {
+        classId: classroom.id,
+        dayOfWeek,
+        startTime,
+        track: payload.track || existing.track,
+        rotationGroup: payload.rotationGroup || existing.rotationGroup || undefined
+      }
+    );
+
     await this.ensureNoTimetableConflict(tenantId, {
       classId: classroom.id,
       schoolYearId: classroom.schoolYearId,
@@ -812,6 +855,8 @@ export class SchoolLifeService {
         data: {
           classId: classroom.id,
           schoolYearId: classroom.schoolYearId,
+          track: ruleContext.track,
+          rotationGroup: ruleContext.rotationGroup || null,
           subjectId: payload.subjectId,
           dayOfWeek: payload.dayOfWeek,
           startTime: payload.startTime,
@@ -1442,28 +1487,6 @@ export class SchoolLifeService {
     return row;
   }
 
-  private async requireEnrollmentForClassSchoolYear(
-    tenantId: string,
-    studentId: string,
-    classId: string,
-    schoolYearId: string
-  ): Promise<void> {
-    const enrollment = await this.prisma.enrollment.findFirst({
-      where: {
-        tenantId,
-        studentId,
-        classId,
-        schoolYearId
-      }
-    });
-
-    if (!enrollment) {
-      throw new ConflictException(
-        "Student is not enrolled in this class for the school year."
-      );
-    }
-  }
-
   private async requireAttendance(tenantId: string, id: string) {
     const row = await this.prisma.attendance.findFirst({
       where: {
@@ -1577,6 +1600,8 @@ export class SchoolLifeService {
       studentId: row.studentId,
       classId: row.classId,
       schoolYearId: row.schoolYearId,
+      placementId: row.placementId || undefined,
+      track: row.track,
       attendanceDate: row.attendanceDate.toISOString().slice(0, 10),
       status: row.status,
       reason: row.reason || undefined,
@@ -1622,6 +1647,8 @@ export class SchoolLifeService {
       classId: row.classId,
       schoolYearId: row.schoolYearId,
       subjectId: row.subjectId,
+      track: row.track,
+      rotationGroup: row.rotationGroup || undefined,
       dayOfWeek: row.dayOfWeek,
       startTime: row.startTime,
       endTime: row.endTime,

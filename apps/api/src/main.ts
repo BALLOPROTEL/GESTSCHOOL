@@ -1,4 +1,4 @@
-import { ValidationPipe } from "@nestjs/common";
+import { Logger, ValidationPipe } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
@@ -11,6 +11,7 @@ async function bootstrap(): Promise<void> {
   });
   app.flushLogs();
   app.enableShutdownHooks();
+  const logger = new Logger("Bootstrap");
 
   const configService = app.get(ConfigService);
   const nodeEnv = configService.get<string>("NODE_ENV", "development").trim().toLowerCase();
@@ -67,10 +68,13 @@ async function bootstrap(): Promise<void> {
     SwaggerModule.setup("api/docs", app, swaggerDocument);
   }
 
-  const renderPort = Number(configService.get<string>("PORT", ""));
+  const renderPort = Number(process.env.PORT || configService.get<string>("PORT", ""));
   const configuredPort = Number(configService.get<string>("API_PORT", "3000"));
   const port = Number.isFinite(renderPort) && renderPort > 0 ? renderPort : configuredPort;
-  await app.listen(port);
+  const host = configService.get<string>("HOST", "0.0.0.0").trim() || "0.0.0.0";
+
+  await app.listen(port, host);
+  logger.log(`API listening on http://${host}:${port}`);
 }
 
 function resolveBooleanConfig(value: string): boolean {

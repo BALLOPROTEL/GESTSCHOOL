@@ -7,6 +7,7 @@ import {
 import { ConfigModule } from "@nestjs/config";
 
 import { AnalyticsModule } from "./analytics/analytics.module";
+import { AcademicStructureModule } from "./academic-structure/academic-structure.module";
 import { AuditModule } from "./audit/audit.module";
 import { AuthModule } from "./auth/auth.module";
 import { BackgroundModule } from "./background/background.module";
@@ -36,6 +37,7 @@ import { UsersModule } from "./users/users.module";
       isGlobal: true,
       envFilePath: [".env", ".env.example", "../../.env", "../../.env.example"]
     }),
+    AcademicStructureModule,
     TokenModule,
     DatabaseModule,
     RedisModule,

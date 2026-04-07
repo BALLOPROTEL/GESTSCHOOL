@@ -53,3 +53,20 @@
 - Kubernetes:
   - `infra/k8s/api-deployment.yaml` (replicas + probes)
   - `infra/k8s/api-hpa.yaml` (autoscaling CPU)
+
+## 6) Migrations production et Supabase
+
+- Runtime:
+  - `DATABASE_URL` est utilisee par l'API et le worker
+- Migrations Prisma:
+  - `DIRECT_URL` est utilisee hors runtime pour `prisma migrate deploy`
+- Regle d'exploitation:
+  - ne jamais lancer les migrations ou le seed au boot Render
+- Ordre recommande:
+  1. renseigner `DATABASE_URL` et `DIRECT_URL` avec les URLs PostgreSQL Supabase
+  2. lancer le workflow GitHub Actions `Migrate Production`
+  3. deployer le web et le worker Render
+  4. lancer `pnpm --filter @gestschool/api db:seed:users` uniquement si un seed manuel est necessaire
+- Secrets GitHub attendus:
+  - `SUPABASE_DATABASE_URL`
+  - `SUPABASE_DIRECT_URL`

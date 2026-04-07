@@ -18,7 +18,10 @@ import { type AuthenticatedUser } from "../security/authenticated-user.interface
 import { RequirePermission } from "../security/permissions.decorator";
 import { Roles } from "../security/roles.decorator";
 import { UserRole } from "../security/roles.enum";
-import { CreateEnrollmentDto } from "./dto/create-enrollment.dto";
+import {
+  CreateEnrollmentDto,
+  CreateStudentTrackPlacementDto
+} from "./dto/create-enrollment.dto";
 import { EnrollmentsService } from "./enrollments.service";
 
 @ApiTags("enrollments")
@@ -44,10 +47,16 @@ export class EnrollmentsController {
     @Query("schoolYearId") schoolYearId?: string,
     @Query("classId") classId?: string,
     @Query("studentId") studentId?: string,
+    @Query("track") track?: string,
     @Headers("x-tenant-id") tenantHeader?: string
   ) {
     const tenantId = this.getTenantId(request.user, tenantHeader);
-    return this.enrollmentsService.list(tenantId, { schoolYearId, classId, studentId });
+    return this.enrollmentsService.list(tenantId, {
+      schoolYearId,
+      classId,
+      studentId,
+      track
+    });
   }
 
   @Post()
@@ -61,6 +70,55 @@ export class EnrollmentsController {
   ) {
     const tenantId = this.getTenantId(request.user, tenantHeader);
     return this.enrollmentsService.create(tenantId, body);
+  }
+
+  @Get("placements")
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermission("enrollments", "read")
+  @ApiOperation({ summary: "List track-aware placements" })
+  async listPlacements(
+    @Req() request: { user?: AuthenticatedUser },
+    @Query("schoolYearId") schoolYearId?: string,
+    @Query("studentId") studentId?: string,
+    @Query("classId") classId?: string,
+    @Query("levelId") levelId?: string,
+    @Query("track") track?: string,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ) {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    return this.enrollmentsService.listPlacements(tenantId, {
+      schoolYearId,
+      studentId,
+      classId,
+      levelId,
+      track
+    });
+  }
+
+  @Post("placements")
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermission("enrollments", "create")
+  @ApiOperation({ summary: "Create or update one student track placement" })
+  async createPlacement(
+    @Req() request: { user?: AuthenticatedUser },
+    @Body() body: CreateStudentTrackPlacementDto,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ) {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    return this.enrollmentsService.createPlacement(tenantId, body);
+  }
+
+  @Delete("placements/:id")
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermission("enrollments", "delete")
+  @ApiOperation({ summary: "Delete one track placement" })
+  async removePlacement(
+    @Req() request: { user?: AuthenticatedUser },
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ): Promise<void> {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    await this.enrollmentsService.removePlacement(tenantId, id);
   }
 
   @Delete(":id")
@@ -83,4 +141,3 @@ export class EnrollmentsController {
     return resolveTenantContext(this.configService, user, tenantHeader);
   }
 }
-

@@ -4,7 +4,11 @@ import {
   NotFoundException
 } from "@nestjs/common";
 import {
+  AcademicStage,
+  AcademicPlacementStatus,
+  AcademicTrack,
   Prisma,
+  ReportCardMode,
   type AcademicPeriod,
   type Classroom,
   type GradeEntry,
@@ -13,6 +17,7 @@ import {
   type Subject
 } from "@prisma/client";
 
+import { AcademicStructureService } from "../academic-structure/academic-structure.service";
 import { buildSimplePdf, toPdfDataUrl } from "../common/pdf.util";
 import { PrismaService } from "../database/prisma.service";
 import { ReferenceService } from "../reference/reference.service";
@@ -28,6 +33,8 @@ type GradeView = {
   studentId: string;
   studentName?: string;
   classId: string;
+  placementId?: string;
+  track: AcademicTrack;
   subjectId: string;
   subjectLabel?: string;
   academicPeriodId: string;
@@ -47,6 +54,8 @@ type SubjectAverageView = {
 
 type StudentClassSummaryView = {
   studentId: string;
+  placementId?: string;
+  track: AcademicTrack;
   matricule: string;
   studentName: string;
   averageGeneral: number;
@@ -59,6 +68,7 @@ type StudentClassSummaryView = {
 type ClassSummaryView = {
   classId: string;
   academicPeriodId: string;
+  track: AcademicTrack;
   classAverage: number;
   students: StudentClassSummaryView[];
 };
@@ -68,6 +78,10 @@ type ReportCardView = {
   tenantId: string;
   studentId: string;
   classId: string;
+  placementId?: string;
+  secondaryPlacementId?: string;
+  track: AcademicTrack;
+  mode: ReportCardMode;
   academicPeriodId: string;
   averageGeneral: number;
   classRank?: number;
@@ -77,11 +91,46 @@ type ReportCardView = {
   studentName?: string;
   classLabel?: string;
   periodLabel?: string;
+  secondaryClassLabel?: string;
+  sections?: ReportCardSectionView[];
+};
+
+type ReportCardSectionView = {
+  placementId?: string;
+  track: AcademicTrack;
+  classId: string;
+  classLabel?: string;
+  levelCode?: string;
+  levelLabel?: string;
+  academicStage: AcademicStage;
+  averageGeneral: number;
+  classRank?: number;
+  appreciation: string;
+  subjectAverages: SubjectAverageView[];
+};
+
+type ReportCardDraft = {
+  studentId: string;
+  classId: string;
+  placementId?: string;
+  secondaryPlacementId?: string;
+  track: AcademicTrack;
+  mode: ReportCardMode;
+  academicPeriodId: string;
+  averageGeneral: number;
+  classRank?: number;
+  appreciation?: string;
+  pdfDataUrl?: string;
+  summaryData: {
+    mode: ReportCardMode;
+    sections: ReportCardSectionView[];
+  };
 };
 
 @Injectable()
 export class GradesService {
   constructor(
+    private readonly academicStructureService: AcademicStructureService,
     private readonly prisma: PrismaService,
     private readonly referenceService: ReferenceService
   ) {}
@@ -93,6 +142,7 @@ export class GradesService {
       subjectId?: string;
       academicPeriodId?: string;
       studentId?: string;
+      track?: AcademicTrack;
     }
   ): Promise<GradeView[]> {
     const rows = await this.prisma.gradeEntry.findMany({
@@ -101,7 +151,8 @@ export class GradesService {
         classId: filters.classId,
         subjectId: filters.subjectId,
         academicPeriodId: filters.academicPeriodId,
-        studentId: filters.studentId
+        studentId: filters.studentId,
+        track: filters.track
       },
       include: {
         student: true,
@@ -117,11 +168,13 @@ export class GradesService {
     tenantId: string,
     payload: CreateGradeDto
   ): Promise<GradeView> {
-    const { classroom } = await this.validateGradeContext(tenantId, {
+    const { classroom, placement } = await this.validateGradeContext(tenantId, {
       classId: payload.classId,
       subjectId: payload.subjectId,
       academicPeriodId: payload.academicPeriodId,
-      studentId: payload.studentId
+      studentId: payload.studentId,
+      track: payload.track,
+      placementId: payload.placementId
     });
 
     const scoreMax = payload.scoreMax ?? 20;
@@ -144,6 +197,8 @@ export class GradesService {
         tenantId,
         studentId: payload.studentId,
         classId: payload.classId,
+        placementId: placement.id,
+        track: placement.track,
         subjectId: payload.subjectId,
         academicPeriodId: payload.academicPeriodId,
         assessmentLabel: payload.assessmentLabel.trim(),
@@ -159,6 +214,8 @@ export class GradesService {
         score: payload.score,
         scoreMax,
         absent: payload.absent ?? false,
+        placementId: placement.id,
+        track: placement.track,
         comment: payload.comment,
         updatedAt: new Date()
       },
@@ -185,15 +242,25 @@ export class GradesService {
       classId: payload.classId,
       subjectId: payload.subjectId,
       academicPeriodId: payload.academicPeriodId,
-      studentId: payload.grades[0].studentId
+      studentId: payload.grades[0].studentId,
+      track: payload.track
     });
 
+    const placementByStudentId = new Map<
+      string,
+      { id: string; track: AcademicTrack }
+    >();
     for (const grade of payload.grades) {
-      await this.validateGradeContext(tenantId, {
+      const context = await this.validateGradeContext(tenantId, {
         classId: payload.classId,
         subjectId: payload.subjectId,
         academicPeriodId: payload.academicPeriodId,
-        studentId: grade.studentId
+        studentId: grade.studentId,
+        track: payload.track
+      });
+      placementByStudentId.set(grade.studentId, {
+        id: context.placement.id,
+        track: context.placement.track
       });
     }
 
@@ -220,6 +287,8 @@ export class GradesService {
             tenantId,
             studentId: item.studentId,
             classId: payload.classId,
+            placementId: placementByStudentId.get(item.studentId)?.id,
+            track: placementByStudentId.get(item.studentId)?.track || classroom.track,
             subjectId: payload.subjectId,
             academicPeriodId: payload.academicPeriodId,
             assessmentLabel: payload.assessmentLabel.trim(),
@@ -235,6 +304,8 @@ export class GradesService {
             score: item.score,
             scoreMax,
             absent: item.absent ?? false,
+            placementId: placementByStudentId.get(item.studentId)?.id,
+            track: placementByStudentId.get(item.studentId)?.track || classroom.track,
             comment: item.comment,
             updatedAt: new Date()
           }
@@ -259,95 +330,96 @@ export class GradesService {
     tenantId: string,
     payload: GenerateReportCardDto
   ): Promise<ReportCardView> {
-    const summary = await this.buildClassSummary(
-      tenantId,
-      payload.classId,
-      payload.academicPeriodId
-    );
-
-    const target = summary.students.find((item) => item.studentId === payload.studentId);
-    if (!target) {
-      throw new NotFoundException("Student has no enrollment in this class.");
-    }
-
     const classroom = await this.referenceService.requireClassroom(tenantId, payload.classId);
     const period = await this.referenceService.requireAcademicPeriod(
       tenantId,
       payload.academicPeriodId
     );
 
-    const pdf = buildSimplePdf([
-      "GestSchool Report Card",
-      `Class: ${classroom.label}`,
-      `Period: ${period.label}`,
-      `Student: ${target.studentName}`,
-      `Average: ${target.averageGeneral.toFixed(2)}/20`,
-      `Rank: ${target.classRank}`,
-      `Appreciation: ${target.appreciation}`,
-      ...target.subjectAverages.map(
-        (subject) => `${subject.subjectLabel}: ${subject.average.toFixed(2)}/20`
-      )
-    ]);
+    if (classroom.schoolYearId !== period.schoolYearId) {
+      throw new ConflictException("Classroom and period must belong to the same school year.");
+    }
 
-    const saved = await this.prisma.reportCard.upsert({
-      where: {
-        tenantId_studentId_classId_academicPeriodId: {
-          tenantId,
-          studentId: payload.studentId,
-          classId: payload.classId,
-          academicPeriodId: payload.academicPeriodId
-        }
-      },
-      create: {
-        tenantId,
-        studentId: payload.studentId,
-        classId: payload.classId,
-        academicPeriodId: payload.academicPeriodId,
-        averageGeneral: target.averageGeneral,
-        classRank: target.classRank,
-        appreciation: target.appreciation,
-        pdfDataUrl: toPdfDataUrl(pdf),
-        publishedAt: payload.publish ?? true ? new Date() : null,
-        updatedAt: new Date()
-      },
-      update: {
-        averageGeneral: target.averageGeneral,
-        classRank: target.classRank,
-        appreciation: target.appreciation,
-        pdfDataUrl: toPdfDataUrl(pdf),
-        publishedAt: payload.publish ?? true ? new Date() : undefined,
-        updatedAt: new Date()
-      },
-      include: {
-        student: true,
-        classroom: true,
-        academicPeriod: true
-      }
-    });
+    const cards = await this.syncStudentReportCardsForPeriod(
+      tenantId,
+      payload.studentId,
+      classroom.schoolYearId,
+      payload.academicPeriodId,
+      payload.publish ?? true
+    );
 
-    return this.reportCardView(saved);
+    const preferred =
+      cards.find(
+        (card) =>
+          card.classId === payload.classId ||
+          card.sections?.some((section) => section.classId === payload.classId) ||
+          (payload.placementId &&
+            (card.placementId === payload.placementId ||
+              card.secondaryPlacementId === payload.placementId)) ||
+          (payload.track &&
+            card.sections?.some((section) => section.track === payload.track))
+      ) || cards[0];
+
+    if (!preferred) {
+      throw new NotFoundException("Student has no report card context for this period.");
+    }
+
+    return preferred;
   }
 
   async listReportCards(
     tenantId: string,
-    filters: { classId?: string; academicPeriodId?: string; studentId?: string }
+    filters: {
+      classId?: string;
+      academicPeriodId?: string;
+      studentId?: string;
+      track?: AcademicTrack;
+    }
   ): Promise<ReportCardView[]> {
     const rows = await this.prisma.reportCard.findMany({
       where: {
         tenantId,
-        classId: filters.classId,
         academicPeriodId: filters.academicPeriodId,
         studentId: filters.studentId
       },
       include: {
         student: true,
         classroom: true,
-        academicPeriod: true
+        academicPeriod: true,
+        placement: {
+          include: {
+            classroom: true,
+            level: true
+          }
+        },
+        secondaryPlacement: {
+          include: {
+            classroom: true,
+            level: true
+          }
+        }
       },
       orderBy: [{ createdAt: "desc" }]
     });
 
-    return rows.map((row) => this.reportCardView(row));
+    return rows
+      .map((row) => this.reportCardView(row))
+      .filter((row) => {
+        if (
+          filters.classId &&
+          row.classId !== filters.classId &&
+          !row.sections?.some((section) => section.classId === filters.classId)
+        ) {
+          return false;
+        }
+        if (
+          filters.track &&
+          !row.sections?.some((section) => section.track === filters.track)
+        ) {
+          return false;
+        }
+        return true;
+      });
   }
 
   async getReportCardPdf(
@@ -387,12 +459,16 @@ export class GradesService {
       throw new ConflictException("Classroom and period must belong to the same school year.");
     }
 
-    const [enrollments, gradeRows] = await Promise.all([
-      this.prisma.enrollment.findMany({
+    const [placements, gradeRows] = await Promise.all([
+      this.prisma.studentTrackPlacement.findMany({
         where: {
           tenantId,
           classId,
-          schoolYearId: classroom.schoolYearId
+          schoolYearId: classroom.schoolYearId,
+          track: classroom.track,
+          placementStatus: {
+            in: [AcademicPlacementStatus.ACTIVE, AcademicPlacementStatus.COMPLETED]
+          }
         },
         include: {
           student: true
@@ -403,7 +479,8 @@ export class GradesService {
         where: {
           tenantId,
           classId,
-          academicPeriodId
+          academicPeriodId,
+          track: classroom.track
         },
         include: {
           subject: true
@@ -439,8 +516,8 @@ export class GradesService {
 
     const summaryRows: Array<
       Omit<StudentClassSummaryView, "classRank"> & { classRank?: number }
-    > = enrollments.map((enrollment) => {
-      const studentMap = gradeByStudent.get(enrollment.studentId) || new Map();
+    > = placements.map((placement) => {
+      const studentMap = gradeByStudent.get(placement.studentId) || new Map();
       const subjectAverages = Array.from(studentMap.entries()).map(([subjectId, value]) => ({
         subjectId,
         subjectLabel: value.subjectLabel,
@@ -455,11 +532,13 @@ export class GradesService {
             )
           : 0;
 
-      const studentName = `${enrollment.student.firstName} ${enrollment.student.lastName}`.trim();
+      const studentName = `${placement.student.firstName} ${placement.student.lastName}`.trim();
 
       return {
-        studentId: enrollment.studentId,
-        matricule: enrollment.student.matricule,
+        studentId: placement.studentId,
+        placementId: placement.id,
+        track: placement.track,
+        matricule: placement.student.matricule,
         studentName,
         averageGeneral,
         noteCount: subjectAverages.length,
@@ -509,6 +588,7 @@ export class GradesService {
     return {
       classId,
       academicPeriodId,
+      track: classroom.track,
       classAverage,
       students
     };
@@ -521,8 +601,22 @@ export class GradesService {
       subjectId: string;
       academicPeriodId: string;
       studentId: string;
+      track?: AcademicTrack;
+      placementId?: string;
     }
-  ): Promise<{ classroom: Classroom; subject: Subject; period: AcademicPeriod; student: Student }> {
+  ): Promise<{
+    classroom: Classroom;
+    subject: Subject;
+    period: AcademicPeriod;
+    student: Student;
+    placement: {
+      id: string;
+      track: AcademicTrack;
+      classId: string | null;
+      schoolYearId: string;
+      studentId: string;
+    };
+  }> {
     const [classroom, subject, period] = await Promise.all([
       this.referenceService.requireClassroom(tenantId, context.classId),
       this.referenceService.requireSubject(tenantId, context.subjectId),
@@ -545,24 +639,43 @@ export class GradesService {
       throw new NotFoundException("Student not found.");
     }
 
-    const enrollment = await this.prisma.enrollment.findFirst({
-      where: {
-        tenantId,
-        classId: classroom.id,
-        studentId: student.id,
-        schoolYearId: classroom.schoolYearId
-      }
-    });
+    const placement = context.placementId
+      ? await this.prisma.studentTrackPlacement.findFirst({
+          where: {
+            id: context.placementId,
+            tenantId,
+            studentId: student.id
+          },
+          select: {
+            id: true,
+            track: true,
+            classId: true,
+            schoolYearId: true,
+            studentId: true
+          }
+        })
+      : await this.academicStructureService.requirePlacementForStudentClass(
+          tenantId,
+          student.id,
+          classroom.id,
+          classroom.schoolYearId,
+          context.track
+        );
 
-    if (!enrollment) {
-      throw new ConflictException("Student is not enrolled in this class for the school year.");
+    if (!placement) {
+      throw new ConflictException("Student has no academic placement in this class for the school year.");
+    }
+
+    if (placement.classId !== classroom.id || placement.schoolYearId !== classroom.schoolYearId) {
+      throw new ConflictException("Placement must belong to the same class and school year.");
     }
 
     return {
       classroom,
       subject,
       period,
-      student
+      student,
+      placement
     };
   }
 
@@ -571,38 +684,331 @@ export class GradesService {
     classId: string,
     academicPeriodId: string
   ): Promise<void> {
-    const summary = await this.buildClassSummary(tenantId, classId, academicPeriodId);
+    const classroom = await this.referenceService.requireClassroom(tenantId, classId);
+    const impactedPlacements = await this.prisma.studentTrackPlacement.findMany({
+      where: {
+        tenantId,
+        classId,
+        schoolYearId: classroom.schoolYearId,
+        placementStatus: {
+          in: [AcademicPlacementStatus.ACTIVE, AcademicPlacementStatus.COMPLETED]
+        }
+      },
+      select: {
+        studentId: true
+      },
+      distinct: ["studentId"]
+    });
 
-    await this.prisma.$transaction(
-      summary.students.map((student) =>
-        this.prisma.reportCard.upsert({
-          where: {
-            tenantId_studentId_classId_academicPeriodId: {
-              tenantId,
-              studentId: student.studentId,
-              classId,
-              academicPeriodId
-            }
-          },
-          create: {
-            tenantId,
-            studentId: student.studentId,
-            classId,
-            academicPeriodId,
-            averageGeneral: student.averageGeneral,
-            classRank: student.classRank,
-            appreciation: student.appreciation,
-            updatedAt: new Date()
-          },
-          update: {
-            averageGeneral: student.averageGeneral,
-            classRank: student.classRank,
-            appreciation: student.appreciation,
-            updatedAt: new Date()
-          }
-        })
-      )
+    for (const placement of impactedPlacements) {
+      await this.syncStudentReportCardsForPeriod(
+        tenantId,
+        placement.studentId,
+        classroom.schoolYearId,
+        academicPeriodId,
+        false
+      );
+    }
+  }
+
+  private async syncStudentReportCardsForPeriod(
+    tenantId: string,
+    studentId: string,
+    schoolYearId: string,
+    academicPeriodId: string,
+    publish: boolean
+  ): Promise<ReportCardView[]> {
+    const drafts = await this.buildStudentReportCardDrafts(
+      tenantId,
+      studentId,
+      schoolYearId,
+      academicPeriodId
     );
+
+    const existingRows = await this.prisma.reportCard.findMany({
+      where: {
+        tenantId,
+        studentId,
+        academicPeriodId
+      }
+    });
+
+    const expectedClassIds = new Set(drafts.map((draft) => draft.classId));
+    const obsoleteIds = existingRows
+      .filter((row) => !expectedClassIds.has(row.classId))
+      .map((row) => row.id);
+
+    const savedRows = await this.prisma.$transaction(async (transaction) => {
+      const saved = await Promise.all(
+        drafts.map((draft) =>
+          transaction.reportCard.upsert({
+            where: {
+              tenantId_studentId_classId_academicPeriodId: {
+                tenantId,
+                studentId,
+                classId: draft.classId,
+                academicPeriodId
+              }
+            },
+            create: {
+              tenantId,
+              studentId,
+              classId: draft.classId,
+              placementId: draft.placementId,
+              secondaryPlacementId: draft.secondaryPlacementId,
+              track: draft.track,
+              mode: draft.mode,
+              academicPeriodId,
+              averageGeneral: draft.averageGeneral,
+              classRank: draft.classRank ?? null,
+              appreciation: draft.appreciation,
+              summaryData: draft.summaryData as Prisma.InputJsonValue,
+              pdfDataUrl: draft.pdfDataUrl,
+              publishedAt: publish ? new Date() : null,
+              updatedAt: new Date()
+            },
+            update: {
+              placementId: draft.placementId,
+              secondaryPlacementId: draft.secondaryPlacementId,
+              track: draft.track,
+              mode: draft.mode,
+              averageGeneral: draft.averageGeneral,
+              classRank: draft.classRank ?? null,
+              appreciation: draft.appreciation,
+              summaryData: draft.summaryData as Prisma.InputJsonValue,
+              pdfDataUrl: draft.pdfDataUrl,
+              publishedAt: publish ? new Date() : undefined,
+              updatedAt: new Date()
+            },
+            include: {
+              student: true,
+              classroom: true,
+              academicPeriod: true,
+              placement: {
+                include: {
+                  classroom: true,
+                  level: true
+                }
+              },
+              secondaryPlacement: {
+                include: {
+                  classroom: true,
+                  level: true
+                }
+              }
+            }
+          })
+        )
+      );
+
+      if (obsoleteIds.length > 0) {
+        await transaction.reportCard.deleteMany({
+          where: {
+            id: { in: obsoleteIds }
+          }
+        });
+      }
+
+      return saved;
+    });
+
+    return savedRows.map((row) => this.reportCardView(row));
+  }
+
+  private async buildStudentReportCardDrafts(
+    tenantId: string,
+    studentId: string,
+    schoolYearId: string,
+    academicPeriodId: string
+  ): Promise<ReportCardDraft[]> {
+    const strategy = await this.academicStructureService.resolveReportCardStrategy(
+      tenantId,
+      studentId,
+      schoolYearId
+    );
+
+    if (strategy.placements.length === 0) {
+      throw new NotFoundException("Student has no active academic placement for this school year.");
+    }
+
+    const reportablePlacements = strategy.placements.filter((placement) =>
+      Boolean(placement.classId)
+    );
+    if (reportablePlacements.length === 0) {
+      throw new ConflictException("No classroom-bound placement is available for report card generation.");
+    }
+
+    if (strategy.mode === ReportCardMode.PRIMARY_COMBINED) {
+      const sections = await Promise.all(
+        reportablePlacements.map((placement) =>
+          this.buildPlacementReportSection(tenantId, placement, academicPeriodId)
+        )
+      );
+
+      const leadSection = sections[0];
+      const secondarySection = sections[1];
+      const averageGeneral =
+        sections.reduce((total, section) => total + section.averageGeneral, 0) /
+        sections.length;
+      const appreciation = this.resolveAppreciation(averageGeneral);
+      const pdf = buildSimplePdf([
+        "GestSchool Primary Report Card",
+        `Student: ${leadSection.studentName}`,
+        `Period: ${leadSection.periodLabel}`,
+        "Combined primary bulletin across active tracks",
+        ...sections.flatMap((section) => [
+          `${section.track} - ${section.classLabel || section.levelLabel || section.classId}`,
+          `Average: ${section.averageGeneral.toFixed(2)}/20`,
+          `Rank: ${section.classRank ?? "-"}`,
+          `Appreciation: ${section.appreciation}`,
+          ...section.subjectAverages.map(
+            (subject) => `${subject.subjectLabel}: ${subject.average.toFixed(2)}/20`
+          )
+        ])
+      ]);
+
+      return [
+        {
+          studentId,
+          classId: leadSection.classId,
+          placementId: leadSection.placementId,
+          secondaryPlacementId: secondarySection?.placementId,
+          track: leadSection.track,
+          mode: ReportCardMode.PRIMARY_COMBINED,
+          academicPeriodId,
+          averageGeneral,
+          classRank: undefined,
+          appreciation,
+          pdfDataUrl: toPdfDataUrl(pdf),
+          summaryData: {
+            mode: ReportCardMode.PRIMARY_COMBINED,
+            sections: sections.map((section) => this.toReportCardSectionPayload(section))
+          }
+        }
+      ];
+    }
+
+    const drafts = await Promise.all(
+      reportablePlacements.map(async (placement) => {
+        const section = await this.buildPlacementReportSection(
+          tenantId,
+          placement,
+          academicPeriodId
+        );
+        const pdf = buildSimplePdf([
+          "GestSchool Report Card",
+          `Class: ${section.classLabel || section.classId}`,
+          `Period: ${section.periodLabel}`,
+          `Student: ${section.studentName}`,
+          `Track: ${section.track}`,
+          `Average: ${section.averageGeneral.toFixed(2)}/20`,
+          `Rank: ${section.classRank ?? "-"}`,
+          `Appreciation: ${section.appreciation}`,
+          ...section.subjectAverages.map(
+            (subject) => `${subject.subjectLabel}: ${subject.average.toFixed(2)}/20`
+          )
+        ]);
+
+        return {
+          studentId,
+          classId: section.classId,
+          placementId: section.placementId,
+          track: section.track,
+          mode: ReportCardMode.TRACK_SINGLE,
+          academicPeriodId,
+          averageGeneral: section.averageGeneral,
+          classRank: section.classRank,
+          appreciation: section.appreciation,
+          pdfDataUrl: toPdfDataUrl(pdf),
+          summaryData: {
+            mode: ReportCardMode.TRACK_SINGLE,
+            sections: [this.toReportCardSectionPayload(section)]
+          }
+        } satisfies ReportCardDraft;
+      })
+    );
+
+    return drafts;
+  }
+
+  private async buildPlacementReportSection(
+    tenantId: string,
+    placement: {
+      id: string;
+      track: AcademicTrack;
+      classId?: string;
+      classLabel?: string;
+      levelCode?: string;
+      levelLabel?: string;
+      academicStage?: AcademicStage;
+      studentId: string;
+    },
+    academicPeriodId: string
+  ): Promise<
+    ReportCardSectionView & {
+      studentName: string;
+      periodLabel: string;
+    }
+  > {
+    if (!placement.classId) {
+      throw new ConflictException("Report card generation requires a classroom placement.");
+    }
+
+    const summary = await this.buildClassSummary(
+      tenantId,
+      placement.classId,
+      academicPeriodId
+    );
+    const target =
+      summary.students.find((item) => item.placementId === placement.id) ||
+      summary.students.find((item) => item.studentId === placement.studentId);
+
+    if (!target) {
+      throw new NotFoundException("Student has no track placement in this class.");
+    }
+
+    const period = await this.referenceService.requireAcademicPeriod(
+      tenantId,
+      academicPeriodId
+    );
+
+    return {
+      placementId: target.placementId,
+      track: target.track,
+      classId: summary.classId,
+      classLabel: placement.classLabel,
+      levelCode: placement.levelCode,
+      levelLabel: placement.levelLabel,
+      academicStage: placement.academicStage || AcademicStage.SECONDARY,
+      averageGeneral: target.averageGeneral,
+      classRank: target.classRank,
+      appreciation: target.appreciation,
+      subjectAverages: target.subjectAverages,
+      studentName: target.studentName,
+      periodLabel: period.label
+    };
+  }
+
+  private toReportCardSectionPayload(
+    section: ReportCardSectionView
+  ): ReportCardSectionView {
+    return {
+      placementId: section.placementId,
+      track: section.track,
+      classId: section.classId,
+      classLabel: section.classLabel,
+      levelCode: section.levelCode,
+      levelLabel: section.levelLabel,
+      academicStage: section.academicStage,
+      averageGeneral: section.averageGeneral,
+      classRank: section.classRank,
+      appreciation: section.appreciation,
+      subjectAverages: section.subjectAverages.map((subject) => ({
+        subjectId: subject.subjectId,
+        subjectLabel: subject.subjectLabel,
+        average: subject.average
+      }))
+    };
   }
 
   private gradeView(
@@ -615,6 +1021,8 @@ export class GradesService {
       id: row.id,
       tenantId: row.tenantId,
       studentId: row.studentId,
+      placementId: row.placementId || undefined,
+      track: row.track,
       studentName: row.student
         ? `${row.student.firstName} ${row.student.lastName}`.trim()
         : undefined,
@@ -636,13 +1044,63 @@ export class GradesService {
       student?: { firstName: string; lastName: string } | null;
       classroom?: { label: string } | null;
       academicPeriod?: { label: string } | null;
+      placement?: {
+        track: AcademicTrack;
+        classId: string | null;
+        classroom?: { label: string } | null;
+        level?: { code: string; label: string } | null;
+      } | null;
+      secondaryPlacement?: {
+        track: AcademicTrack;
+        classId: string | null;
+        classroom?: { label: string } | null;
+        level?: { code: string; label: string } | null;
+      } | null;
     }
   ): ReportCardView {
+    const summary =
+      row.summaryData && typeof row.summaryData === "object" && !Array.isArray(row.summaryData)
+        ? (row.summaryData as { sections?: ReportCardSectionView[] })
+        : undefined;
+    const sections =
+      summary?.sections?.map((section) => ({
+        placementId: section.placementId,
+        track: section.track,
+        classId: section.classId,
+        classLabel: section.classLabel,
+        levelCode: section.levelCode,
+        levelLabel: section.levelLabel,
+        academicStage: section.academicStage,
+        averageGeneral: section.averageGeneral,
+        classRank: section.classRank,
+        appreciation: section.appreciation,
+        subjectAverages: section.subjectAverages || []
+      })) ||
+      [
+        {
+          placementId: row.placementId || undefined,
+          track: row.track,
+          classId: row.classId,
+          classLabel: row.classroom?.label || row.placement?.classroom?.label || undefined,
+          levelCode: row.placement?.level?.code,
+          levelLabel: row.placement?.level?.label,
+          academicStage: AcademicStage.SECONDARY,
+          averageGeneral: this.decimalToNumber(row.averageGeneral),
+          classRank: row.classRank === null ? undefined : row.classRank,
+          appreciation: row.appreciation || this.resolveAppreciation(this.decimalToNumber(row.averageGeneral)),
+          subjectAverages: []
+        }
+      ];
+
     return {
       id: row.id,
       tenantId: row.tenantId,
       studentId: row.studentId,
       classId: row.classId,
+      placementId: row.placementId || undefined,
+      secondaryPlacementId: row.secondaryPlacementId || undefined,
+      track: row.track,
+      mode: row.mode,
       academicPeriodId: row.academicPeriodId,
       averageGeneral: this.decimalToNumber(row.averageGeneral),
       classRank: row.classRank === null ? undefined : row.classRank,
@@ -653,7 +1111,10 @@ export class GradesService {
         ? `${row.student.firstName} ${row.student.lastName}`.trim()
         : undefined,
       classLabel: row.classroom?.label,
-      periodLabel: row.academicPeriod?.label
+      periodLabel: row.academicPeriod?.label,
+      secondaryClassLabel:
+        row.secondaryPlacement?.classroom?.label || undefined,
+      sections
     };
   }
 

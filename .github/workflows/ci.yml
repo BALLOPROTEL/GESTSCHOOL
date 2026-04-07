@@ -25,6 +25,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://gestschool:gestschool@localhost:5432/gestschool_test
+      DIRECT_URL: postgresql://gestschool:gestschool@localhost:5432/gestschool_test
       JWT_SECRET: ci-secret
       JWT_EXPIRES_IN: 1h
       REFRESH_TOKEN_TTL_DAYS: 30
