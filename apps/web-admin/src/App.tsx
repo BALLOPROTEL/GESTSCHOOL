@@ -63,7 +63,7 @@ import {
   type HeaderNavigationGroup,
   type HeaderPreferenceAction
 } from "./header-navigation";
-import { useAuthSession } from "./hooks/use-auth-session";
+import { useAuthSession } from "./hooks/use-auth-session-resilient";
 import { UI_LANGUAGE_META, UI_LANGUAGE_ORDER, UiLanguage, useDomTranslation } from "./i18n";
 import { SchoolLifePanel } from "./school-life-panel";
 import { AuthScreen } from "./screens/auth-screen";
@@ -77,12 +77,41 @@ import {
 
 const hasFieldErrors = (errors: FieldErrors): boolean => Object.keys(errors).length > 0;
 
-const API = import.meta.env.DEV
-  ? "/api/v1"
-  : import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:3000/api/v1";
 const DEFAULT_TENANT = "00000000-0000-0000-0000-000000000001";
 const DEFAULT_CURRENCY = "CFA";
 const SCHOOL_NAME = "Al Manarat Islamiyat";
+const API_PROXY_BASE = "/api/v1";
+const LOOPBACK_API_HOSTS = new Set(["127.0.0.1", "0.0.0.0", "localhost"]);
+
+const normalizeApiBaseUrl = (value?: string): string | null => {
+  const normalized = value?.trim().replace(/\/+$/, "") || "";
+  return normalized.length > 0 ? normalized : null;
+};
+
+const isLoopbackApiBaseUrl = (value: string): boolean => {
+  try {
+    const parsed = new URL(value);
+    return LOOPBACK_API_HOSTS.has(parsed.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+};
+
+const resolveApiBaseUrls = (): string[] => {
+  if (import.meta.env.DEV) {
+    return [API_PROXY_BASE];
+  }
+
+  const configured = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
+  const candidates = [
+    ...(configured && !isLoopbackApiBaseUrl(configured) ? [configured] : []),
+    API_PROXY_BASE
+  ];
+
+  return Array.from(new Set(candidates));
+};
+
+const API_BASE_URLS = resolveApiBaseUrls();
 const CHANNEL_LABELS: Record<string, string> = {
   CASH: "Especes",
   MOBILE_MONEY: "Mobile money",
@@ -955,11 +984,12 @@ export function App(): JSX.Element {
     ensureApiAvailable,
     markApiAvailable,
     markApiUnavailable,
+    resolveApiUrl,
     saveSession,
     session,
     sessionRef
   } = useAuthSession({
-    apiBaseUrl: API,
+    apiBaseUrls: API_BASE_URLS,
     onAuthError: setError,
     onClearData: handleAuthClearData,
     onRefreshNotice: setNotice,
@@ -2478,7 +2508,7 @@ export function App(): JSX.Element {
       }
 
       try {
-        const response = await fetch(`${API}${path}`, init);
+        const response = await fetch(resolveApiUrl(path), init);
         markApiAvailable();
         return response;
       } catch {
@@ -2489,7 +2519,7 @@ export function App(): JSX.Element {
         return null;
       }
     },
-    [ensureApiAvailable, markApiAvailable, markApiUnavailable]
+    [ensureApiAvailable, markApiAvailable, markApiUnavailable, resolveApiUrl]
   );
 
   const requestForgotPasswordToken = async (event: FormEvent<HTMLFormElement>): Promise<void> => {

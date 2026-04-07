@@ -65,11 +65,11 @@ services:
       - key: FILE_STORAGE_DRIVER
         value: LOCAL
       - key: FILE_STORAGE_BASE_URL
-        value: https://gestschool-api.onrender.com/files
+        value: https://gestschool-c880.onrender.com/files
       - key: ANALYTICS_CACHE_TTL_SECONDS
         value: "45"
       - key: CORS_ORIGINS
-        value: https://gestschool-web.vercel.app
+        value: https://gestschool-api.vercel.app
       - key: SWAGGER_ENABLED
         value: "false"
   - type: worker
