@@ -1,5 +1,11 @@
 name: Migrate Production
 
+# Run this workflow only for the real production database.
+# Local P3009 / failed-migration issues must be fixed on the local database itself.
+# See docs:
+# - docs/prisma-migration-recovery.md
+# - docs/supabase-data-api-hardening.md
+
 on:
   workflow_dispatch:
 
